@@ -3,7 +3,8 @@
 // synchronously, which re-enters CodeMirror's update in a focused view.
 import { describe, expect, it, vi } from 'vitest';
 import type { FileMeta, OpenedFile } from '../src/lib/api';
-import { EditorManager, insertTab, sortPinned, tabLabels } from '../src/editor/editorManager';
+import { EditorManager, insertTab, leaves, MAX_PANES, Pane, removeLeaf, replaceLeaf, sortPinned, tabLabels } from '../src/editor/editorManager';
+import { clampRatio } from '../src/editor/panes';
 import type { CloseChoice } from '../src/editor/editorManager';
 import { parseLineCol, resolveScheme } from '../src/editor/install';
 
@@ -168,5 +169,58 @@ describe('resolveScheme', () => {
     expect(resolveScheme('auto', 'dark')).toBe('goi-dark');
     expect(resolveScheme('bogus', 'hc')).toBe('goi-dark');
     expect(resolveScheme('goi-ember', 'light')).toBe('goi-ember');
+  });
+});
+
+describe('splits', () => {
+  it('split shows the same buffer and mirrors edits', async () => {
+    const { m } = manager({ '/a.txt': 'abc' });
+    await m.open('/a.txt', { focus: false });
+    const first = m.activePane.peek();
+    const second = (await m.split(first, 'row'))!;
+    expect(m.panes.peek()).toEqual([first, second]);
+    const v1 = first.views.get('/a.txt')!;
+    const v2 = second.views.get('/a.txt')!;
+    v1.dispatch({ changes: { from: 3, insert: 'd' } });
+    expect(v2.state.doc.toString()).toBe('abcd');
+    expect(m.buffers.get('/a.txt')!.dirty.peek()).toBe(true);
+    expect(m.buffers.get('/a.txt')!.views.size).toBe(2);
+  });
+
+  it('caps at MAX_PANES and removes a pane when its last tab closes', async () => {
+    const { m } = manager({ '/a': 'x' });
+    await m.open('/a', { focus: false });
+    const p1 = m.activePane.peek();
+    for (let i = 1; i < MAX_PANES; i++) expect(await m.split(m.panes.peek()[0], i % 2 ? 'row' : 'column')).not.toBeNull();
+    expect(await m.split(p1, 'row')).toBeNull();
+    expect(m.panes.peek()).toHaveLength(MAX_PANES);
+    const last = m.panes.peek()[MAX_PANES - 1];
+    await m.close('/a', last);
+    expect(m.panes.peek()).toHaveLength(MAX_PANES - 1);
+    expect(m.buffers.has('/a')).toBe(true); // still open elsewhere
+  });
+
+  it('moveToOtherPane splits when alone and moves the tab', async () => {
+    const { m } = manager({ '/a': 'x', '/b': 'y' });
+    await m.open('/a', { focus: false });
+    await m.open('/b', { focus: false });
+    await m.moveToOtherPane();
+    const [p1, p2] = m.panes.peek();
+    expect(p1.tabs.peek().map((t) => t.path)).toEqual(['/a']);
+    expect(p2.tabs.peek().map((t) => t.path)).toEqual(['/b']);
+  });
+
+  it('tree helpers', () => {
+    const a = new Pane();
+    const b = new Pane();
+    const c = new Pane();
+    let t = replaceLeaf({ kind: 'pane', pane: a }, a, { kind: 'split', dir: 'row', ratio: 0.5, a: { kind: 'pane', pane: a }, b: { kind: 'pane', pane: b } });
+    t = replaceLeaf(t, b, { kind: 'split', dir: 'column', ratio: 0.5, a: { kind: 'pane', pane: b }, b: { kind: 'pane', pane: c } });
+    expect(leaves(t)).toEqual([a, b, c]);
+    const r = removeLeaf(t, b)!;
+    expect(leaves(r)).toEqual([a, c]);
+    expect(removeLeaf({ kind: 'pane', pane: a }, a)).toBeNull();
+    expect(clampRatio(0.01)).toBeCloseTo(0.15);
+    expect(clampRatio(0.5)).toBe(0.5);
   });
 });

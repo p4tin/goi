@@ -49,6 +49,36 @@ export interface OpenOptions {
 
 let paneSeq = 0;
 
+/** Maximum number of editor panes (a 2×2 grid). */
+export const MAX_PANES = 4;
+
+export type SplitDir = 'row' | 'column';
+
+export type SplitNode =
+  | { kind: 'pane'; pane: Pane }
+  | { kind: 'split'; dir: SplitDir; ratio: number; a: SplitNode; b: SplitNode };
+
+/** Replaces the leaf holding pane with node. */
+export function replaceLeaf(tree: SplitNode, pane: Pane, node: SplitNode): SplitNode {
+  if (tree.kind === 'pane') return tree.pane === pane ? node : tree;
+  return { ...tree, a: replaceLeaf(tree.a, pane, node), b: replaceLeaf(tree.b, pane, node) };
+}
+
+/** Removes pane's leaf, promoting its sibling. Returns null if tree is that leaf. */
+export function removeLeaf(tree: SplitNode, pane: Pane): SplitNode | null {
+  if (tree.kind === 'pane') return tree.pane === pane ? null : tree;
+  const a = removeLeaf(tree.a, pane);
+  const b = removeLeaf(tree.b, pane);
+  if (!a) return b;
+  if (!b) return a;
+  return { ...tree, a, b };
+}
+
+/** Panes in reading order (left-to-right, top-to-bottom). */
+export function leaves(tree: SplitNode): Pane[] {
+  return tree.kind === 'pane' ? [tree.pane] : [...leaves(tree.a), ...leaves(tree.b)];
+}
+
 export class Pane {
   readonly id = `pane-${++paneSeq}`;
   readonly tabs = signal<TabState[]>([]);
@@ -90,6 +120,8 @@ export class EditorManager {
   readonly buffers = new Map<string, Buffer>();
   readonly panes = signal<Pane[]>([]);
   readonly activePane = signal<Pane>(new Pane());
+  /** Split layout of the panes. */
+  readonly tree = signal<SplitNode>({ kind: 'pane', pane: this.activePane.peek() });
   /** Path of the active buffer in the active pane. */
   readonly activePath = signal<string | null>(null);
   /** Cursor of the active view: 1-based line/col, selection count. */
@@ -367,6 +399,10 @@ export class EditorManager {
       this.buffers.delete(path);
       this.hooks.closed.emit(buf);
     }
+    if (pane.tabs.peek().length === 0 && this.panes.peek().length > 1) {
+      this.removePane(pane);
+      return true;
+    }
     if (pane.active.peek() === path) {
       const rest = pane.tabs.peek();
       const next = rest[Math.min(idx, rest.length - 1)];
@@ -418,6 +454,79 @@ export class EditorManager {
     const next = ts[(i + offset + ts.length) % ts.length];
     this.activate(pane, next.path);
     pane.views.get(next.path)?.focus();
+  }
+
+  /** Splits pane in dir, showing its active file in the new pane. Returns
+   * the new pane, or null at the pane limit. */
+  async split(pane: Pane, dir: SplitDir): Promise<Pane | null> {
+    if (this.panes.peek().length >= MAX_PANES) return null;
+    const np = new Pane();
+    this.tree.set(replaceLeaf(this.tree.peek(), pane, { kind: 'split', dir, ratio: 0.5, a: { kind: 'pane', pane }, b: { kind: 'pane', pane: np } }));
+    this.panes.set(leaves(this.tree.peek()));
+    const active = pane.active.peek();
+    if (active) await this.open(active, { pane: np });
+    else this.activePane.set(np);
+    return np;
+  }
+
+  /** Closes all of pane's tabs (asking about unsaved changes) and removes it. */
+  async closePane(pane: Pane): Promise<boolean> {
+    if (this.panes.peek().length === 1) return this.closeWhere(pane, () => true, true);
+    if (!(await this.closeWhere(pane, () => true, true))) return false;
+    if (this.panes.peek().includes(pane)) this.removePane(pane);
+    return true;
+  }
+
+  private removePane(pane: Pane): void {
+    const next = removeLeaf(this.tree.peek(), pane);
+    if (!next) return;
+    for (const v of pane.views.values()) {
+      for (const b of this.buffers.values()) b.views.delete(v);
+      v.destroy();
+    }
+    pane.views.clear();
+    pane.el.remove();
+    this.tree.set(next);
+    this.panes.set(leaves(next));
+    if (this.activePane.peek() === pane) {
+      const target = this.panes.peek()[0];
+      const path = target.active.peek();
+      if (path) this.activate(target, path);
+      else {
+        this.activePane.set(target);
+        this.activePath.set(null);
+        this.hooks.activeChanged.emit(null);
+      }
+    }
+  }
+
+  /** Activates the pane offset steps away in reading order. */
+  focusPane(offset: number): void {
+    const ps = this.panes.peek();
+    if (ps.length < 2) return;
+    const i = ps.indexOf(this.activePane.peek());
+    const target = ps[(i + offset + ps.length) % ps.length];
+    const path = target.active.peek();
+    if (path) {
+      this.activate(target, path);
+      target.views.get(path)?.focus();
+    } else this.activePane.set(target);
+  }
+
+  /** Moves the active tab to the next pane (splitting right if alone). */
+  async moveToOtherPane(): Promise<void> {
+    const from = this.activePane.peek();
+    const path = from.active.peek();
+    if (!path) return;
+    const ps = this.panes.peek();
+    if (ps.length === 1) {
+      await this.split(from, 'row');
+      await this.close(path, from, true);
+      return;
+    }
+    const to = ps[(ps.indexOf(from) + 1) % ps.length];
+    await this.open(path, { pane: to });
+    await this.close(path, from, true);
   }
 
   eachView(fn: (v: EditorView, buf: Buffer) => void): void {

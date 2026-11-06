@@ -88,7 +88,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Buffers, open/close/dirty, tabs (drag reorder, pin, close variants), base CM extensions (multi-cursor, rectangular select, folding, brackets, auto-indent, soft-wrap, line numbers, search/replace, go to line, undo).
   - Req: R6.1, R6.3, R6.4 (tabs) · Verify: manual checklist; vitest for buffer dirty-state logic.
 
-- [ ] **T19 — Splits**
+- [x] **T19 — Splits**
   - Split right/down up to 2×2, same file in two panes sharing a buffer, focus/move-between-pane commands; persisted in the layout.
   - Req: R6.4 (splits), R12.2 · Verify: edits in one pane appear in the other; layout restores.
 

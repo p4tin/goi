@@ -14,17 +14,30 @@ import { effect } from '../lib/store';
 import { defaultSchemeFor } from '../theme/schemes';
 import type { SchemeId } from '../theme/tokens';
 import type { Buffer } from './buffer';
-import { EditorManager } from './editorManager';
-import type { CloseChoice, TabState } from './editorManager';
-import { renderTabs } from './tabs';
+import { EditorManager, leaves, Pane } from './editorManager';
+import type { CloseChoice, SplitNode, TabState } from './editorManager';
+import { renderPanes } from './panes';
 import './editor.css';
 
 /** The single editor manager, available after installEditor runs. */
 export let editors: EditorManager;
 
-interface EditorLayout {
-  tabs: (TabState & { line?: number; col?: number })[];
+type SavedTab = TabState & { line?: number; col?: number };
+
+interface SavedPane {
+  kind: 'pane';
+  tabs: SavedTab[];
   active: string | null;
+  focused?: boolean;
+}
+
+type SavedNode = SavedPane | { kind: 'split'; dir: 'row' | 'column'; ratio: number; a: SavedNode; b: SavedNode };
+
+interface EditorLayout {
+  tree?: SavedNode;
+  // Pre-split format (single pane).
+  tabs?: SavedTab[];
+  active?: string | null;
 }
 
 export function installEditor(wb: Workbench): void {
@@ -35,11 +48,10 @@ export function installEditor(wb: Workbench): void {
   });
   editors = m;
 
-  const pane = m.activePane.peek();
   const empty = h('div', { class: 'editor-empty' }, h('div', null, 'No file open'), h('div', { class: 'muted' }, 'Open a file from the Project panel or Search Everywhere'));
-  const area = h('div', { class: 'panes' }, pane.el);
+  const area = h('div', { class: 'panes' });
   wb.center.append(area, empty);
-  renderTabs(m, pane);
+  renderPanes(m, area, () => wb.layout.scheduleSave());
   effect(() => {
     empty.hidden = !!m.activePath();
   });
@@ -68,23 +80,12 @@ export function installEditor(wb: Workbench): void {
   });
 
   wb.layout.register<EditorLayout>('editor', {
-    save: () => {
-      const pn = m.activePane.peek();
-      return {
-        tabs: pn.tabs.peek().map((t) => {
-          const v = pn.views.get(t.path);
-          if (!v) return t;
-          const head = v.state.selection.main.head;
-          const line = v.state.doc.lineAt(head);
-          return { ...t, line: line.number, col: head - line.from + 1 };
-        }),
-        active: pn.active.peek(),
-      };
-    },
-    restore: (l) => void restoreTabs(m, l),
+    save: () => ({ tree: saveNode(m, m.tree.peek()) }),
+    restore: (l) => void restoreLayout(m, l),
   });
   effect(() => {
     m.activePath();
+    m.tree();
     for (const p of m.panes()) p.tabs();
     wb.layout.scheduleSave();
   });
@@ -93,11 +94,54 @@ export function installEditor(wb: Workbench): void {
   registerCommands(m);
 }
 
-async function restoreTabs(m: EditorManager, l: EditorLayout): Promise<void> {
-  if (!l?.tabs) return;
-  for (const t of l.tabs) await m.open(t.path, { pinned: t.pinned, background: true });
-  const active = l.tabs.find((t) => t.path === l.active) ?? l.tabs[l.tabs.length - 1];
-  if (active && m.buffers.has(active.path)) await m.open(active.path, { line: active.line, col: active.col, focus: false });
+function saveNode(m: EditorManager, n: SplitNode): SavedNode {
+  if (n.kind === 'split') return { kind: 'split', dir: n.dir, ratio: n.ratio, a: saveNode(m, n.a), b: saveNode(m, n.b) };
+  const pn = n.pane;
+  return {
+    kind: 'pane',
+    focused: pn === m.activePane.peek(),
+    active: pn.active.peek(),
+    tabs: pn.tabs.peek().map((t) => {
+      const v = pn.views.get(t.path);
+      if (!v) return t;
+      const head = v.state.selection.main.head;
+      const line = v.state.doc.lineAt(head);
+      return { ...t, line: line.number, col: head - line.from + 1 };
+    }),
+  };
+}
+
+/** Rebuilds panes from a saved tree (or the pre-split single-pane format)
+ * and reopens their tabs. */
+async function restoreLayout(m: EditorManager, l: EditorLayout): Promise<void> {
+  const saved: SavedNode | undefined = l?.tree ?? (l?.tabs ? { kind: 'pane', tabs: l.tabs, active: l.active ?? null } : undefined);
+  if (!saved) return;
+  const first = m.panes.peek()[0];
+  const pairs: [Pane, SavedPane][] = [];
+  let used = false;
+  const build = (n: SavedNode): SplitNode => {
+    if (n.kind === 'split') return { kind: 'split', dir: n.dir, ratio: n.ratio, a: build(n.a), b: build(n.b) };
+    const pane = used ? new Pane() : first;
+    used = true;
+    pairs.push([pane, n]);
+    return { kind: 'pane', pane };
+  };
+  const tree = build(saved);
+  if (leaves(tree).length > 4) return;
+  m.tree.set(tree);
+  m.panes.set(leaves(tree));
+  let focus: [Pane, SavedTab] | null = null;
+  for (const [pane, sp] of pairs) {
+    for (const t of sp.tabs) await m.open(t.path, { pane, pinned: t.pinned, background: true });
+    const active = sp.tabs.find((t) => t.path === sp.active) ?? sp.tabs[sp.tabs.length - 1];
+    if (active && m.buffers.has(active.path)) {
+      await m.open(active.path, { pane, line: active.line, col: active.col, focus: false });
+      if (sp.focused || !focus) focus = [pane, active];
+    }
+  }
+  // Drop panes whose files all failed to open.
+  for (const pane of m.panes.peek()) if (pane.tabs.peek().length === 0 && m.panes.peek().length > 1) await m.closePane(pane);
+  if (focus && m.panes.peek().includes(focus[0])) m.activate(focus[0], focus[1].path);
 }
 
 async function askSave(buf: Buffer): Promise<CloseChoice> {
@@ -159,6 +203,12 @@ function registerCommands(m: EditorManager): void {
     const p = m.activePath.peek();
     if (p) m.togglePin(m.activePane.peek(), p);
   });
+  reg('editor.splitRight', 'Split Right', () => m.split(m.activePane.peek(), 'row'), hasView);
+  reg('editor.splitDown', 'Split Down', () => m.split(m.activePane.peek(), 'column'), hasView);
+  reg('editor.focusNextPane', 'Focus Next Pane', () => m.focusPane(1));
+  reg('editor.focusPrevPane', 'Focus Previous Pane', () => m.focusPane(-1));
+  reg('editor.moveToOtherPane', 'Move Tab to Other Pane', () => m.moveToOtherPane(), hasView);
+  reg('editor.closePane', 'Close Pane', () => m.closePane(m.activePane.peek()));
   reg('editor.toggleSoftWrap', 'Toggle Soft Wrap', async () => {
     const { settingsApi } = await import('../lib/api');
     await settingsApi.set('user', 'editor.softWrap', !m.softWrap);
