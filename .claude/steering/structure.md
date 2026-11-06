@@ -45,11 +45,11 @@ goi/
 ## Architectural boundaries
 1. **`internal/` must not import Wails.** It stays UI-agnostic so it can later run as a headless/remote `goi-core` daemon (SPEC §2.3).
 2. **`internal/rpc/` is the only bridge.** It holds thin facades bound to Wails that translate calls and events to and from `internal/*` packages. No business logic.
-3. **Backend → UI events** go through one event emitter interface (`rpc.Events`) so the transport can later move from Wails events to JSON-RPC over WebSocket.
+3. **Backend → UI events** go through one event emitter interface (`events.Bus`) so the transport can later move from Wails events to JSON-RPC over WebSocket.
 4. **Frontend never touches the filesystem or spawns processes.** Everything goes through bindings.
 5. **`frontend/wailsjs/` is generated.** Wrap it in `frontend/src/lib/` and import the wrappers, not the generated files.
 5a. **Features are installers** in `frontend/src/features.ts`; they extend the editor via `editors.hooks` / `editors.addExtension`, not by editing `editorManager.ts`.
-6. Packages depend downward only: `rpc → workspace/vfs/gosdk/settings/format/recent`. Domain packages don't depend on each other unless the design says so.
+6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`. Domain packages don't depend on each other unless the design says so.
 
 ## Project-local state
 - `.goi/settings.toml`: project settings (shareable).
