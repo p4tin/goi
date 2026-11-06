@@ -4,6 +4,7 @@
 import * as AppService from '../../wailsjs/go/rpc/AppService';
 import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
+import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
@@ -43,6 +44,7 @@ export const Topics = {
   markersUpdated: 'markers.updated',
   openFile: 'app.openFile',
   beforeClose: 'app.beforeClose',
+  menuCommand: 'menu.command',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -101,6 +103,26 @@ export const app = {
   /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */
   newProject: (parentDir: string, name: string, modulePath: string): Promise<string> =>
     AppService.NewProject(parentDir, name, modulePath),
+};
+
+export interface MenuItemSpec {
+  label: string;
+  command: string;
+  /** Wails accelerator, e.g. "cmdorctrl+shift+1"; "" for none. */
+  accel: string;
+  separator: boolean;
+}
+export interface MenuSpec {
+  label: string;
+  items: MenuItemSpec[];
+}
+export interface MenuCommandEvent {
+  command: string;
+}
+
+export const menuApi = {
+  /** Replaces the native menu bar. */
+  set: (menus: MenuSpec[]): Promise<void> => MenuService.SetMenu(menus as rpc.MenuSpec[]),
 };
 
 export const workspaceApi = {

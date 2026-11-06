@@ -112,7 +112,7 @@ export function installKeymaps(wb: Workbench): void {
     bindings: () => bindings.peek().bySeq,
     canRun: (id) => commands.isEnabled(id),
     run: (id) => {
-      commands.run(id).catch((err: unknown) => console.error('command', id, err));
+      commands.runFrom('key', id).catch((err: unknown) => console.error('command', id, err));
     },
     isMac,
     onPending: (text) => {

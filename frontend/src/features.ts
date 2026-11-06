@@ -3,6 +3,7 @@
 // Add one import and one list entry per feature.
 
 import type { Workbench } from './app/workbench';
+import { installMenuBar } from './app/menuBar';
 import { installWindowCommands } from './app/windowCommands';
 import { installEditor } from './editor/install';
 import { installCloseGuard } from './editor/closeGuard';
@@ -16,6 +17,7 @@ import { installRunGutter } from './editor/runGutter';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
+import { installThemeCommands } from './theme/commands';
 import { installProjectTree } from './views/projectTree';
 import { installWelcome } from './views/welcome';
 
@@ -37,4 +39,6 @@ export const features: Feature[] = [
   installProjectTree,
   installGoStatus,
   installSettings,
+  installThemeCommands,
+  installMenuBar,
 ];

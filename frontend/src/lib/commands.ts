@@ -10,9 +10,12 @@ export interface Command {
   when?: () => boolean;
 }
 
+const DEDUPE_MS = 300;
+
 export class CommandRegistry {
   private cmds = new Map<string, Command>();
   private listeners = new Set<() => void>();
+  private lastRun: { id: string; source: string; at: number } | null = null;
 
   /** Registers cmd and returns an unregister function. Duplicate ids throw. */
   register(cmd: Command): () => void {
@@ -46,6 +49,18 @@ export class CommandRegistry {
     if (!c) throw new Error(`unknown command: ${id}`);
     if (c.when && !c.when()) return undefined;
     return await c.run(...args);
+  }
+
+  /** Runs a command on behalf of an input source (a key press, the native
+   * menu). A shortcut can reach both the key dispatcher and the native menu;
+   * the second run of the same command from a different source within
+   * DEDUPE_MS is dropped. */
+  runFrom(source: string, id: string): Promise<unknown> {
+    const now = Date.now();
+    const last = this.lastRun;
+    this.lastRun = { id, source, at: now };
+    if (last && last.id === id && last.source !== source && now - last.at < DEDUPE_MS) return Promise.resolve(undefined);
+    return this.run(id);
   }
 
   onDidChange(fn: () => void): () => void {
