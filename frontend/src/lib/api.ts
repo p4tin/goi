@@ -5,10 +5,11 @@ import * as AppService from '../../wailsjs/go/rpc/AppService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
+import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
-import type { gosdk, journal, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
+import type { gosdk, index, journal, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
 export type Project = workspace.Project;
@@ -26,6 +27,9 @@ export type GoEnvSummary = rpc.GoEnvSummary;
 export type Settings = settings.Settings;
 export type SettingsLayer = 'default' | 'user' | 'project';
 export type SettingsPaths = rpc.SettingsPaths;
+export type FileMatch = index.Match;
+export type IndexStatus = rpc.IndexStatus;
+export type FileSearchResult = rpc.FileSearchResult;
 
 export const Topics = {
   fsChanged: 'fs.changed',
@@ -132,4 +136,10 @@ export const settingsApi = {
 export const recentApi = {
   list: (): Promise<RecentEntry[]> => RecentService.List(),
   remove: (path: string): Promise<void> => RecentService.Remove(path),
+};
+
+export const search = {
+  /** Fuzzy file search; recent = absolute paths, most recent first. */
+  files: (query: string, limit = 50, recent: string[] = []): Promise<FileSearchResult> =>
+    SearchService.Files(query, limit, recent),
 };

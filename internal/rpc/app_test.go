@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/vfs"
@@ -216,4 +217,43 @@ func TestSanitizePackage(t *testing.T) {
 			t.Errorf("sanitizePackage(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+func TestSearchServiceIndexesAndFollowsChanges(t *testing.T) {
+	root := module(t)
+	a, _ := started(t, root)
+	var res FileSearchResult
+	eventuallyRPC(t, func() bool {
+		res, _ = a.searchSvc.Files("util", 10, nil)
+		return res.Index.Ready && len(res.Matches) > 0
+	})
+	if res.Matches[0].Rel != "pkg/util/util.go" {
+		t.Errorf("top = %+v", res.Matches[0])
+	}
+	for _, m := range res.Matches {
+		if strings.HasPrefix(m.Rel, ".git/") {
+			t.Errorf("excluded path indexed: %s", m.Rel)
+		}
+	}
+	os.WriteFile(filepath.Join(root, "brandnew.go"), []byte("package m\n"), 0o644)
+	eventuallyRPC(t, func() bool {
+		res, _ = a.searchSvc.Files("brandnew", 10, nil)
+		return len(res.Matches) == 1
+	})
+	os.Remove(filepath.Join(root, "brandnew.go"))
+	eventuallyRPC(t, func() bool {
+		res, _ = a.searchSvc.Files("brandnew", 10, nil)
+		return len(res.Matches) == 0
+	})
+}
+
+func eventuallyRPC(t *testing.T, cond func() bool) {
+	t.Helper()
+	for i := 0; i < 150; i++ {
+		if cond() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("condition not met within 3s")
 }

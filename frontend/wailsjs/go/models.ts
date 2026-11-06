@@ -21,6 +21,31 @@ export namespace gosdk {
 
 }
 
+export namespace index {
+	
+	export class Match {
+	    path: string;
+	    rel: string;
+	    root: string;
+	    score: number;
+	    positions: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Match(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.rel = source["rel"];
+	        this.root = source["root"];
+	        this.score = source["score"];
+	        this.positions = source["positions"];
+	    }
+	}
+
+}
+
 export namespace journal {
 	
 	export class Entry {
@@ -132,6 +157,52 @@ export namespace rpc {
 	        this.logPath = source["logPath"];
 	    }
 	}
+	export class IndexStatus {
+	    ready: boolean;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ready = source["ready"];
+	        this.count = source["count"];
+	    }
+	}
+	export class FileSearchResult {
+	    matches: index.Match[];
+	    index: IndexStatus;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileSearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.matches = this.convertValues(source["matches"], index.Match);
+	        this.index = this.convertValues(source["index"], IndexStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class GoEnvSummary {
 	    goos: string;
 	    goarch: string;
@@ -150,6 +221,7 @@ export namespace rpc {
 	        this.cross = source["cross"];
 	    }
 	}
+	
 	export class OpenedFile {
 	    meta: vfs.FileMeta;
 	    content: string;

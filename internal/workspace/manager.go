@@ -41,6 +41,8 @@ type Manager struct {
 	closed   bool
 
 	cancels []func()
+	subs    map[int]func(Project)
+	subSeq  int
 }
 
 // SettingsPath returns the project settings file for root.
@@ -125,6 +127,23 @@ func (m *Manager) SetExcludes(globs []string) error {
 	return m.opts.Settings.Set(settings.LayerProject, "project.excludes", globs)
 }
 
+// Subscribe calls fn with the new project after every re-detection.
+func (m *Manager) Subscribe(fn func(Project)) (cancel func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.subs == nil {
+		m.subs = map[int]func(Project){}
+	}
+	m.subSeq++
+	id := m.subSeq
+	m.subs[id] = fn
+	return func() {
+		m.mu.Lock()
+		delete(m.subs, id)
+		m.mu.Unlock()
+	}
+}
+
 // Close stops tracking changes.
 func (m *Manager) Close() {
 	m.mu.Lock()
@@ -204,7 +223,14 @@ func (m *Manager) redetect(ctx context.Context) error {
 	m.project, m.matcher = p, matcher
 	errsChanged := !slices.Equal(p.ParseErrors, m.lastErrs)
 	m.lastErrs = p.ParseErrors
+	subs := make([]func(Project), 0, len(m.subs))
+	for _, fn := range m.subs {
+		subs = append(subs, fn)
+	}
 	m.mu.Unlock()
+	for _, fn := range subs {
+		fn(p)
+	}
 
 	if w := m.opts.Watcher; w != nil {
 		for _, r := range p.ContentRoots[1:] {

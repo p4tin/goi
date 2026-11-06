@@ -153,7 +153,7 @@ Several tasks combine a pure-Go package, which has no UI dependency, with its UI
 |---|---|---|
 | T21 | ✅ **T21a** `internal/format` + goldens + benchmark | **T21b** `EditorService.Format`, `saveFlow.ts`, Reformat command |
 | T24 | ✅ **T24a** `internal/gosyntax` + rule tests | **T24b** `EditorService.RunMarkers`, `runGutter.ts` |
-| T25 | ✅ **T25a** `internal/index` Build/Apply/Search + benchmark | **T25b** `SearchService.Files`, watcher hookup |
+| T25 | ✅ **T25a** `internal/index` Build/Apply/Search + benchmark | ✅ **T25b** `SearchService.Files`, watcher hookup |
 | T29 | ✅ **T29a** CI workflow (vet, test, npm test, wails build on 3 OSes) | **T29b** Info.plist doc types, WebView2 embed, arm64 job |
 
 ### Dependency matrix

@@ -25,6 +25,7 @@ type session struct {
 	lock    *instance.Lock
 	crashed bool
 	app     *App
+	search  *searchIndex
 }
 
 func (a *App) openProject(path string) error {
@@ -95,6 +96,7 @@ func (a *App) openProject(path string) error {
 	}
 
 	s := &session{root: abs, manager: m, watcher: w, journal: j, lock: lock, crashed: crashed, app: a}
+	s.search = startSearchIndex(a, m, w)
 	opened = true
 	a.mu.Lock()
 	a.session = s
@@ -128,6 +130,9 @@ func (a *App) closeProject() error {
 
 // close releases the session. clean=true removes the crash journal.
 func (s *session) close(clean bool) {
+	if s.search != nil {
+		s.search.close()
+	}
 	s.manager.Close()
 	s.watcher.Close()
 	if s.journal != nil && clean {
