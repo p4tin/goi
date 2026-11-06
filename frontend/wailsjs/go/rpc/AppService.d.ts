@@ -9,6 +9,8 @@ export function Info():Promise<rpc.AppInfo>;
 
 export function LoadLayout():Promise<string>;
 
+export function NewProject(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function OpenFolderDialog():Promise<string>;
 
 export function OpenProject(arg1:string,arg2:boolean):Promise<void>;

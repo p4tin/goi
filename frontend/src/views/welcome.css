@@ -1,0 +1,154 @@
+.welcome {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(320px, 560px);
+  justify-content: center;
+  align-content: center;
+  gap: 48px;
+  padding: 32px;
+  text-align: left;
+  overflow: auto;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-title {
+  font-size: 32px;
+  margin: 0;
+  color: var(--goi-fg);
+}
+
+.welcome-version {
+  margin-bottom: 12px;
+}
+
+.welcome-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--goi-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 8px;
+  background: var(--goi-panel-bg);
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.recent-list:focus-visible {
+  outline: 2px solid var(--goi-focus-ring);
+  outline-offset: 2px;
+}
+
+.recent-row {
+  position: relative;
+  padding: 8px 36px 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.recent-row:hover {
+  background: var(--goi-hover);
+}
+
+.recent-row.selected {
+  background: var(--goi-selection);
+}
+
+.recent-row.missing {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.recent-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.recent-name {
+  font-weight: 600;
+  color: var(--goi-fg);
+}
+
+.recent-kind {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid var(--goi-panel-border);
+  color: var(--goi-fg-muted);
+}
+
+.recent-when {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.recent-path {
+  font-size: 12px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-remove {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  visibility: hidden;
+}
+
+.recent-row:hover .recent-remove,
+.recent-row.selected .recent-remove {
+  visibility: visible;
+}
+
+.recent-missing-remove {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  opacity: 1;
+}
+
+.recent-empty {
+  margin: 0;
+}
+
+.np-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 420px;
+}
+
+.np-form .dialog-label {
+  margin-top: 8px;
+}
+
+.np-row {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .welcome {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .np-form {
+    min-width: 0;
+  }
+}

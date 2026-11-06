@@ -14,6 +14,10 @@ export function LoadLayout() {
   return window['go']['rpc']['AppService']['LoadLayout']();
 }
 
+export function NewProject(arg1, arg2, arg3) {
+  return window['go']['rpc']['AppService']['NewProject'](arg1, arg2, arg3);
+}
+
 export function OpenFolderDialog() {
   return window['go']['rpc']['AppService']['OpenFolderDialog']();
 }

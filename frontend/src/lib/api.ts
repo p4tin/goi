@@ -86,6 +86,9 @@ export const app = {
     }
   },
   quit: (): Promise<void> => AppService.Quit(),
+  /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */
+  newProject: (parentDir: string, name: string, modulePath: string): Promise<string> =>
+    AppService.NewProject(parentDir, name, modulePath),
 };
 
 export const workspaceApi = {
