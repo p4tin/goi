@@ -2,7 +2,10 @@ module github.com/p4tin/goi
 
 go 1.26.0
 
-require github.com/wailsapp/wails/v2 v2.17.1
+require (
+	github.com/pelletier/go-toml/v2 v2.4.3
+	github.com/wailsapp/wails/v2 v2.17.1
+)
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
