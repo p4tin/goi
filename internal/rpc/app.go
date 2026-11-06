@@ -84,6 +84,8 @@ type App struct {
 	// focusFn brings this window forward when another process asks; set in
 	// Startup (tests override it).
 	focusFn func()
+
+	closing closeState
 	// quitAfterStart is set when the requested project is already open in
 	// another window, which was focused instead.
 	quitAfterStart bool

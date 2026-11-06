@@ -40,6 +40,7 @@ export const Topics = {
   indexUpdated: 'index.updated',
   notify: 'notify',
   markersUpdated: 'markers.updated',
+  beforeClose: 'app.beforeClose',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -90,6 +91,8 @@ export const app = {
     }
   },
   quit: (): Promise<void> => AppService.Quit(),
+  /** Allows a close the backend prevented (after unsaved work is resolved). */
+  confirmClose: (): Promise<void> => AppService.ConfirmClose(),
   /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */
   newProject: (parentDir: string, name: string, modulePath: string): Promise<string> =>
     AppService.NewProject(parentDir, name, modulePath),

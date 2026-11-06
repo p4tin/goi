@@ -6,6 +6,10 @@ export function CloseProject() {
   return window['go']['rpc']['AppService']['CloseProject']();
 }
 
+export function ConfirmClose() {
+  return window['go']['rpc']['AppService']['ConfirmClose']();
+}
+
 export function Info() {
   return window['go']['rpc']['AppService']['Info']();
 }

@@ -38,6 +38,7 @@ func main() {
 		Logger:           app.Logger(),
 		OnStartup:        app.Startup,
 		OnShutdown:       app.Shutdown,
+		OnBeforeClose:    app.BeforeClose,
 		Bind:             app.Services(),
 	})
 	if err != nil {
