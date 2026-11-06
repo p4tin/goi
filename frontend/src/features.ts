@@ -3,8 +3,9 @@
 // Add one import and one list entry per feature.
 
 import type { Workbench } from './app/workbench';
+import { installEditor } from './editor/install';
 import { installWelcome } from './views/welcome';
 
 export type Feature = (wb: Workbench) => void;
 
-export const features: Feature[] = [installWelcome];
+export const features: Feature[] = [installWelcome, installEditor];
