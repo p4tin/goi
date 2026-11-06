@@ -42,6 +42,27 @@ export namespace gosdk {
 
 }
 
+export namespace gosyntax {
+	
+	export class RunMarker {
+	    kind: string;
+	    name: string;
+	    line: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RunMarker(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.name = source["name"];
+	        this.line = source["line"];
+	    }
+	}
+
+}
+
 export namespace index {
 	
 	export class Match {

@@ -10,6 +10,7 @@ import { installDiskSync } from './editor/diskSync';
 import { installJournal } from './editor/journal';
 import { installLanguages } from './editor/languages';
 import { installPalette } from './palette/palette';
+import { installRunGutter } from './editor/runGutter';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installProjectTree } from './views/projectTree';
@@ -24,6 +25,7 @@ export const features: Feature[] = [
   installSaveFlow,
   installJournal,
   installLanguages,
+  installRunGutter,
   installDiskSync,
   installCloseGuard,
   installPalette,

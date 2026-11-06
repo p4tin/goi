@@ -9,3 +9,7 @@ export function Format(arg1, arg2) {
 export function FormatWith(arg1, arg2, arg3) {
   return window['go']['rpc']['EditorService']['FormatWith'](arg1, arg2, arg3);
 }
+
+export function RunMarkers(arg1, arg2) {
+  return window['go']['rpc']['EditorService']['RunMarkers'](arg1, arg2);
+}

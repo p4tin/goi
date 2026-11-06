@@ -159,4 +159,13 @@ export const editorApi = {
   format: (path: string, content: string): Promise<FormatResult> => EditorService.Format(path, content),
   formatWith: (path: string, content: string, mode: FormatMode): Promise<FormatResult> =>
     EditorService.FormatWith(path, content, mode),
+  runMarkers: (path: string, content: string): Promise<RunMarker[]> =>
+    EditorService.RunMarkers(path, content) as Promise<RunMarker[]>,
 };
+
+export type RunMarkerKind = 'main' | 'test' | 'bench' | 'fuzz' | 'example';
+export interface RunMarker {
+  kind: RunMarkerKind;
+  name: string;
+  line: number;
+}

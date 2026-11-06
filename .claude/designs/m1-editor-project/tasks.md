@@ -108,7 +108,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - 2 s `journalTicker`, Drop on save/discard, restore dialog on startup from `PendingRestore`.
   - Req: R6.10 · Verify: edit, `kill -9` the process, relaunch → restore offered and content intact.
 
-- [~] **T24 — Run markers gutter**
+- [x] **T24 — Run markers gutter**
   - `internal/gosyntax.RunMarkers` + tests, `EditorService.RunMarkers`, `runGutter.ts` with 300 ms debounce and version check, placeholder popup.
   - Req: R7.1–R7.3 · Verify: rule tests (`Testfoo` excluded, dot-import, generics); markers update while typing.
 

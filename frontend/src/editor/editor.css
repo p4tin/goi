@@ -148,3 +148,17 @@
 .cm-editor.cm-focused {
   outline: none;
 }
+
+.cm-run-gutter .cm-gutterElement {
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.run-marker {
+  color: var(--goi-success);
+  font-size: 10px;
+}
+
+.run-marker:hover {
+  color: var(--goi-accent);
+}
