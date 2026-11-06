@@ -1,3 +1,24 @@
+export namespace format {
+	
+	export class SyntaxError {
+	    line: number;
+	    col: number;
+	    msg: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SyntaxError(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.line = source["line"];
+	        this.col = source["col"];
+	        this.msg = source["msg"];
+	    }
+	}
+
+}
+
 export namespace gosdk {
 	
 	export class SDK {
@@ -183,6 +204,40 @@ export namespace rpc {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.matches = this.convertValues(source["matches"], index.Match);
 	        this.index = this.convertValues(source["index"], IndexStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FormatResult {
+	    content: string;
+	    changed: boolean;
+	    syntaxError?: format.SyntaxError;
+	
+	    static createFrom(source: any = {}) {
+	        return new FormatResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.content = source["content"];
+	        this.changed = source["changed"];
+	        this.syntaxError = this.convertValues(source["syntaxError"], format.SyntaxError);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
