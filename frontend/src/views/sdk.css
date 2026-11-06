@@ -1,0 +1,76 @@
+.sdk-picker {
+  min-width: 480px;
+}
+
+.sdk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 6px;
+  padding: 4px;
+  background: var(--goi-input-bg);
+}
+
+.sdk-empty {
+  padding: 12px;
+}
+
+.sdk-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--goi-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sdk-row:hover {
+  background: var(--goi-hover);
+}
+
+.sdk-row.selected {
+  background: var(--goi-selection);
+}
+
+.sdk-version {
+  font-weight: 600;
+}
+
+.sdk-path {
+  color: var(--goi-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.sdk-badge,
+.sdk-current {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--goi-panel-border);
+  color: var(--goi-fg-muted);
+}
+
+.sdk-current {
+  border-color: var(--goi-accent);
+  color: var(--goi-accent);
+}
+
+.sdk-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
