@@ -1,0 +1,130 @@
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+
+.palette {
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--goi-panel-bg);
+  color: var(--goi-fg);
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+
+.palette-title {
+  padding: 8px 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--goi-fg-muted);
+}
+
+.palette-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+}
+
+.palette-tab {
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--goi-fg-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.palette-tab.active {
+  color: var(--goi-fg);
+  background: var(--goi-hover);
+}
+
+.palette-input {
+  margin: 8px;
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--goi-input-border);
+  background: var(--goi-input-bg);
+  color: var(--goi-fg);
+  outline: none;
+}
+
+.palette-input:focus {
+  border-color: var(--goi-focus-ring);
+}
+
+.palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.palette-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.palette-row.selected {
+  background: var(--goi-selection);
+}
+
+.palette-label {
+  flex: none;
+}
+
+.palette-detail {
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.palette-hint {
+  margin-left: auto;
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
+
+.palette-row mark {
+  background: none;
+  color: var(--goi-accent);
+  font-weight: 600;
+}
+
+.palette-header {
+  padding: 8px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--goi-fg-muted);
+}
+
+.palette-info {
+  padding: 8px;
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
