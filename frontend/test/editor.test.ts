@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FileMeta, OpenedFile } from '../src/lib/api';
 import { EditorManager, insertTab, sortPinned, tabLabels } from '../src/editor/editorManager';
 import type { CloseChoice } from '../src/editor/editorManager';
-import { parseLineCol } from '../src/editor/install';
+import { parseLineCol, resolveScheme } from '../src/editor/install';
 
 function meta(path: string, extra: Partial<FileMeta> = {}): FileMeta {
   return { path, size: 0, modTime: '', binary: false, eol: '\n', bom: false, finalNewline: true, mode: 'normal', ...extra } as FileMeta;
@@ -159,5 +159,14 @@ describe('tab helpers', () => {
     expect(parseLineCol(' 3:7 ')).toEqual({ line: 3, col: 7 });
     expect(parseLineCol('3,7')).toEqual({ line: 3, col: 7 });
     expect(parseLineCol('x')).toBeNull();
+  });
+});
+
+describe('resolveScheme', () => {
+  it('follows the UI theme for auto and unknown values', () => {
+    expect(resolveScheme('auto', 'light')).toBe('goi-light');
+    expect(resolveScheme('auto', 'dark')).toBe('goi-dark');
+    expect(resolveScheme('bogus', 'hc')).toBe('goi-dark');
+    expect(resolveScheme('goi-ember', 'light')).toBe('goi-ember');
   });
 });

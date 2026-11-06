@@ -30,7 +30,7 @@ format = "goimports"        # goimports | gofmt | none
 
 [ui]
 theme = "auto"              # auto | light | dark | hc
-scheme = "goi-dark"
+scheme = "auto" # auto follows the UI theme; or goi-light, goi-dark, goi-ember, goi-paper
 keymap = "goi-default"
 
 [keys]                      # user-only: commandId = ["Mod-k Mod-s"]

@@ -3,10 +3,13 @@
 import { app, on, settingsApi, Topics, workspaceApi } from '../lib/api';
 import type { AppInfo, Project, Settings, SettingsChanged } from '../lib/api';
 import { signal } from '../lib/store';
+import type { UiThemeId } from '../theme/tokens';
 
 export const appInfo = signal<AppInfo | null>(null);
 export const project = signal<Project | null>(null);
 export const settings = signal<Settings | null>(null);
+/** The UI theme in effect after resolving 'auto'. */
+export const resolvedTheme = signal<UiThemeId>('dark');
 
 let started = false;
 

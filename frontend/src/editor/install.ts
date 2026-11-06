@@ -5,12 +5,13 @@ import { openSearchPanel } from '@codemirror/search';
 import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { promptDialog, showDialog } from '../app/dialog';
-import { project, settings } from '../app/state';
+import { project, resolvedTheme, settings } from '../app/state';
 import type { Workbench } from '../app/workbench';
 import { files } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
 import { effect } from '../lib/store';
+import { defaultSchemeFor } from '../theme/schemes';
 import type { SchemeId } from '../theme/tokens';
 import type { Buffer } from './buffer';
 import { EditorManager } from './editorManager';
@@ -52,7 +53,7 @@ export function installEditor(wb: Workbench): void {
       tabSize: s.editor.tabSize,
       softWrap: s.editor.softWrap,
     });
-    m.setScheme(s.ui.scheme as SchemeId);
+    m.setScheme(resolveScheme(s.ui.scheme, resolvedTheme()));
   });
 
   // Close everything when the project closes or changes.
@@ -194,4 +195,11 @@ export function parseLineCol(s: string): { line: number; col: number } | null {
   const m = /^\s*(\d+)\s*(?:[:,]\s*(\d+))?\s*$/.exec(s);
   if (!m) return null;
   return { line: Number(m[1]), col: m[2] ? Number(m[2]) : 1 };
+}
+
+/** Maps the ui.scheme setting to a concrete scheme; "auto" (or unknown)
+ * follows the resolved UI theme. */
+export function resolveScheme(setting: string, ui: 'light' | 'dark' | 'hc'): SchemeId {
+  const known: SchemeId[] = ['goi-light', 'goi-dark', 'goi-ember', 'goi-paper'];
+  return known.includes(setting as SchemeId) ? (setting as SchemeId) : defaultSchemeFor(ui);
 }

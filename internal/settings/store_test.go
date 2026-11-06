@@ -54,7 +54,7 @@ func TestEffectiveLayering(t *testing.T) {
 				if !s.Startup.ReopenLastProject || s.Editor.FontSize != 13 || s.Editor.TabSize != 4 ||
 					s.Editor.MaxHighlightSizeKB != 2500 || s.Editor.MaxOpenSizeKB != 20000 ||
 					s.Go.Vendor != "auto" || s.Save.Format != "goimports" || s.UI.Theme != "auto" ||
-					s.UI.Scheme != "goi-dark" || s.UI.Keymap != "goi-default" {
+					s.UI.Scheme != "auto" || s.UI.Keymap != "goi-default" {
 					t.Errorf("unexpected defaults: %+v", s)
 				}
 				want := []string{".git", "node_modules", ".idea", ".goi/cache"}
