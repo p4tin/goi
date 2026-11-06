@@ -1,7 +1,6 @@
 build/bin
 node_modules
-frontend/dist/*
-!frontend/dist/gitkeep
+frontend/dist
 .goi/cache
 .DS_Store
 .claude/worktrees/

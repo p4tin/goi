@@ -18,7 +18,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `internal/events` (Bus, Nop); `internal/applog` (slog JSON + 10 MB×5 rotating writer); `internal/rpc/bus.go` (Wails adapter); `AppService.Startup/Info`; flag parsing (`--project`).
   - Req: NFR-5 · Verify: unit test for rotation; log file appears at the cache path on launch.
 
-- [ ] **T3 — `settings` package**
+- [x] **T3 — `settings` package**
   - Embedded `defaults.toml`, layered merge, provenance, `Set` with atomic write, reload callback hook (watcher injected later), invalid-TOML keeps last good.
   - Req: R13.1, R13.2 · Verify: table-driven tests for merge/provenance/invalid/Set round-trip.
 
@@ -32,11 +32,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase B — Files & project model
 
-- [ ] **T6 — `vfs` read/write**
+- [x] **T6 — `vfs` read/write**
   - `ReadText`/`WriteText` with EOL/BOM/final-newline preservation, binary detection, size modes, atomic write.
   - Req: R6.5–R6.7, NFR-4 · Verify: round-trip tests (LF/CRLF/CR/mixed/BOM/no-final-NL/binary/size thresholds); no temp files left.
 
-- [ ] **T7 — `vfs` tree ops, trash, reveal**
+- [x] **T7 — `vfs` tree ops, trash, reveal**
   - `List` (excludes via doublestar, dirs first, natural sort), `Create`, `Rename`, `Trash` (darwin/windows/linux files), `Reveal`.
   - Req: R5.2, R5.5, NFR-4 · Verify: unit tests for List/Create/Rename/excludes; Linux trash test against a temp `XDG_DATA_HOME`; manual trash/reveal on macOS.
 
@@ -48,11 +48,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `Detect` (work → module → multi-module → gopath → folder), `ParseError` handling, `Manager` with re-detect on go.mod/go.work changes (300 ms debounce), content roots, excludes persisted to project settings.
   - Req: R2.1–R2.6, R5.3 · Verify: fixture tests in `internal/workspace/testdata`; re-detect test via the watcher.
 
-- [ ] **T10 — `gosdk` discovery, validation, runner**
+- [x] **T10 — `gosdk` discovery, validation, runner**
   - `Discover` (all OS locations), `Validate`, version probing cache, `Runner.Command` (env/tags/GOOS/GOARCH/CGO/-mod), `GoEnv`.
   - Req: R3.1–R3.6, R4.1–R4.2 · Verify: tests with fake GOROOT trees and assertions on `cmd.Env`/`cmd.Args`; `GoEnv` integration test skipped if no `go` found.
 
-- [ ] **T11 — `recent` store + `journal`**
+- [x] **T11 — `recent` store + `journal`**
   - Recent: JSON + flock, max 20, `Exists` flag. Journal: `session.lock`, crash detection by stale pid, Put/Drop/Pending/CloseClean.
   - Req: R1.3, R1.4, R6.10 · Verify: unit tests incl. two-goroutine flock contention and stale-pid detection.
 
@@ -96,7 +96,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `languages.ts` mapping + lazy imports; custom `gomod.ts` and `gotmpl.ts` stream languages; plain-text fallback; large-file banners/modes; binary placeholder.
   - Req: R6.2, R6.5, R6.6 · Verify: open a sample file for each listed type (fixtures in `frontend/test/samples/`); 3 MB file → no-highlight banner; 25 MB → read-only.
 
-- [ ] **T21 — Save flow & format on save**
+- [~] **T21 — Save flow & format on save**
   - `internal/format` (gofmt/goimports, SyntaxError, benchmark), `EditorService.Format`, `saveFlow.ts` (single-transaction minimal diff, lint diagnostic on syntax error), "Reformat File" command, save-mode setting.
   - Req: R8.1–R8.5, R6.7 · Verify: golden tests; benchmark < 200 ms at 5k lines; one undo reverts formatting; a broken file still saves.
 
@@ -108,7 +108,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - 2 s `journalTicker`, Drop on save/discard, restore dialog on startup from `PendingRestore`.
   - Req: R6.10 · Verify: edit, `kill -9` the process, relaunch → restore offered and content intact.
 
-- [ ] **T24 — Run markers gutter**
+- [~] **T24 — Run markers gutter**
   - `internal/gosyntax.RunMarkers` + tests, `EditorService.RunMarkers`, `runGutter.ts` with 300 ms debounce and version check, placeholder popup.
   - Req: R7.1–R7.3 · Verify: rule tests (`Testfoo` excluded, dot-import, generics); markers update while typing.
 
@@ -132,7 +132,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase F — Release readiness
 
-- [ ] **T29 — Platform packaging & CI**
+- [~] **T29 — Platform packaging & CI**
   - `build/darwin/Info.plist` document types, Windows WebView2 embed, Linux `webkit2_41` tag; GitHub Actions matrix (macOS/Windows/Ubuntu: vet, test, npm test, wails build) + arm64 compile-only job.
   - Req: NFR-1 · Verify: CI green on all jobs.
 
@@ -151,10 +151,10 @@ Several tasks combine a pure-Go package, which has no UI dependency, with its UI
 
 | Split | Part a: backend package only (early) | Part b: wiring + UI (late) |
 |---|---|---|
-| T21 | **T21a** `internal/format` + goldens + benchmark | **T21b** `EditorService.Format`, `saveFlow.ts`, Reformat command |
-| T24 | **T24a** `internal/gosyntax` + rule tests | **T24b** `EditorService.RunMarkers`, `runGutter.ts` |
+| T21 | ✅ **T21a** `internal/format` + goldens + benchmark | **T21b** `EditorService.Format`, `saveFlow.ts`, Reformat command |
+| T24 | ✅ **T24a** `internal/gosyntax` + rule tests | **T24b** `EditorService.RunMarkers`, `runGutter.ts` |
 | T25 | **T25a** `internal/index` Build/Apply/Search + benchmark | **T25b** `SearchService.Files`, watcher hookup |
-| T29 | **T29a** CI workflow (vet, test, npm test, wails build on 3 OSes) | **T29b** Info.plist doc types, WebView2 embed, arm64 job |
+| T29 | ✅ **T29a** CI workflow (vet, test, npm test, wails build on 3 OSes) | **T29b** Info.plist doc types, WebView2 embed, arm64 job |
 
 ### Dependency matrix
 `Depends on` = must be merged first. `Hotspots` = shared files whose edits must be merged one at a time (see below).
