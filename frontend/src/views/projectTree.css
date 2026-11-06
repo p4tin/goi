@@ -1,0 +1,104 @@
+/* Project tree. Colors only from theme tokens. */
+
+.tree-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-toolbar {
+  justify-content: flex-start;
+  gap: 4px;
+  font-size: 12px;
+  flex: none;
+}
+
+.tree-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  outline: none;
+  font-size: 13px;
+}
+
+.tree-scroll:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--goi-focus-ring);
+}
+
+.tree-sizer {
+  position: relative;
+  width: 100%;
+}
+
+.tree-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: default;
+  color: var(--goi-fg);
+}
+
+.tree-row:hover {
+  background: var(--goi-hover);
+}
+
+.tree-row.selected {
+  background: var(--goi-selection);
+}
+
+.tree-scroll:focus .tree-row.selected {
+  box-shadow: inset 0 0 0 1px var(--goi-focus-ring);
+}
+
+.tree-row.loading {
+  color: var(--goi-fg-muted);
+  font-style: italic;
+}
+
+.tree-row.root .tree-name {
+  font-weight: 600;
+}
+
+.tree-chevron {
+  width: 12px;
+  flex: none;
+  text-align: center;
+  color: var(--goi-fg-muted);
+  font-size: 11px;
+}
+
+.tree-glyph {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--goi-accent);
+}
+
+.tree-glyph.dir {
+  width: 12px;
+  height: 10px;
+  border: 1px solid var(--goi-fg-muted);
+  border-radius: 2px;
+  margin: 0 3px;
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-badge {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 8px;
+  color: var(--goi-fg-muted);
+  border: 1px solid var(--goi-panel-border);
+}
