@@ -14,7 +14,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Frontend: enable TS `strict`, add vitest + `npm test`.
   - Req: NFR-1 (partial) · Verify: `wails build` produces a launching blank window on macOS; `go vet ./...`, `npm test` pass.
 
-- [ ] **T2 — `events` + `applog` + startup wiring**
+- [x] **T2 — `events` + `applog` + startup wiring**
   - `internal/events` (Bus, Nop); `internal/applog` (slog JSON + 10 MB×5 rotating writer); `internal/rpc/bus.go` (Wails adapter); `AppService.Startup/Info`; flag parsing (`--project`).
   - Req: NFR-5 · Verify: unit test for rotation; log file appears at the cache path on launch.
 

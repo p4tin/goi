@@ -3,19 +3,29 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+
+	"github.com/p4tin/goi/internal/rpc"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	app := NewApp()
+	opts, err := rpc.ParseArgs(os.Args[1:])
+	if err != nil {
+		log.Fatalf("goi: %v", err)
+	}
+	app, err := rpc.NewApp(opts)
+	if err != nil {
+		log.Fatalf("goi: %v", err)
+	}
 
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:     "Goi",
 		Width:     1280,
 		Height:    800,
@@ -25,9 +35,10 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 30, G: 31, B: 34, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
-		Bind:             []any{},
+		Logger:           app.Logger(),
+		OnStartup:        app.Startup,
+		OnShutdown:       app.Shutdown,
+		Bind:             app.Services(),
 	})
 	if err != nil {
 		log.Fatalf("goi: %v", err)
