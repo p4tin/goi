@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.4
+	github.com/gofrs/flock v0.13.1
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/wailsapp/wails/v2 v2.17.1
 	golang.org/x/sys v0.49.0
