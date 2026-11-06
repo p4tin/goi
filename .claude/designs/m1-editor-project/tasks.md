@@ -92,19 +92,19 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Split right/down up to 2×2, same file in two panes sharing a buffer, focus/move-between-pane commands; persisted in the layout.
   - Req: R6.4 (splits), R12.2 · Verify: edits in one pane appear in the other; layout restores.
 
-- [ ] **T20 — Languages**
+- [x] **T20 — Languages**
   - `languages.ts` mapping + lazy imports; custom `gomod.ts` and `gotmpl.ts` stream languages; plain-text fallback; large-file banners/modes; binary placeholder.
   - Req: R6.2, R6.5, R6.6 · Verify: open a sample file for each listed type (fixtures in `frontend/test/samples/`); 3 MB file → no-highlight banner; 25 MB → read-only.
 
-- [~] **T21 — Save flow & format on save**
+- [x] **T21 — Save flow & format on save**
   - `internal/format` (gofmt/goimports, SyntaxError, benchmark), `EditorService.Format`, `saveFlow.ts` (single-transaction minimal diff, lint diagnostic on syntax error), "Reformat File" command, save-mode setting.
   - Req: R8.1–R8.5, R6.7 · Verify: golden tests; benchmark < 200 ms at 5k lines; one undo reverts formatting; a broken file still saves.
 
-- [ ] **T22 — Disk sync & close guard**
+- [x] **T22 — Disk sync & close guard**
   - External-change reload / conflict banner / compare (merge view); ignore self-writes; Save All / Discard / Cancel on window close.
   - Req: R6.8, R6.9 · Verify: modify an open file externally in both clean and dirty states; close with dirty buffers prompts.
 
-- [ ] **T23 — Crash journal & restore**
+- [x] **T23 — Crash journal & restore**
   - 2 s `journalTicker`, Drop on save/discard, restore dialog on startup from `PendingRestore`.
   - Req: R6.10 · Verify: edit, `kill -9` the process, relaunch → restore offered and content intact.
 
@@ -118,7 +118,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `internal/index` Build/Apply/Search with scorer, recent boost, 50k benchmark; `SearchService.Files`; incremental updates from the watcher.
   - Req: R9.2, R9.5 · Verify: scoring goldens (`wsmgr` → `workspace_manager.go` top); benchmark < 100 ms.
 
-- [ ] **T26 — Search Everywhere palette**
+- [x] **T26 — Search Everywhere palette**
   - Palette UI with All/Files/Actions/Settings tabs, virtualized results, double-Shift detector, Recent Files and Go to Line commands.
   - Req: R9.1, R9.3, R9.4 · Verify: vitest for the double-Shift detector and `rank.ts`; manual palette checklist.
 

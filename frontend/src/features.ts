@@ -5,7 +5,11 @@
 import type { Workbench } from './app/workbench';
 import { installWindowCommands } from './app/windowCommands';
 import { installEditor } from './editor/install';
+import { installCloseGuard } from './editor/closeGuard';
+import { installDiskSync } from './editor/diskSync';
 import { installJournal } from './editor/journal';
+import { installLanguages } from './editor/languages';
+import { installPalette } from './palette/palette';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installProjectTree } from './views/projectTree';
@@ -19,6 +23,10 @@ export const features: Feature[] = [
   installEditor,
   installSaveFlow,
   installJournal,
+  installLanguages,
+  installDiskSync,
+  installCloseGuard,
+  installPalette,
   installProjectTree,
   installGoStatus,
 ];
