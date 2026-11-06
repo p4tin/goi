@@ -26,7 +26,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `lib/store.ts`, `lib/dom.ts`, `lib/commands.ts`, `lib/api.ts` (wrappers for the bindings that exist so far + `on(topic)`).
   - Req: — (infrastructure) · Verify: vitest for store and command registry.
 
-- [ ] **T5 — Theme system**
+- [x] **T5 — Theme system**
   - `theme/tokens.css` (light/dark/hc), `theme/theme.ts` (auto via `matchMedia`, live switch), `theme/schemes.ts` (4 original schemes → CM highlight styles); contrast test for HC.
   - Req: R11.1–R11.4 · Verify: vitest contrast ≥ 4.5:1; toggling the OS appearance switches live.
 
@@ -153,7 +153,7 @@ Several tasks combine a pure-Go package, which has no UI dependency, with its UI
 |---|---|---|
 | T21 | ✅ **T21a** `internal/format` + goldens + benchmark | **T21b** `EditorService.Format`, `saveFlow.ts`, Reformat command |
 | T24 | ✅ **T24a** `internal/gosyntax` + rule tests | **T24b** `EditorService.RunMarkers`, `runGutter.ts` |
-| T25 | **T25a** `internal/index` Build/Apply/Search + benchmark | **T25b** `SearchService.Files`, watcher hookup |
+| T25 | ✅ **T25a** `internal/index` Build/Apply/Search + benchmark | **T25b** `SearchService.Files`, watcher hookup |
 | T29 | ✅ **T29a** CI workflow (vet, test, npm test, wails build on 3 OSes) | **T29b** Info.plist doc types, WebView2 embed, arm64 job |
 
 ### Dependency matrix
