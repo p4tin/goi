@@ -122,7 +122,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Palette UI with All/Files/Actions/Settings tabs, virtualized results, double-Shift detector, Recent Files and Go to Line commands.
   - Req: R9.1, R9.3, R9.4 · Verify: vitest for the double-Shift detector and `rank.ts`; manual palette checklist.
 
-- [ ] **T27 — Keymaps & rebinding**
+- [x] **T27 — Keymaps & rebinding**
   - `keymaps.ts` (goi-default, vscode × mac/other), chord dispatcher, CM keymap from the same table, user overrides in `settings.keys`, conflict prompt in the settings UI.
   - Req: R10.1–R10.3 · Verify: vitest for chord parsing and conflict detection; switching keymap applies immediately.
 

@@ -68,7 +68,7 @@ export function installJournal(wb: Workbench): void {
 async function offerRestore(wb: Workbench, m: EditorManager): Promise<void> {
   let entries: JournalEntry[];
   try {
-    entries = await app.pendingRestore();
+    entries = (await app.pendingRestore()) ?? [];
   } catch {
     return;
   }

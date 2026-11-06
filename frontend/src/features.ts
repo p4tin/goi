@@ -9,7 +9,9 @@ import { installCloseGuard } from './editor/closeGuard';
 import { installDiskSync } from './editor/diskSync';
 import { installJournal } from './editor/journal';
 import { installLanguages } from './editor/languages';
+import { installKeymaps } from './keymap/install';
 import { installPalette } from './palette/palette';
+import { installKeyHints } from './keymap/hints';
 import { installRunGutter } from './editor/runGutter';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
@@ -29,6 +31,8 @@ export const features: Feature[] = [
   installDiskSync,
   installCloseGuard,
   installPalette,
+  installKeymaps,
+  installKeyHints,
   installProjectTree,
   installGoStatus,
 ];

@@ -293,7 +293,11 @@ func (s *AppService) PendingRestore() ([]journal.Entry, error) {
 	if err != nil || !sess.crashed {
 		return []journal.Entry{}, nil
 	}
-	return sess.journal.Pending()
+	entries, err := sess.journal.Pending()
+	if entries == nil {
+		entries = []journal.Entry{}
+	}
+	return entries, err
 }
 
 // SaveLayout persists the window layout JSON for the open project.
