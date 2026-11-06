@@ -5,6 +5,8 @@
 import type { Workbench } from './app/workbench';
 import { installWindowCommands } from './app/windowCommands';
 import { installEditor } from './editor/install';
+import { installJournal } from './editor/journal';
+import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installProjectTree } from './views/projectTree';
 import { installWelcome } from './views/welcome';
@@ -15,6 +17,8 @@ export const features: Feature[] = [
   installWelcome,
   installWindowCommands,
   installEditor,
+  installSaveFlow,
+  installJournal,
   installProjectTree,
   installGoStatus,
 ];

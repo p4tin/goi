@@ -3,7 +3,9 @@ package rpc
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -256,4 +258,50 @@ func eventuallyRPC(t *testing.T, cond func() bool) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatal("condition not met within 3s")
+}
+
+func TestJournalRestoreAfterCrash(t *testing.T) {
+	root := module(t)
+	home := t.TempDir()
+	t.Setenv("GOI_HOME", home)
+	a1, err := NewApp(Options{ProjectPath: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a1.start(context.Background(), events.Nop{})
+	file := filepath.Join(root, "go.mod")
+	if err := a1.appSvc.JournalPut(file, "module changed\n", time.Now().Format(time.RFC3339Nano)); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a crash: release the instance lock and pretend the journal's
+	// owner died by rewriting session.lock with a dead pid.
+	a1.mu.Lock()
+	sess := a1.session
+	a1.mu.Unlock()
+	sess.lock.Release()
+	sess.watcher.Close()
+	sess.manager.Close()
+	dead := exec.Command(os.Args[0], "-test.run=^$")
+	dead.Run()
+	lockFile := filepath.Join(home, "cache", "journal", sess.manager.Project().Hash, "session.lock")
+	if err := os.WriteFile(lockFile, []byte(strconv.Itoa(dead.Process.Pid)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a2, err := NewApp(Options{ProjectPath: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a2.start(context.Background(), events.Nop{})
+	defer a2.Shutdown(context.Background())
+	got, err := a2.appSvc.PendingRestore()
+	if err != nil || len(got) != 1 || got[0].Path != file || got[0].Content != "module changed\n" {
+		t.Fatalf("PendingRestore = %+v, %v", got, err)
+	}
+	if err := a2.appSvc.JournalDrop(file); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := a2.appSvc.PendingRestore(); len(got) != 0 {
+		t.Errorf("after drop = %+v", got)
+	}
 }

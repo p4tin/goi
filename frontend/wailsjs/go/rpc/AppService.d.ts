@@ -7,6 +7,10 @@ export function CloseProject():Promise<void>;
 
 export function Info():Promise<rpc.AppInfo>;
 
+export function JournalDrop(arg1:string):Promise<void>;
+
+export function JournalPut(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function LoadLayout():Promise<string>;
 
 export function NewProject(arg1:string,arg2:string,arg3:string):Promise<string>;

@@ -10,6 +10,14 @@ export function Info() {
   return window['go']['rpc']['AppService']['Info']();
 }
 
+export function JournalDrop(arg1) {
+  return window['go']['rpc']['AppService']['JournalDrop'](arg1);
+}
+
+export function JournalPut(arg1, arg2, arg3) {
+  return window['go']['rpc']['AppService']['JournalPut'](arg1, arg2, arg3);
+}
+
 export function LoadLayout() {
   return window['go']['rpc']['AppService']['LoadLayout']();
 }

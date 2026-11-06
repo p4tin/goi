@@ -80,6 +80,9 @@ export const app = {
   openProject: (path: string, newWindow = false): Promise<void> => AppService.OpenProject(path, newWindow),
   closeProject: (): Promise<void> => AppService.CloseProject(),
   pendingRestore: (): Promise<JournalEntry[]> => AppService.PendingRestore(),
+  journalPut: (path: string, content: string, baseModTime: string): Promise<void> =>
+    AppService.JournalPut(path, content, baseModTime),
+  journalDrop: (path: string): Promise<void> => AppService.JournalDrop(path),
   saveLayout: (layout: unknown): Promise<void> => AppService.SaveLayout(JSON.stringify(layout)),
   loadLayout: async <T>(): Promise<T | null> => {
     const s = await AppService.LoadLayout();
