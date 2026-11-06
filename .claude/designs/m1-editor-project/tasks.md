@@ -56,7 +56,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Recent: JSON + flock, max 20, `Exists` flag. Journal: `session.lock`, crash detection by stale pid, Put/Drop/Pending/CloseClean.
   - Req: R1.3, R1.4, R6.10 · Verify: unit tests incl. two-goroutine flock contention and stale-pid detection.
 
-- [ ] **T12 — RPC services for project & files**
+- [x] **T12 — RPC services for project & files**
   - `AppService` (OpenFolderDialog, OpenProject, PendingRestore, SaveLayout/LoadLayout), `WorkspaceService`, `FileService`, `SDKService`, `SettingsService`, `RecentService`; full startup order; regenerate bindings; extend `lib/api.ts`.
   - Req: wiring for R1–R5, R13 · Verify: `wails dev` boots; calling each binding from devtools returns expected DTOs; `go test ./internal/rpc/...` for DTO mapping.
 

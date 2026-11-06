@@ -2,10 +2,30 @@
 // from here, never from wailsjs/ directly.
 
 import * as AppService from '../../wailsjs/go/rpc/AppService';
+import * as FileService from '../../wailsjs/go/rpc/FileService';
+import * as RecentService from '../../wailsjs/go/rpc/RecentService';
+import * as SDKService from '../../wailsjs/go/rpc/SDKService';
+import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
+import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
-import type { rpc } from '../../wailsjs/go/models';
+import type { gosdk, journal, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
+export type Project = workspace.Project;
+export type ProjectKind = 'workspace' | 'module' | 'multi-module' | 'gopath' | 'folder';
+export type Module = workspace.Module;
+export type ParseError = workspace.ParseError;
+export type FileEntry = vfs.Entry;
+export type FileMeta = vfs.FileMeta;
+export type OpenedFile = rpc.OpenedFile;
+export type RecentEntry = recent.Entry;
+export type JournalEntry = journal.Entry;
+export type SDK = gosdk.SDK;
+export type SDKStatus = rpc.SDKStatus;
+export type GoEnvSummary = rpc.GoEnvSummary;
+export type Settings = settings.Settings;
+export type SettingsLayer = 'default' | 'user' | 'project';
+export type SettingsPaths = rpc.SettingsPaths;
 
 export const Topics = {
   fsChanged: 'fs.changed',
@@ -29,6 +49,21 @@ export interface Notification {
   line?: number;
 }
 
+export type FsOp = 'create' | 'remove' | 'rename' | 'write';
+export interface FsEvent {
+  path: string;
+  op: FsOp;
+  isDir: boolean;
+}
+export interface FsBatch {
+  events: FsEvent[];
+}
+
+export interface SettingsChanged {
+  layer: SettingsLayer;
+  effective: Settings;
+}
+
 /** Subscribes to a backend topic; returns an unsubscribe function. */
 export function on<T = unknown>(topic: Topic, fn: (payload: T) => void): () => void {
   return EventsOn(topic, (payload: T) => fn(payload));
@@ -36,4 +71,62 @@ export function on<T = unknown>(topic: Topic, fn: (payload: T) => void): () => v
 
 export const app = {
   info: (): Promise<AppInfo> => AppService.Info(),
+  openFolderDialog: (): Promise<string> => AppService.OpenFolderDialog(),
+  openProject: (path: string, newWindow = false): Promise<void> => AppService.OpenProject(path, newWindow),
+  closeProject: (): Promise<void> => AppService.CloseProject(),
+  pendingRestore: (): Promise<JournalEntry[]> => AppService.PendingRestore(),
+  saveLayout: (layout: unknown): Promise<void> => AppService.SaveLayout(JSON.stringify(layout)),
+  loadLayout: async <T>(): Promise<T | null> => {
+    const s = await AppService.LoadLayout();
+    if (!s) return null;
+    try {
+      return JSON.parse(s) as T;
+    } catch {
+      return null;
+    }
+  },
+  quit: (): Promise<void> => AppService.Quit(),
+};
+
+export const workspaceApi = {
+  /** The open project, or null on the Welcome screen. */
+  project: async (): Promise<Project | null> => (await WorkspaceService.Project()) ?? null,
+  addContentRoot: (path: string): Promise<void> => WorkspaceService.AddContentRoot(path),
+  removeContentRoot: (path: string): Promise<void> => WorkspaceService.RemoveContentRoot(path),
+  setExcludes: (globs: string[]): Promise<void> => WorkspaceService.SetExcludes(globs),
+  sdkStatus: (): Promise<SDKStatus> => WorkspaceService.SDKStatus(),
+  goEnv: (): Promise<Record<string, string>> => WorkspaceService.GoEnv(),
+  goEnvSummary: (): Promise<GoEnvSummary> => WorkspaceService.GoEnvSummary(),
+};
+
+export const files = {
+  list: (dir: string): Promise<FileEntry[]> => FileService.List(dir),
+  read: (path: string): Promise<OpenedFile> => FileService.Read(path),
+  write: (path: string, content: string, meta: FileMeta): Promise<FileMeta> => FileService.Write(path, content, meta),
+  create: (path: string, isDir: boolean, content = ''): Promise<void> => FileService.Create(path, isDir, content),
+  createGoFile: (dir: string, name: string): Promise<string> => FileService.CreateGoFile(dir, name),
+  rename: (from: string, to: string): Promise<void> => FileService.Rename(from, to),
+  trash: (path: string): Promise<void> => FileService.Trash(path),
+  reveal: (path: string): Promise<void> => FileService.Reveal(path),
+  copyPath: (path: string): Promise<void> => FileService.CopyPath(path),
+};
+
+export const sdk = {
+  discover: (): Promise<SDK[]> => SDKService.Discover(),
+  validate: (goroot: string): Promise<SDK> => SDKService.Validate(goroot),
+  select: (goroot: string): Promise<void> => SDKService.Select(goroot),
+};
+
+export const settingsApi = {
+  effective: (): Promise<Settings> => SettingsService.Effective(),
+  origins: (): Promise<Record<string, SettingsLayer>> =>
+    SettingsService.Origins() as Promise<Record<string, SettingsLayer>>,
+  set: (layer: 'user' | 'project', key: string, value: unknown): Promise<void> =>
+    SettingsService.Set(layer, key, value),
+  paths: (): Promise<SettingsPaths> => SettingsService.Paths(),
+};
+
+export const recentApi = {
+  list: (): Promise<RecentEntry[]> => RecentService.List(),
+  remove: (path: string): Promise<void> => RecentService.Remove(path),
 };
