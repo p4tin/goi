@@ -221,7 +221,13 @@ class ProjectTree {
   private select(path: string | null, scroll = true): void {
     this.state.selected = path;
     this.wb.layout.scheduleSave();
-    this.refresh();
+    // Update rows in place: rebuilding them on mousedown would detach the
+    // pressed element, so its click/dblclick would never fire.
+    for (const el of this.sizer.querySelectorAll<HTMLElement>('.tree-row')) {
+      const sel = el.dataset.path === path;
+      el.classList.toggle('selected', sel);
+      el.setAttribute('aria-selected', String(sel));
+    }
     if (scroll && this.virtualizer) {
       const i = rowIndex(this.rows, path);
       if (i >= 0) this.virtualizer.scrollToIndex(i, { align: 'auto' });
@@ -287,6 +293,7 @@ class ProjectTree {
         'aria-expanded': row.isDir ? String(row.expanded) : undefined,
         style: `transform: translateY(${top}px); padding-left: ${6 + row.depth * 14}px`,
         title: row.loading ? undefined : row.path,
+        'data-path': row.loading ? undefined : row.path,
       },
       h(
         'span',
