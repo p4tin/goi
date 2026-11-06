@@ -2,7 +2,10 @@ module github.com/p4tin/goi
 
 go 1.26.0
 
-require github.com/wailsapp/wails/v2 v2.17.1
+require (
+	github.com/wailsapp/wails/v2 v2.17.1
+	golang.org/x/tools v0.52.0
+)
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
@@ -29,10 +32,12 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.17.1 => /Users/p4tin/.gvm/pkgsets/go1.25.6/global/pkg/mod
