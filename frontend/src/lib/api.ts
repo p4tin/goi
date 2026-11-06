@@ -2,6 +2,7 @@
 // from here, never from wailsjs/ directly.
 
 import * as AppService from '../../wailsjs/go/rpc/AppService';
+import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
@@ -142,4 +143,14 @@ export const search = {
   /** Fuzzy file search; recent = absolute paths, most recent first. */
   files: (query: string, limit = 50, recent: string[] = []): Promise<FileSearchResult> =>
     SearchService.Files(query, limit, recent),
+};
+
+export type FormatResult = rpc.FormatResult;
+export type FormatMode = 'goimports' | 'gofmt' | 'none';
+
+export const editorApi = {
+  /** Formats with the save.format setting; syntax errors are in the result. */
+  format: (path: string, content: string): Promise<FormatResult> => EditorService.Format(path, content),
+  formatWith: (path: string, content: string, mode: FormatMode): Promise<FormatResult> =>
+    EditorService.FormatWith(path, content, mode),
 };
