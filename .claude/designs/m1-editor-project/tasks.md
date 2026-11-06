@@ -66,25 +66,25 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - CSS-grid shell, resizable/collapsible left/right/bottom panels, toggle commands, status bar skeleton, notifications (toasts + panel consuming `notify`), layout save/restore per project.
   - Req: R12.1, R12.2 · Verify: resize/collapse persists across restart; `notify` events render.
 
-- [ ] **T14 — Welcome screen**
+- [x] **T14 — Welcome screen**
   - Open Folder, New Project placeholder (creates folder + `go mod init` via Runner after asking for the module path), recent list with missing-entry greying/remove, reopen-last-project on start.
   - Req: R1.1–R1.5 · Verify: manual flow; deleted folder shows greyed with Remove.
 
-- [ ] **T15 — Multi-window instances**
+- [x] **T15 — Multi-window instances**
   - `--project` launch, instance lock + loopback `focus` ping, "Open in New Window", macOS `open -n` path.
   - Req: R12.3 · Verify: opening project A twice focuses the existing window; A and B in two windows simultaneously; recent list updates in both.
 
-- [ ] **T16 — Project tree**
+- [x] **T16 — Project tree**
   - Virtualized lazy tree over content roots, `fs.changed` reconcile keeping expansion/selection, context menu (new file/dir/Go file, rename, trash, copy path, reveal), additional-root and exclude actions.
   - Req: R5.1–R5.6 · Verify: 5,000-entry dir stays smooth; external `touch`/`rm` reflected < 1 s; new Go file gets `package <dir>`.
 
-- [ ] **T17 — SDK picker, Go env & status bar**
+- [x] **T17 — SDK picker, Go env & status bar**
   - SDK picker dialog (discover, select, add manually with validation), "No Go SDK" warning, `go env -json` on open, GOOS/GOARCH/GOVERSION + cross badge in status bar.
   - Req: R3.3–R3.6, R4.3, R4.4 · Verify: switch SDK → status bar updates; invalid GOROOT rejected with message.
 
 ## Phase D — Editor
 
-- [ ] **T18 — Editor manager, tabs & base extensions**
+- [x] **T18 — Editor manager, tabs & base extensions**
   - Buffers, open/close/dirty, tabs (drag reorder, pin, close variants), base CM extensions (multi-cursor, rectangular select, folding, brackets, auto-indent, soft-wrap, line numbers, search/replace, go to line, undo).
   - Req: R6.1, R6.3, R6.4 (tabs) · Verify: manual checklist; vitest for buffer dirty-state logic.
 
