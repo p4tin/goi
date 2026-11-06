@@ -11,6 +11,7 @@ import (
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
 )
 
@@ -53,7 +54,7 @@ func (s *FileService) Read(path string) (OpenedFile, error) {
 
 // Write saves content (LF-normalized) restoring the file's EOL and BOM.
 func (s *FileService) Write(path string, content string, meta vfs.FileMeta) (vfs.FileMeta, error) {
-	if err := s.guard(path); err != nil {
+	if err := s.guard(path); err != nil && !s.isSettingsFile(path) {
 		return vfs.FileMeta{}, err
 	}
 	return vfs.WriteText(path, content, meta)
@@ -110,6 +111,21 @@ func (s *FileService) Reveal(path string) error {
 // CopyPath puts path on the clipboard.
 func (s *FileService) CopyPath(path string) error {
 	return wruntime.ClipboardSetText(s.app.ctx, path)
+}
+
+// isSettingsFile reports whether path is the user or project settings file,
+// which may be edited directly even when outside the project.
+func (s *FileService) isSettingsFile(path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	for _, p := range []string{s.app.settings.Path(settings.LayerUser), s.app.settings.Path(settings.LayerProject)} {
+		if p != "" && filepath.Clean(p) == abs {
+			return true
+		}
+	}
+	return false
 }
 
 // guard rejects paths outside the open project's content roots, and content

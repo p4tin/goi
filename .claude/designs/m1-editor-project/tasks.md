@@ -126,7 +126,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `keymaps.ts` (goi-default, vscode × mac/other), chord dispatcher, CM keymap from the same table, user overrides in `settings.keys`, conflict prompt in the settings UI.
   - Req: R10.1–R10.3 · Verify: vitest for chord parsing and conflict detection; switching keymap applies immediately.
 
-- [ ] **T28 — Settings UI**
+- [x] **T28 — Settings UI**
   - Schema-driven searchable form over all M1 settings, origin badges (default/user/project), write to the chosen layer, theme/scheme/keymap pickers.
   - Req: R13.3 (+ UI for R4, R8.1, R10, R11) · Verify: change a project setting → `.goi/settings.toml` updated and badge shows "project".
 

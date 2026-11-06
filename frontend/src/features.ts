@@ -15,6 +15,7 @@ import { installKeyHints } from './keymap/hints';
 import { installRunGutter } from './editor/runGutter';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
+import { installSettings } from './views/settings/settingsView';
 import { installProjectTree } from './views/projectTree';
 import { installWelcome } from './views/welcome';
 
@@ -35,4 +36,5 @@ export const features: Feature[] = [
   installKeyHints,
   installProjectTree,
   installGoStatus,
+  installSettings,
 ];

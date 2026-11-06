@@ -343,3 +343,15 @@ func TestOpenFileQueuedThenOpensProject(t *testing.T) {
 		t.Errorf("open file events = %+v", ev)
 	}
 }
+
+func TestWriteUserSettingsFileOutsideProject(t *testing.T) {
+	root := module(t)
+	a, _ := started(t, root)
+	user := a.settingsSvc.Paths().User
+	if _, err := a.fileSvc.Write(user, "[editor]\nfontSize = 15\n", vfs.FileMeta{}); err != nil {
+		t.Fatalf("write user settings: %v", err)
+	}
+	if _, err := a.fileSvc.Write(filepath.Join(filepath.Dir(user), "other.toml"), "x", vfs.FileMeta{}); err == nil {
+		t.Error("other file outside project: want error")
+	}
+}
