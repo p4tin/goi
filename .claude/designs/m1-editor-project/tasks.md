@@ -62,7 +62,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase C — Shell & views
 
-- [ ] **T13 — Workbench layout & panels**
+- [x] **T13 — Workbench layout & panels**
   - CSS-grid shell, resizable/collapsible left/right/bottom panels, toggle commands, status bar skeleton, notifications (toasts + panel consuming `notify`), layout save/restore per project.
   - Req: R12.1, R12.2 · Verify: resize/collapse persists across restart; `notify` events render.
 

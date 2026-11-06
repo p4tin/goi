@@ -105,3 +105,14 @@ export function batch(fn: () => void): void {
     if (batchDepth === 0) flush();
   }
 }
+
+/** Runs fn without tracking signal reads in the enclosing effect. */
+export function untracked<T>(fn: () => T): T {
+  const prev = current;
+  current = null;
+  try {
+    return fn();
+  } finally {
+    current = prev;
+  }
+}

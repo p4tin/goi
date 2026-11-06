@@ -5,10 +5,19 @@ body {
   background: var(--goi-bg);
   color: var(--goi-fg);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
 }
 
-#app {
+.welcome-host {
+  height: 100%;
+}
+
+.welcome {
   height: 100%;
   display: grid;
-  place-items: center;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
 }
