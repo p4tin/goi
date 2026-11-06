@@ -136,7 +136,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `build/darwin/Info.plist` document types, Windows WebView2 embed, Linux `webkit2_41` tag; GitHub Actions matrix (macOS/Windows/Ubuntu: vet, test, npm test, wails build) + arm64 compile-only job.
   - Req: NFR-1 · Verify: CI green on all jobs.
 
-- [ ] **T30 — Performance & acceptance pass**
+- [~] **T30 — Performance & acceptance pass**
   - Measure NFR-2/3 (cold start, 10k-file open, typing latency) and fix regressions; run the manual acceptance checklist on macOS, Windows and Linux; record results in `retro.md` notes.
   - Req: NFR-2, NFR-3, all R* · Verify: checklist complete, numbers recorded.
 

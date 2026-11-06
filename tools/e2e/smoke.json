@@ -1,0 +1,63 @@
+{
+  "url": "http://localhost:34115/",
+  "out": "/tmp/goi-e2e",
+  "initialWait": 4000,
+  "steps": [
+    {
+      "label": "open main.go",
+      "eval": "(() => { const r=[...document.querySelectorAll('.tree-row')].find(e=>e.textContent.trim().endsWith('main.go')); r.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); r.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); return !!r; })()"
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "label": "highlighted spans",
+      "eval": "document.querySelectorAll('.cm-line span').length"
+    },
+    {
+      "label": "run markers",
+      "eval": "[...document.querySelectorAll('.run-marker')].map(e=>e.title)"
+    },
+    {
+      "label": "language status",
+      "eval": "document.querySelector('[data-status=editor-language]')?.textContent"
+    },
+    {
+      "key": "\\",
+      "code": "Backslash",
+      "mods": [
+        "Meta"
+      ]
+    },
+    {
+      "wait": 600
+    },
+    {
+      "label": "panes after split",
+      "eval": "document.querySelectorAll('.pane').length"
+    },
+    {
+      "key": "a",
+      "mods": [
+        "Meta",
+        "Shift"
+      ]
+    },
+    {
+      "wait": 400
+    },
+    {
+      "type": "save all"
+    },
+    {
+      "wait": 500
+    },
+    {
+      "label": "palette rows",
+      "eval": "[...document.querySelectorAll('.palette-row, [role=option]')].slice(0,3).map(e=>e.textContent)"
+    },
+    {
+      "shot": "w8.png"
+    }
+  ]
+}

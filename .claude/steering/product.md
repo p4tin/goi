@@ -16,7 +16,8 @@ macOS (arm64, amd64), Windows (amd64, arm64), Linux (amd64, arm64). All three ar
 - **v0.3:** profiling, Docker/K8s/DB tooling, remote mode, AI/MCP.
 
 ## Current milestone
-**M1: Editor + Project model.** Spec items F-PRJ-1/2/4/5/7/8, F-ED-1/2/4/10, F-UI-1/2/3/4. No gopls, debugger, terminal or git yet.
+**M1: Editor + Project model** — implemented (see `.claude/designs/m1-editor-project/acceptance.md`); Windows/Linux runs and native-window checks pending.
+**Next: M2 — Intelligence** (gopls via LSP: completion, navigation, references, rename, diagnostics).
 
 ## Principles
 - Fast and calm: no UI freeze > 100 ms; heavy work stays off the UI thread.

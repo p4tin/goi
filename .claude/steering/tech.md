@@ -11,7 +11,8 @@
 | FS watching | `github.com/fsnotify/fsnotify` | Debounced, recursive walk with excludes |
 | Formatting | `go/format` (stdlib gofmt) + `golang.org/x/tools/imports` (goimports) | In-process, no external binary needed |
 | Tests (Go) | stdlib `testing` | Table-driven; `t.TempDir()` for FS tests |
-| Tests (TS) | Vitest | Pure modules only (keymap, palette ranking, theme tokens) |
+| Tests (TS) | Vitest + happy-dom | Pure modules and DOM/CodeMirror units |
+| E2E | `tools/e2e/cdp.mjs` | Headless Chrome over CDP against `wails dev` |
 
 ## Prerequisites (dev machine)
 - Go 1.26+ (auto-downloaded via GOTOOLCHAIN=auto; local go1.25.6 is fine)
@@ -21,11 +22,16 @@
 - Windows: WebView2 runtime (bundled bootstrapper via Wails)
 - gopls / golangci-lint: not needed for M1
 
+## Dependencies (as built)
+- Go: wails/v2, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock
+- Frontend: @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes}, @lezer/highlight, @tanstack/virtual-core; dev: vite, typescript, vitest, happy-dom
+
 ## Developer commands
 ```
 wails dev                 # run with hot reload
 wails build               # production build for host OS
 wails build -platform windows/amd64,linux/amd64   # cross targets (CI preferred)
+GOI_HOME=/tmp/goi wails dev   # isolated user profile
 go test ./internal/...    # backend tests
 cd frontend && npm test   # frontend unit tests (vitest)
 go vet ./... && gofmt -l .
