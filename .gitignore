@@ -4,3 +4,4 @@ frontend/dist/*
 !frontend/dist/gitkeep
 .goi/cache
 .DS_Store
+.claude/worktrees/
