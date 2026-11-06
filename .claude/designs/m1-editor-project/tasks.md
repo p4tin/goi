@@ -40,11 +40,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - `List` (excludes via doublestar, dirs first, natural sort), `Create`, `Rename`, `Trash` (darwin/windows/linux files), `Reveal`.
   - Req: R5.2, R5.5, NFR-4 · Verify: unit tests for List/Create/Rename/excludes; Linux trash test against a temp `XDG_DATA_HOME`; manual trash/reveal on macOS.
 
-- [ ] **T8 — `vfs` watcher**
+- [x] **T8 — `vfs` watcher**
   - fsnotify recursive watcher, excludes, auto-add new dirs, 75 ms coalescing, inotify `ENOSPC` → notify; hook settings hot-reload (T3) to it.
   - Req: R5.4, R13.2 · Verify: watcher tests (create/rename/delete batched within 1 s; excluded dirs silent); editing `settings.toml` externally triggers reload.
 
-- [ ] **T9 — `workspace` detection & manager**
+- [x] **T9 — `workspace` detection & manager**
   - `Detect` (work → module → multi-module → gopath → folder), `ParseError` handling, `Manager` with re-detect on go.mod/go.work changes (300 ms debounce), content roots, excludes persisted to project settings.
   - Req: R2.1–R2.6, R5.3 · Verify: fixture tests in `internal/workspace/testdata`; re-detect test via the watcher.
 
