@@ -41,6 +41,7 @@ export const Topics = {
   indexUpdated: 'index.updated',
   notify: 'notify',
   markersUpdated: 'markers.updated',
+  openFile: 'app.openFile',
   beforeClose: 'app.beforeClose',
 } as const;
 

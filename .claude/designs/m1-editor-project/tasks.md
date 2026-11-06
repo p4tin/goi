@@ -132,7 +132,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase F — Release readiness
 
-- [~] **T29 — Platform packaging & CI**
+- [x] **T29 — Platform packaging & CI**
   - `build/darwin/Info.plist` document types, Windows WebView2 embed, Linux `webkit2_41` tag; GitHub Actions matrix (macOS/Windows/Ubuntu: vet, test, npm test, wails build) + arm64 compile-only job.
   - Req: NFR-1 · Verify: CI green on all jobs.
 

@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 
 	"github.com/p4tin/goi/internal/rpc"
 )
@@ -40,6 +41,9 @@ func main() {
 		OnShutdown:       app.Shutdown,
 		OnBeforeClose:    app.BeforeClose,
 		Bind:             app.Services(),
+		Mac: &mac.Options{
+			OnFileOpen: app.OpenFile,
+		},
 	})
 	if err != nil {
 		log.Fatalf("goi: %v", err)

@@ -66,6 +66,8 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             wails build -tags webkit2_41
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            wails build -webview2 embed
           else
             wails build
           fi

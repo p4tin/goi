@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view';
 import { promptDialog, showDialog } from '../app/dialog';
 import { project, resolvedTheme, settings } from '../app/state';
 import type { Workbench } from '../app/workbench';
-import { files } from '../lib/api';
+import { files, on, Topics } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
 import { effect } from '../lib/store';
@@ -89,6 +89,9 @@ export function installEditor(wb: Workbench): void {
     for (const p of m.panes()) p.tabs();
     wb.layout.scheduleSave();
   });
+
+  // Files opened from the OS (macOS file association, CLI arguments).
+  on<{ path: string }>(Topics.openFile, (e) => void m.open(e.path));
 
   installStatus(wb, m);
   registerCommands(m);

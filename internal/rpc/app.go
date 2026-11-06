@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,6 +29,9 @@ import (
 // Options are the parsed command-line options.
 type Options struct {
 	ProjectPath string
+	// Files are files to open (positional arguments, e.g. from an OS file
+	// association on Windows/Linux).
+	Files []string
 }
 
 // ParseArgs parses Goi's command-line arguments. Unknown flags (for example
@@ -35,7 +40,7 @@ func ParseArgs(args []string) (Options, error) {
 	fs := flag.NewFlagSet("goi", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	project := fs.String("project", "", "project folder to open")
-	var known []string
+	var known, positional []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--project" || a == "-project" {
@@ -46,6 +51,8 @@ func ParseArgs(args []string) (Options, error) {
 			}
 		} else if strings.HasPrefix(a, "--project=") || strings.HasPrefix(a, "-project=") {
 			known = append(known, a)
+		} else if !strings.HasPrefix(a, "-") {
+			positional = append(positional, a)
 		}
 	}
 	if err := fs.Parse(known); err != nil {
@@ -59,18 +66,34 @@ func ParseArgs(args []string) (Options, error) {
 		}
 		opts.ProjectPath = abs
 	}
+	for _, p := range positional {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			continue
+		}
+		if st, err := os.Stat(abs); err == nil && st.IsDir() {
+			if opts.ProjectPath == "" {
+				opts.ProjectPath = abs
+			}
+		} else if err == nil {
+			opts.Files = append(opts.Files, abs)
+		}
+	}
 	return opts, nil
 }
 
 // App is the core lifecycle owner. It is not bound to the frontend; the
 // services it returns from Services are.
 type App struct {
-	opts      Options
-	log       *slog.Logger
-	closer    io.Closer
-	logPath   string
-	configDir string
-	cacheDir  string
+	startedUp    atomic.Bool
+	pendingMu    sync.Mutex
+	pendingFiles []string
+	opts         Options
+	log          *slog.Logger
+	closer       io.Closer
+	logPath      string
+	configDir    string
+	cacheDir     string
 
 	ctx      context.Context
 	bus      events.Bus
@@ -180,6 +203,9 @@ func (a *App) start(ctx context.Context, bus events.Bus) error {
 	}
 
 	target := a.opts.ProjectPath
+	if target == "" && len(a.opts.Files) > 0 {
+		target = ProjectRootFor(a.opts.Files[0])
+	}
 	if target == "" && st.Effective().Startup.ReopenLastProject {
 		if list, err := a.recent.List(); err == nil && len(list) > 0 && list[0].Exists {
 			target = list[0].Path
@@ -192,6 +218,10 @@ func (a *App) start(ctx context.Context, bus events.Bus) error {
 			a.log.Warn("open project at startup", "path", target, "err", err)
 			a.notify("error", "Cannot open project", err.Error())
 		}
+	}
+	a.startedUp.Store(true)
+	for _, f := range append(a.opts.Files, a.drainPendingFiles()...) {
+		a.OpenFile(f)
 	}
 	return nil
 }

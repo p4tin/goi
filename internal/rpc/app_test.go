@@ -305,3 +305,41 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 		t.Errorf("after drop = %+v", got)
 	}
 }
+
+func TestProjectRootForAndPositionalArgs(t *testing.T) {
+	root := module(t)
+	file := filepath.Join(root, "pkg", "util", "util.go")
+	if got := ProjectRootFor(file); got != root {
+		t.Errorf("ProjectRootFor = %q, want %q", got, root)
+	}
+	loose := filepath.Join(t.TempDir(), "notes.txt")
+	os.WriteFile(loose, nil, 0o644)
+	if got := ProjectRootFor(loose); got != filepath.Dir(loose) {
+		t.Errorf("loose file root = %q", got)
+	}
+	opts, err := ParseArgs([]string{file, root})
+	if err != nil || opts.ProjectPath != root || len(opts.Files) != 1 || opts.Files[0] != file {
+		t.Errorf("opts = %+v, %v", opts, err)
+	}
+}
+
+func TestOpenFileQueuedThenOpensProject(t *testing.T) {
+	root := module(t)
+	t.Setenv("GOI_HOME", t.TempDir())
+	a, err := NewApp(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(root, "pkg", "util", "util.go")
+	a.OpenFile(file) // before startup: queued
+	bus := &events.Recorder{}
+	a.start(context.Background(), bus)
+	defer a.Shutdown(context.Background())
+	if p := a.workspaceSvc.Project(); p == nil || p.Root != root {
+		t.Fatalf("project = %+v", p)
+	}
+	ev := bus.Events(TopicOpenFile)
+	if len(ev) != 1 || ev[0].Payload.(OpenFileEvent).Path != file {
+		t.Errorf("open file events = %+v", ev)
+	}
+}
