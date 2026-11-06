@@ -81,6 +81,13 @@ type App struct {
 	mu      sync.Mutex
 	session *session
 
+	// focusFn brings this window forward when another process asks; set in
+	// Startup (tests override it).
+	focusFn func()
+	// quitAfterStart is set when the requested project is already open in
+	// another window, which was focused instead.
+	quitAfterStart bool
+
 	appSvc       *AppService
 	workspaceSvc *WorkspaceService
 	fileSvc      *FileService
@@ -134,8 +141,16 @@ func (a *App) Services() []any {
 
 // Startup is the Wails OnStartup hook.
 func (a *App) Startup(ctx context.Context) {
+	a.focusFn = func() {
+		wruntime.WindowUnminimise(ctx)
+		wruntime.WindowShow(ctx)
+	}
 	if err := a.start(ctx, wailsBus{ctx: ctx}); err != nil {
 		a.log.Error("startup", "err", err)
+	}
+	if a.quitAfterStart {
+		a.log.Info("project already open in another window; focused it and quitting")
+		wruntime.Quit(ctx)
 	}
 }
 
@@ -165,7 +180,9 @@ func (a *App) start(ctx context.Context, bus events.Bus) error {
 		}
 	}
 	if target != "" {
-		if err := a.openProject(target); err != nil {
+		if err := a.openProject(target); errors.Is(err, ErrOpenElsewhere) {
+			a.quitAfterStart = a.opts.ProjectPath != ""
+		} else if err != nil {
 			a.log.Warn("open project at startup", "path", target, "err", err)
 			a.notify("error", "Cannot open project", err.Error())
 		}
@@ -247,11 +264,13 @@ func (s *AppService) OpenFolderDialog() (string, error) {
 	})
 }
 
-// OpenProject opens path in this window. newWindow is reserved for opening
-// in a separate window (one project per window).
+// OpenProject opens path. With newWindow, or when this window already has a
+// project, it focuses the window that has path open or launches a new one.
+// Otherwise it opens path in this window.
 func (s *AppService) OpenProject(path string, newWindow bool) error {
-	if newWindow {
-		return errors.New("opening in a new window is not available yet")
+	_, err := s.app.current()
+	if newWindow || err == nil {
+		return s.app.openInOtherWindow(path)
 	}
 	return s.app.openProject(path)
 }

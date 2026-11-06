@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/instance"
 	"github.com/p4tin/goi/internal/journal"
 	"github.com/p4tin/goi/internal/recent"
 	"github.com/p4tin/goi/internal/settings"
@@ -21,6 +22,7 @@ type session struct {
 	manager *workspace.Manager
 	watcher vfs.Watcher
 	journal *journal.Journal
+	lock    *instance.Lock
 	crashed bool
 	app     *App
 }
@@ -43,6 +45,17 @@ func (a *App) openProject(path string) error {
 		}
 		return fmt.Errorf("open project: %s is already open in this window", open.root)
 	}
+
+	lock, err := a.acquireInstance(abs)
+	if err != nil {
+		return err
+	}
+	opened := false
+	defer func() {
+		if !opened {
+			lock.Release()
+		}
+	}()
 
 	if err := a.settings.SetProjectPath(workspace.SettingsPath(abs)); err != nil {
 		a.log.Warn("project settings", "err", err)
@@ -81,7 +94,8 @@ func (a *App) openProject(path string) error {
 		a.log.Warn("journal", "err", err)
 	}
 
-	s := &session{root: abs, manager: m, watcher: w, journal: j, crashed: crashed, app: a}
+	s := &session{root: abs, manager: m, watcher: w, journal: j, lock: lock, crashed: crashed, app: a}
+	opened = true
 	a.mu.Lock()
 	a.session = s
 	a.mu.Unlock()
@@ -121,6 +135,7 @@ func (s *session) close(clean bool) {
 			s.app.log.Warn("journal close", "err", err)
 		}
 	}
+	s.lock.Release()
 }
 
 // contains reports whether path lies inside one of the session's content

@@ -85,8 +85,17 @@ func TestStartupOpensProjectAndRecordsRecent(t *testing.T) {
 	if len(bus.Events(events.TopicWorkspaceChanged)) == 0 {
 		t.Error("no workspace.changed event")
 	}
-	if err := a.appSvc.OpenProject(t.TempDir(), false); err == nil {
-		t.Error("second project in same window: want error")
+	// A second project goes to a new window, never this one.
+	var launched string
+	orig := launchNewWindow
+	launchNewWindow = func(p string) error { launched = p; return nil }
+	defer func() { launchNewWindow = orig }()
+	other := t.TempDir()
+	if err := a.appSvc.OpenProject(other, false); err != nil || launched != other {
+		t.Errorf("second project: err=%v launched=%q", err, launched)
+	}
+	if err := a.openProject(other); err == nil {
+		t.Error("openProject with a project already open: want error")
 	}
 }
 
