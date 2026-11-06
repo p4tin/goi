@@ -1,0 +1,211 @@
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--goi-bg);
+  color: var(--goi-fg);
+  user-select: text;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--goi-panel-border);
+}
+
+.settings-header h1 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.settings-search {
+  flex: 1;
+  max-width: 480px;
+}
+
+.settings-body {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  min-height: 0;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+  background: var(--goi-panel-bg);
+  border-right: 1px solid var(--goi-panel-border);
+}
+
+.settings-nav-item {
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--goi-fg);
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-nav-item:hover {
+  background: var(--goi-hover);
+}
+
+.settings-content {
+  overflow: auto;
+  padding: 8px 24px 24px;
+}
+
+.settings-group h2 {
+  font-size: 14px;
+  margin: 18px 0 8px;
+  color: var(--goi-fg-muted);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1.2fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--goi-panel-border);
+  border-radius: 4px;
+}
+
+.settings-row-highlight {
+  background: var(--goi-selection);
+}
+
+.settings-label label {
+  font-weight: 600;
+}
+
+.settings-key {
+  display: block;
+  font-size: 11px;
+  color: var(--goi-fg-muted);
+}
+
+.settings-desc {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.settings-int {
+  max-width: 120px;
+}
+
+.settings-list {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+
+.settings-inline {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-error {
+  color: var(--goi-error);
+  font-size: 12px;
+  min-height: 16px;
+}
+
+.settings-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-layer {
+  width: auto;
+  padding: 3px 6px;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--goi-panel-border);
+  color: var(--goi-fg-muted);
+}
+
+.badge-user {
+  color: var(--goi-info);
+  border-color: var(--goi-info);
+}
+
+.badge-project,
+.badge-custom {
+  color: var(--goi-accent);
+  border-color: var(--goi-accent);
+}
+
+.badge-custom {
+  margin-left: 8px;
+}
+
+.settings-roots {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 6px;
+}
+
+.settings-roots li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-root-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-footer {
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--goi-panel-border);
+}
+
+.keymap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.keymap-table th {
+  text-align: left;
+  color: var(--goi-fg-muted);
+  font-weight: 500;
+  padding: 4px 8px;
+}
+
+.keymap-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--goi-panel-border);
+}
+
+.keymap-keys kbd {
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 4px;
+  border: 1px solid var(--goi-input-border);
+  background: var(--goi-input-bg);
+}
+
+.keymap-actions {
+  white-space: nowrap;
+  text-align: right;
+}
