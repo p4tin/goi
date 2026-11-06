@@ -5,6 +5,8 @@ import {journal} from '../models';
 
 export function CloseProject():Promise<void>;
 
+export function ConfirmClose():Promise<void>;
+
 export function Info():Promise<rpc.AppInfo>;
 
 export function JournalDrop(arg1:string):Promise<void>;
