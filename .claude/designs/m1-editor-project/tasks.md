@@ -22,7 +22,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
   - Embedded `defaults.toml`, layered merge, provenance, `Set` with atomic write, reload callback hook (watcher injected later), invalid-TOML keeps last good.
   - Req: R13.1, R13.2 · Verify: table-driven tests for merge/provenance/invalid/Set round-trip.
 
-- [ ] **T4 — Frontend core libs**
+- [x] **T4 — Frontend core libs**
   - `lib/store.ts`, `lib/dom.ts`, `lib/commands.ts`, `lib/api.ts` (wrappers for the bindings that exist so far + `on(topic)`).
   - Req: — (infrastructure) · Verify: vitest for store and command registry.
 
