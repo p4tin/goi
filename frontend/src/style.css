@@ -2,8 +2,8 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: #1e1f22;
-  color: #dfe1e5;
+  background: var(--goi-bg);
+  color: var(--goi-fg);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 

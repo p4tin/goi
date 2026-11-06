@@ -1,0 +1,280 @@
+// Theme tokens: the single source of truth for every UI and editor color.
+// UI tokens become CSS custom properties (--goi-<kebab-name>); scheme tokens
+// feed CodeMirror directly.
+
+export const uiTokenKeys = [
+  'bg',
+  'fg',
+  'fgMuted',
+  'panelBg',
+  'panelBorder',
+  'accent',
+  'accentFg',
+  'selection',
+  'hover',
+  'focusRing',
+  'inputBg',
+  'inputBorder',
+  'tabActiveBg',
+  'tabInactiveBg',
+  'statusBg',
+  'statusFg',
+  'scrollbar',
+  'error',
+  'warning',
+  'info',
+  'success',
+] as const;
+
+export type UiTokenKey = (typeof uiTokenKeys)[number];
+export type UiTokens = Record<UiTokenKey, string>;
+export type UiThemeId = 'light' | 'dark' | 'hc';
+
+export const uiThemes: Record<UiThemeId, UiTokens> = {
+  light: {
+    bg: '#ffffff',
+    fg: '#1f2328',
+    fgMuted: '#5c6370',
+    panelBg: '#f4f5f7',
+    panelBorder: '#d9dce1',
+    accent: '#2a63c7',
+    accentFg: '#ffffff',
+    selection: '#cfe0fc',
+    hover: '#e8ebef',
+    focusRing: '#2a63c7',
+    inputBg: '#ffffff',
+    inputBorder: '#c3c8d0',
+    tabActiveBg: '#ffffff',
+    tabInactiveBg: '#eceef1',
+    statusBg: '#eceef1',
+    statusFg: '#30363d',
+    scrollbar: '#c3c8d0',
+    error: '#c62828',
+    warning: '#a35f00',
+    info: '#2a63c7',
+    success: '#2e7d32',
+  },
+  dark: {
+    bg: '#1b1d21',
+    fg: '#d8dbe0',
+    fgMuted: '#9aa1ab',
+    panelBg: '#22252a',
+    panelBorder: '#33373e',
+    accent: '#4c8dff',
+    accentFg: '#0b1220',
+    selection: '#2c4a7a',
+    hover: '#2c3036',
+    focusRing: '#4c8dff',
+    inputBg: '#16181c',
+    inputBorder: '#3a3f47',
+    tabActiveBg: '#1b1d21',
+    tabInactiveBg: '#22252a',
+    statusBg: '#22252a',
+    statusFg: '#c3c8d0',
+    scrollbar: '#3d424a',
+    error: '#f26d6d',
+    warning: '#e2b04a',
+    info: '#6aa6ff',
+    success: '#5cc27a',
+  },
+  hc: {
+    bg: '#000000',
+    fg: '#ffffff',
+    fgMuted: '#e0e0e0',
+    panelBg: '#0a0a0a',
+    panelBorder: '#ffffff',
+    accent: '#ffd60a',
+    accentFg: '#000000',
+    selection: '#1f4f8a',
+    hover: '#1f1f1f',
+    focusRing: '#ffd60a',
+    inputBg: '#000000',
+    inputBorder: '#ffffff',
+    tabActiveBg: '#000000',
+    tabInactiveBg: '#141414',
+    statusBg: '#000000',
+    statusFg: '#ffffff',
+    scrollbar: '#bdbdbd',
+    error: '#ff7070',
+    warning: '#ffd60a',
+    info: '#80c4ff',
+    success: '#78e08f',
+  },
+};
+
+export const schemeEditorKeys = [
+  'bg',
+  'fg',
+  'gutterBg',
+  'gutterFg',
+  'lineHighlight',
+  'selection',
+  'cursor',
+  'matchBracket',
+] as const;
+
+export const syntaxKeys = [
+  'keyword',
+  'string',
+  'number',
+  'comment',
+  'function',
+  'type',
+  'variable',
+  'constant',
+  'operator',
+  'punctuation',
+  'tag',
+  'attribute',
+  'invalid',
+  'heading',
+  'link',
+] as const;
+
+export type SchemeEditorKey = (typeof schemeEditorKeys)[number];
+export type SyntaxKey = (typeof syntaxKeys)[number];
+export type SchemeId = 'goi-light' | 'goi-dark' | 'goi-ember' | 'goi-paper';
+
+export interface SchemeTokens {
+  name: string;
+  dark: boolean;
+  editor: Record<SchemeEditorKey, string>;
+  syntax: Record<SyntaxKey, string>;
+}
+
+export const schemes: Record<SchemeId, SchemeTokens> = {
+  'goi-light': {
+    name: 'Goi Light',
+    dark: false,
+    editor: {
+      bg: '#ffffff',
+      fg: '#1f2328',
+      gutterBg: '#fafbfc',
+      gutterFg: '#8a929c',
+      lineHighlight: '#f3f6fa',
+      selection: '#cfe0fc',
+      cursor: '#1f2328',
+      matchBracket: '#c8e6c9',
+    },
+    syntax: {
+      keyword: '#8a2bb8',
+      string: '#2b7a1e',
+      number: '#b54708',
+      comment: '#6e7781',
+      function: '#1d5fc4',
+      type: '#0e7a6e',
+      variable: '#1f2328',
+      constant: '#a3245e',
+      operator: '#4a5361',
+      punctuation: '#5c6370',
+      tag: '#b42318',
+      attribute: '#8a5a00',
+      invalid: '#d00000',
+      heading: '#1d5fc4',
+      link: '#1d5fc4',
+    },
+  },
+  'goi-dark': {
+    name: 'Goi Dark',
+    dark: true,
+    editor: {
+      bg: '#1b1d21',
+      fg: '#d8dbe0',
+      gutterBg: '#1b1d21',
+      gutterFg: '#5f6670',
+      lineHighlight: '#23262b',
+      selection: '#2c4a7a',
+      cursor: '#e8eaed',
+      matchBracket: '#3a5a40',
+    },
+    syntax: {
+      keyword: '#d08cf0',
+      string: '#9ccc7a',
+      number: '#f0a868',
+      comment: '#6f7885',
+      function: '#6cb6f5',
+      type: '#5fd4c0',
+      variable: '#d8dbe0',
+      constant: '#e9a0c0',
+      operator: '#b6bcc6',
+      punctuation: '#9aa1ab',
+      tag: '#f07878',
+      attribute: '#e8c46a',
+      invalid: '#ff5c5c',
+      heading: '#6cb6f5',
+      link: '#6cb6f5',
+    },
+  },
+  'goi-ember': {
+    name: 'Goi Ember',
+    dark: true,
+    editor: {
+      bg: '#221c18',
+      fg: '#e6d9c8',
+      gutterBg: '#221c18',
+      gutterFg: '#7a6a5c',
+      lineHighlight: '#2b241f',
+      selection: '#4a3a2c',
+      cursor: '#f4a259',
+      matchBracket: '#4d4030',
+    },
+    syntax: {
+      keyword: '#f08a5d',
+      string: '#b8c46a',
+      number: '#e8b04a',
+      comment: '#8a7a6a',
+      function: '#f4c26b',
+      type: '#8fc7b0',
+      variable: '#e6d9c8',
+      constant: '#e8957a',
+      operator: '#c8b8a6',
+      punctuation: '#a89886',
+      tag: '#e8735a',
+      attribute: '#d8b06a',
+      invalid: '#ff5c5c',
+      heading: '#f4c26b',
+      link: '#8fc7b0',
+    },
+  },
+  'goi-paper': {
+    name: 'Goi Paper',
+    dark: false,
+    editor: {
+      bg: '#f5f1e8',
+      fg: '#3b3a36',
+      gutterBg: '#efeadf',
+      gutterFg: '#9a958a',
+      lineHighlight: '#ece6d9',
+      selection: '#ddd3bd',
+      cursor: '#3b3a36',
+      matchBracket: '#d6e2c4',
+    },
+    syntax: {
+      keyword: '#7a4f9a',
+      string: '#4f7a3a',
+      number: '#9a5a2a',
+      comment: '#8f8a7e',
+      function: '#3d6a9a',
+      type: '#3a7a72',
+      variable: '#3b3a36',
+      constant: '#9a4a6a',
+      operator: '#5a5852',
+      punctuation: '#6a675f',
+      tag: '#9a4a3a',
+      attribute: '#7a6a2a',
+      invalid: '#b02020',
+      heading: '#3d6a9a',
+      link: '#3d6a9a',
+    },
+  },
+};
+
+/** "fgMuted" → "fg-muted". */
+export function kebab(key: string): string {
+  return key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+}
+
+/** CSS custom property name for a UI token. */
+export function cssVar(key: UiTokenKey): string {
+  return `--goi-${kebab(key)}`;
+}

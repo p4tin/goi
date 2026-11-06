@@ -1,5 +1,9 @@
+import './theme/tokens.css';
 import './style.css';
 import { app } from './lib/api';
+import { initTheme } from './theme/theme';
+
+initTheme('auto');
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root) {
