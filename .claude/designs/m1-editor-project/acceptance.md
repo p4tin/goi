@@ -37,3 +37,9 @@ Method: unit/integration tests (`go test ./internal/...`, `npm test`), plus head
 - **Windows and Linux**: the code cross-compiles (`GOOS=windows` amd64/arm64 app, `GOOS=linux` arm64 core), but nothing has been run there. CI (`.github/workflows/ci.yml`) has not run because the repo has no GitHub remote yet.
 - **Native window behaviours** on macOS that headless Chrome can't exercise: native folder dialog, Finder "Open With Goi", a second window launched with `open -n`, the close-window prompt (OnBeforeClose), trash/reveal.
 - **macOS file watching at scale**: fsnotify uses kqueue (one descriptor per watched file). Fine at 10k files; very large repos may hit the descriptor limit (a warning notification is shown). FSEvents is the follow-up.
+
+## Post-M1 changes (2026-11-06)
+
+- **Fix:** project tree clicks did nothing in the built app. `mousedown` repainted the rows, so `click`/`dblclick` went to the container. Selection now updates rows in place. Covered by `test/projectTree.test.ts`; write-up in `.claude/changes/fix-tree-click-open.md`.
+- **Native menu bar:** File, Code, View and Navigate are built from command ids (`frontend/src/app/menuBar.ts`) with shortcuts from the active keymap. On macOS the standard app, Edit and Window menus are added (`internal/rpc/menu.go`). `CommandRegistry.runFrom` drops the duplicate run when a shortcut reaches both the key dispatcher and the menu. Not yet verified on screen (no accessibility access); Windows/Linux untested.
+- **Theme commands:** Toggle Dark Mode and Theme: Dark / Light / Match System / High Contrast are in the View menu and the palette (`frontend/src/theme/commands.ts`).

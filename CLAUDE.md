@@ -16,6 +16,8 @@ node tools/e2e/cdp.mjs tools/e2e/smoke.json   # headless E2E against a running `
 
 Wails CLI on this machine: `/Users/p4tin/.gvm/pkgsets/go1.25.6/global/bin/wails` (v2.17.1). `go.mod` needs Go 1.26; `GOTOOLCHAIN=auto` fetches it.
 
+GoLand run configurations are shared in `.run/` (Goi, wails dev, wails build, Go tests, frontend build/tests). A plain `go build`/`go run` of the app needs `-tags desktop,production`, `frontend/dist` built first, and on macOS `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`; without the flag it fails to link (`_OBJC_CLASS_$_UTType`).
+
 `GOI_HOME=<dir>` redirects user config/cache to `<dir>/config` and `<dir>/cache`. Use it for dev runs and tests so the real profile is untouched.
 
 ## Architecture rules
@@ -25,6 +27,7 @@ Wails CLI on this machine: `/Users/p4tin/.gvm/pkgsets/go1.25.6/global/bin/wails`
 - The frontend never touches the filesystem; it goes through `lib/api.ts` wrappers and never imports `wailsjs/` directly.
 - Frontend features are installers listed in `frontend/src/features.ts`. Features extend the editor through `editors.hooks` (`opened`, `closed`, `beforeSave`, `saved`, `viewCreated`, `activeChanged`) and `editors.addExtension(buf => ext)`; don't edit `editorManager.ts` for feature work.
 - Every user action is a command (`lib/commands.ts`). Shortcuts live only in `keymap/keymaps.ts`.
+- The native menu bar is a list of command ids in `app/menuBar.ts` (`MENUS`). Labels come from command titles and shortcuts from the active keymap; `internal/rpc/menu.go` builds it and emits `menu.command`. To add a menu entry, add its command id to `MENUS`.
 - Colors come only from theme tokens (`var(--goi-*)`, source of truth `theme/tokens.ts`).
 
 ## Gotchas
@@ -36,3 +39,4 @@ Wails CLI on this machine: `/Users/p4tin/.gvm/pkgsets/go1.25.6/global/bin/wails`
 - `wails dev` regenerates bindings on Go changes. If its Go rebuild fails, the old backend keeps running; restart it.
 - happy-dom tests: open editor views with `{ focus: false }`. happy-dom fires `selectionchange` synchronously, which re-enters CodeMirror's update.
 - Each project window is its own process (Wails v2 is single-window). Instance locks live in `<cache>/instances/<hash>.lock` (`internal/instance`).
+- Don't rebuild DOM from `mousedown`/`pointerdown` handlers. If the pressed element is replaced, the browser sends `click`/`dblclick` to the common ancestor and row handlers never run. Update the existing nodes instead. CDP-dispatched synthetic events don't catch this; tests should dispatch to the common ancestor (see `test/projectTree.test.ts`).

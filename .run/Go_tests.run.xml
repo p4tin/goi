@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Go tests" type="GoTestRunConfiguration" factoryName="Go Test">
+    <module name="goi" />
+    <working_directory value="$PROJECT_DIR$/internal" />
+    <envs>
+      <env name="GOTOOLCHAIN" value="auto" />
+    </envs>
+    <framework value="gotest" />
+    <kind value="DIRECTORY" />
+    <package value="github.com/p4tin/goi" />
+    <directory value="$PROJECT_DIR$/internal" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>

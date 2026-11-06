@@ -1,0 +1,29 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Goi" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="goi" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-tags desktop,production" />
+    <envs>
+      <env name="CGO_LDFLAGS" value="-framework UniformTypeIdentifiers" />
+      <env name="GOTOOLCHAIN" value="auto" />
+      <env name="GOI_HOME" value=".goi-home" />
+    </envs>
+    <EXTENSION ID="net.ashald.envfile">
+      <option name="IS_ENABLED" value="false" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+      </ENTRIES>
+    </EXTENSION>
+    <kind value="PACKAGE" />
+    <package value="github.com/p4tin/goi" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/main.go" />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="frontend build" run_configuration_type="js.build_tools.npm" />
+    </method>
+  </configuration>
+</component>
