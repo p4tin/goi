@@ -341,3 +341,11 @@
 .cm-lang-deprecated {
   text-decoration: line-through;
 }
+
+.rename-files {
+  max-height: 240px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}

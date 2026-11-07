@@ -8,11 +8,13 @@ import { on, Topics } from '../lib/api';
 import { commands } from '../lib/commands';
 import type { ApplyEditEvent } from '../lib/api';
 import { isLangBuffer } from './client';
+import { showContextActions } from './codeActions';
 import { completionExtension } from './completion';
 import { client, setWorkbench } from './context';
 import { diagnosticsExtension, installDiagnostics } from './diagnostics';
 import { hoverExtensions, showQuickDoc } from './hover';
 import { back, forward, gotoDefinition, gotoImplementation, gotoTest, gotoTypeDefinition, navigationExtension } from './navigation';
+import { renameAtCursor } from './rename';
 import { showParameterInfo, signatureExtension } from './signature';
 import { findUsages, highlightExtension, installUsages } from './usages';
 import { applyFileEdits } from './edits';
@@ -44,6 +46,8 @@ export function installLang(wb: Workbench): void {
   commands.register({ id: 'nav.back', title: 'Back', category: 'Navigate', run: () => back() });
   commands.register({ id: 'nav.forward', title: 'Forward', category: 'Navigate', run: () => forward() });
   commands.register({ id: 'lang.findUsages', title: 'Find Usages', category: 'Code', run: () => findUsages(wb) });
+  commands.register({ id: 'lang.rename', title: 'Rename…', category: 'Refactor', run: () => renameAtCursor() });
+  commands.register({ id: 'lang.contextActions', title: 'Show Context Actions', category: 'Code', run: () => showContextActions() });
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });
   commands.register({ id: 'lang.parameterInfo', title: 'Parameter Info', category: 'Code', run: () => showParameterInfo() });
 
