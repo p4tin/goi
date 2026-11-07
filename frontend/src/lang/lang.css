@@ -334,3 +334,10 @@
   gap: 10px;
   font-size: 12px;
 }
+
+.cm-lang-unnecessary {
+  opacity: 0.55;
+}
+.cm-lang-deprecated {
+  text-decoration: line-through;
+}

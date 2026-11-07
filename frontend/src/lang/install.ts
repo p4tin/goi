@@ -10,6 +10,7 @@ import type { ApplyEditEvent } from '../lib/api';
 import { isLangBuffer } from './client';
 import { completionExtension } from './completion';
 import { client, setWorkbench } from './context';
+import { diagnosticsExtension, installDiagnostics } from './diagnostics';
 import { hoverExtensions, showQuickDoc } from './hover';
 import { showParameterInfo, signatureExtension } from './signature';
 import { applyFileEdits } from './edits';
@@ -26,11 +27,12 @@ export function installLang(wb: Workbench): void {
   m.addExtension((buf) => EditorView.updateListener.of((u) => {
     if (u.docChanged) client.changed(buf);
   }));
-  m.addExtension((buf) => (isLangBuffer(buf) ? [completionExtension(buf), hoverExtensions(buf), signatureExtension(buf)] : []));
+  m.addExtension((buf) => (isLangBuffer(buf) ? [completionExtension(buf), hoverExtensions(buf), signatureExtension(buf), diagnosticsExtension(buf)] : []));
   // Buffers opened before this feature installed (layout restore).
   for (const buf of m.buffers.values()) client.open(buf);
 
   installLangStatus(wb);
+  installDiagnostics(wb);
 
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });
   commands.register({ id: 'lang.parameterInfo', title: 'Parameter Info', category: 'Code', run: () => showParameterInfo() });
