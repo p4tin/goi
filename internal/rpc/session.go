@@ -108,6 +108,7 @@ func (a *App) openProject(path string) error {
 		a.bus.Emit(events.TopicRecentChanged, list)
 	}
 	a.log.Info("project opened", "root", abs, "kind", p.Kind, "crashed", crashed)
+	a.setTitle("Goi - " + p.Name)
 	a.bus.Emit(events.TopicWorkspaceChanged, p)
 	return nil
 }
@@ -124,8 +125,16 @@ func (a *App) closeProject() error {
 	if err := a.settings.SetProjectPath(""); err != nil {
 		a.log.Warn("clear project settings", "err", err)
 	}
+	a.setTitle("Goi")
 	a.bus.Emit(events.TopicWorkspaceChanged, nil)
 	return nil
+}
+
+// setTitle sets the window title, if there is a window.
+func (a *App) setTitle(title string) {
+	if a.titleFn != nil {
+		a.titleFn(title)
+	}
 }
 
 // close releases the session. clean=true removes the crash journal.

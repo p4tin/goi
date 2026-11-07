@@ -108,6 +108,8 @@ type App struct {
 	// focusFn brings this window forward when another process asks; set in
 	// Startup (tests override it).
 	focusFn func()
+	// titleFn sets the window title; set in Startup (tests override it).
+	titleFn func(string)
 
 	closing closeState
 	// quitAfterStart is set when the requested project is already open in
@@ -177,6 +179,7 @@ func (a *App) Startup(ctx context.Context) {
 		wruntime.WindowUnminimise(ctx)
 		wruntime.WindowShow(ctx)
 	}
+	a.titleFn = func(title string) { wruntime.WindowSetTitle(ctx, title) }
 	if err := a.start(ctx, wailsBus{ctx: ctx}); err != nil {
 		a.log.Error("startup", "err", err)
 	}
