@@ -1,4 +1,4 @@
-// Descriptors for every M1 setting, plus pure helpers used by the settings
+// Descriptors for every setting shown in the settings view, plus pure helpers used by the settings
 // view (lookup, search, validation).
 
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
@@ -66,6 +66,24 @@ export const schema: SettingDescriptor[] = [
     max: 10_000_000,
     layers: both,
   },
+  {
+    key: 'gopls.enabled',
+    title: 'Enable gopls',
+    section: 'Go',
+    description: 'Code completion, navigation, diagnostics and refactoring through the Go language server.',
+    type: 'bool',
+    layers: both,
+  },
+  {
+    key: 'gopls.path',
+    title: 'gopls Path',
+    section: 'Go',
+    description: 'gopls executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi\'s tools folder.',
+    type: 'string',
+    layers: userOnly,
+  },
+  { key: 'gopls.usePlaceholders', title: 'Complete Function Parameters', section: 'Go', description: 'Completing a function inserts placeholders for its parameters.', type: 'bool', layers: both },
+  { key: 'gopls.staticcheck', title: 'Staticcheck Analyzers', section: 'Go', description: 'Report the extra staticcheck analyzers in diagnostics (slower on large projects).', type: 'bool', layers: both },
   { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
   { key: 'go.env', title: 'Environment Variables', section: 'Go', description: 'Extra environment for go commands (GOPROXY, GOPRIVATE, GOFLAGS…).', type: 'map', layers: both },
   { key: 'go.tags', title: 'Build Tags', section: 'Go', description: 'Build tags passed as -tags to go commands.', type: 'stringList', layers: both },

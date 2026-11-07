@@ -50,7 +50,7 @@ export interface SettingEntry {
   title: string;
 }
 
-/** M1 settings reachable from the palette. */
+/** Settings reachable from the palette. */
 export const SETTINGS: SettingEntry[] = [
   { key: 'editor.fontFamily', title: 'Editor: Font Family' },
   { key: 'editor.fontSize', title: 'Editor: Font Size' },
@@ -69,6 +69,10 @@ export const SETTINGS: SettingEntry[] = [
   { key: 'go.goarch', title: 'Go: Target Architecture (GOARCH)' },
   { key: 'go.cgo', title: 'Go: CGO_ENABLED' },
   { key: 'go.vendor', title: 'Go: Vendoring Mode' },
+  { key: 'gopls.enabled', title: 'Go: Enable gopls (code intelligence)' },
+  { key: 'gopls.path', title: 'Go: gopls Path' },
+  { key: 'gopls.usePlaceholders', title: 'Go: Complete Function Parameters' },
+  { key: 'gopls.staticcheck', title: 'Go: Staticcheck Analyzers' },
   { key: 'project.excludes', title: 'Project: Excluded Folders' },
   { key: 'project.contentRoots', title: 'Project: Content Roots' },
   { key: 'startup.reopenLastProject', title: 'Startup: Reopen Last Project' },

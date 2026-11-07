@@ -56,6 +56,9 @@ export function installLang(wb: Workbench): void {
   commands.register({ id: 'lang.fileStructure', title: 'File Structure', category: 'Navigate', run: () => showFileStructure() });
   commands.register({ id: 'search.findInPath', title: 'Find in Path…', category: 'Edit', run: () => openFindDialog(wb, false) });
   commands.register({ id: 'search.replaceInPath', title: 'Replace in Path…', category: 'Edit', run: () => openFindDialog(wb, true) });
+  commands.register({ id: 'view.problems', title: 'Show Problems', category: 'View', run: () => wb.panels.show('problems') });
+  commands.register({ id: 'view.usages', title: 'Show Usages', category: 'View', run: () => wb.panels.show('usages') });
+  commands.register({ id: 'view.find', title: 'Show Find Results', category: 'View', run: () => wb.panels.show('find') });
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });
   commands.register({ id: 'lang.parameterInfo', title: 'Parameter Info', category: 'Code', run: () => showParameterInfo() });
 
