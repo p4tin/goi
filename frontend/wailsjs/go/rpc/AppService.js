@@ -49,3 +49,7 @@ export function Quit() {
 export function SaveLayout(arg1) {
   return window['go']['rpc']['AppService']['SaveLayout'](arg1);
 }
+
+export function SetAppearance(arg1) {
+  return window['go']['rpc']['AppService']['SetAppearance'](arg1);
+}

@@ -27,9 +27,12 @@ export interface ThemeController {
 
 const darkQuery = '(prefers-color-scheme: dark)';
 
-export function initTheme(setting: ThemeSetting): ThemeController {
+/** native, when given, receives each new setting so the window chrome can
+ * follow it ("auto" must stay "auto" to keep tracking the OS). */
+export function initTheme(setting: ThemeSetting, native?: (setting: ThemeSetting) => void): ThemeController {
   const mql = typeof window.matchMedia === 'function' ? window.matchMedia(darkQuery) : null;
   let current = setting;
+  native?.(current);
   const resolved = signal<UiThemeId>(resolveTheme(current, mql?.matches ?? false));
 
   const update = () => {
@@ -46,6 +49,7 @@ export function initTheme(setting: ThemeSetting): ThemeController {
   return {
     resolved,
     set(next) {
+      if (next !== current) native?.(next);
       current = next;
       update();
     },

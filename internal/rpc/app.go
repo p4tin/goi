@@ -17,6 +17,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/p4tin/goi/internal/appearance"
 	"github.com/p4tin/goi/internal/applog"
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/journal"
@@ -353,4 +354,20 @@ func (s *AppService) LoadLayout() (string, error) {
 // Quit closes the application.
 func (s *AppService) Quit() {
 	wruntime.Quit(s.app.ctx)
+}
+
+// setAppearance applies the native window appearance; tests replace it.
+var setAppearance = appearance.Set
+
+// SetAppearance matches the native window chrome to the UI theme setting
+// ("auto", "light", "dark", "hc"). Wails' WindowSet*Theme are no-ops on macOS.
+func (s *AppService) SetAppearance(theme string) {
+	switch theme {
+	case "light":
+		setAppearance(appearance.Light)
+	case "dark", "hc":
+		setAppearance(appearance.Dark)
+	default:
+		setAppearance(appearance.System)
+	}
 }

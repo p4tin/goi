@@ -115,6 +115,17 @@ describe('applyUiTheme / initTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     c.dispose();
   });
+
+  it('initTheme reports setting changes to the native window', () => {
+    const seen: string[] = [];
+    const c = initTheme('auto', (s) => seen.push(s));
+    c.set('dark');
+    c.set('dark');
+    c.set('hc');
+    c.set('auto');
+    expect(seen).toEqual(['auto', 'dark', 'hc', 'auto']);
+    c.dispose();
+  });
 });
 
 describe('schemes', () => {

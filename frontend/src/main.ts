@@ -4,12 +4,13 @@ import './app/workbench.css';
 import { resolvedTheme, settings, startState } from './app/state';
 import { createWorkbench, routeWorkbench } from './app/workbench';
 import { features } from './features';
+import { app } from './lib/api';
 import { effect } from './lib/store';
 import { initTheme } from './theme/theme';
 import type { ThemeSetting } from './theme/theme';
 
 async function boot(): Promise<void> {
-  const theme = initTheme('auto');
+  const theme = initTheme('auto', (t) => void app.setAppearance(t).catch(() => {}));
   effect(() => resolvedTheme.set(theme.resolved()));
   await startState();
   effect(() => {
