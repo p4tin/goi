@@ -12,6 +12,7 @@ import { completionExtension } from './completion';
 import { client, setWorkbench } from './context';
 import { diagnosticsExtension, installDiagnostics } from './diagnostics';
 import { hoverExtensions, showQuickDoc } from './hover';
+import { back, forward, gotoDefinition, gotoImplementation, gotoTest, gotoTypeDefinition, navigationExtension } from './navigation';
 import { showParameterInfo, signatureExtension } from './signature';
 import { applyFileEdits } from './edits';
 import { installLangStatus } from './status';
@@ -27,13 +28,19 @@ export function installLang(wb: Workbench): void {
   m.addExtension((buf) => EditorView.updateListener.of((u) => {
     if (u.docChanged) client.changed(buf);
   }));
-  m.addExtension((buf) => (isLangBuffer(buf) ? [completionExtension(buf), hoverExtensions(buf), signatureExtension(buf), diagnosticsExtension(buf)] : []));
+  m.addExtension((buf) => (isLangBuffer(buf) ? [completionExtension(buf), hoverExtensions(buf), signatureExtension(buf), diagnosticsExtension(buf), navigationExtension(buf)] : []));
   // Buffers opened before this feature installed (layout restore).
   for (const buf of m.buffers.values()) client.open(buf);
 
   installLangStatus(wb);
   installDiagnostics(wb);
 
+  commands.register({ id: 'lang.gotoDefinition', title: 'Go to Declaration', category: 'Navigate', run: () => gotoDefinition() });
+  commands.register({ id: 'lang.gotoTypeDefinition', title: 'Go to Type Declaration', category: 'Navigate', run: () => gotoTypeDefinition() });
+  commands.register({ id: 'lang.gotoImplementation', title: 'Go to Implementation(s)', category: 'Navigate', run: () => gotoImplementation() });
+  commands.register({ id: 'lang.gotoTest', title: 'Go to Test / Subject', category: 'Navigate', run: () => gotoTest() });
+  commands.register({ id: 'nav.back', title: 'Back', category: 'Navigate', run: () => back() });
+  commands.register({ id: 'nav.forward', title: 'Forward', category: 'Navigate', run: () => forward() });
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });
   commands.register({ id: 'lang.parameterInfo', title: 'Parameter Info', category: 'Code', run: () => showParameterInfo() });
 
