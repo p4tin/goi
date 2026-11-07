@@ -23,7 +23,7 @@ frontend/src/lang/findInPath.ts ──► rpc SearchService.FindInPath/ReplaceIn
 ## 2. Positions and DTO rules
 - LSP positions are `{line, character}`, with `character` in **UTF-16 code units**, which is the protocol default and what gopls uses. JS strings and CodeMirror offsets are UTF-16 too, so the frontend converts with `doc.line(n+1).from + character` and no transcoding. Go only converts UTF-16 to byte offsets in `gopls.ApplyEdits`, when rewriting files that aren't open.
 - Paths cross the bridge as OS-native absolute paths. `file://` URIs exist only inside `internal/gopls` (`uri.go`, which handles Windows drive letters and percent-encoding).
-- DTOs are the `lsp` types themselves. Unions are normalized when decoded: `MarkupContent` accepts string, MarkedString and arrays; `CompletionItem.textEdit` asks for `TextEdit` only (`insertReplaceSupport: false`); `Location | LocationLink[]` becomes `[]Location`. Bound methods return non-nil slices and use no `time.Time`.
+- DTOs are the `lsp` types themselves, except where a URI would cross the bridge: locations, symbols and edits use `gopls.Location`, `gopls.Symbol` and `gopls.FileEdit`, which carry OS paths (as built). Unions are normalized when decoded: `MarkupContent` accepts string, MarkedString and arrays; `CompletionItem.textEdit` asks for `TextEdit` only (`insertReplaceSupport: false`); `Location | LocationLink[]` becomes `[]Location`. Bound methods return non-nil slices and use no `time.Time`.
 - Responses carry the document `version` they were computed for. The frontend drops a response if the buffer version moved on (R12.1).
 
 ## 3. internal/lsp

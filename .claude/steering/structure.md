@@ -26,6 +26,9 @@ goi/
 │   ├── journal/             # crash journal for unsaved buffers
 │   ├── recent/              # recent projects (flock-shared)
 │   ├── instance/            # per-project window locks, focus, new-window launch
+│   ├── lsp/                 # LSP JSON-RPC client + protocol types (no Goi knowledge)
+│   ├── gopls/               # gopls resolve/install, supervised server, sync, requests, UTF-16 edits
+│   ├── textsearch/          # Find/Replace in Path engine (line-based Go regexp)
 │   └── rpc/                 # Wails-bound services + App/session lifecycle, native menu (menu.go)
 ├── frontend/                # Wails frontend (TypeScript + Vite)
 │   ├── src/
@@ -34,7 +37,10 @@ goi/
 │   │   │                    # native menu bar definition (menuBar.ts)
 │   │   ├── editor/          # manager, panes/splits, tabs, languages, save flow, disk sync,
 │   │   │                    # close guard, journal, run gutter
-│   │   ├── palette/         # Search Everywhere, ranking, double-Shift, recent files
+│   │   ├── lang/            # gopls features: completion, hover/docs, signature, diagnostics + Problems,
+│   │   │                    # navigation/history, usages, rename, context actions, structure/breadcrumbs,
+│   │   │                    # palette symbols, Find/Replace in Path, gopls status
+│   │   ├── palette/         # Search Everywhere (files, symbols, actions, settings), ranking, double-Shift, recent files
 │   │   ├── keymap/          # keymaps, chords, dispatcher, rebinding
 │   │   ├── theme/           # tokens, themes, editor schemes, theme commands (dark mode toggle)
 │   │   ├── views/           # welcome, project tree, SDK/status, settings UI
@@ -50,7 +56,7 @@ goi/
 4. **Frontend never touches the filesystem or spawns processes.** Everything goes through bindings.
 5. **`frontend/wailsjs/` is generated.** Wrap it in `frontend/src/lib/` and import the wrappers, not the generated files.
 5a. **Features are installers** in `frontend/src/features.ts`; they extend the editor via `editors.hooks` / `editors.addExtension`, not by editing `editorManager.ts`.
-6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`. Domain packages don't depend on each other unless the design says so.
+6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp`. Domain packages don't depend on each other unless the design says so.
 
 ## Project-local state
 - `.goi/settings.toml`: project settings (shareable).

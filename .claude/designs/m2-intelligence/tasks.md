@@ -1,5 +1,7 @@
 # M2 — Intelligence: Tasks
 
+Status: **all tasks done** (T1–T16 on branch `feat/m2-intelligence`, one commit each). Results: `acceptance.md`.
+
 Work on branch `feat/m2-intelligence`, one commit per task. Each task ends green: `go vet ./internal/...`, `go test ./internal/...` (with `-race` for lsp/gopls/rpc), `cd frontend && npx tsc --noEmit && npm test`. Run `npm run build` before Go builds in fresh trees. Regenerate bindings with `wails generate module` after changing bound methods, then `git checkout frontend/wailsjs/runtime`.
 
 | # | Task | Reqs | Verify |
