@@ -120,6 +120,12 @@ func (m Mask) Matches(p string) bool {
 // Search scans paths in order and returns up to limit matches. Binary files
 // and files larger than MaxFileSize are skipped.
 func Search(ctx context.Context, paths []string, q Query, limit int) ([]Match, bool, error) {
+	return SearchWith(ctx, paths, q, limit, nil)
+}
+
+// SearchWith is Search with buffers overriding file contents (unsaved
+// editor buffers, keyed by path).
+func SearchWith(ctx context.Context, paths []string, q Query, limit int, buffers map[string]string) ([]Match, bool, error) {
 	re, err := Compile(q)
 	if err != nil {
 		return []Match{}, false, err
@@ -133,12 +139,16 @@ func Search(ctx context.Context, paths []string, q Query, limit int) ([]Match, b
 		if !mask.Matches(p) {
 			continue
 		}
-		b, ok := readText(p)
+		text, ok := buffers[p]
 		if !ok {
-			continue
+			b, readable := readText(p)
+			if !readable {
+				continue
+			}
+			text = string(b)
 		}
 		var truncated bool
-		out, truncated = searchText(out, p, string(b), re, limit)
+		out, truncated = searchText(out, p, text, re, limit)
 		if truncated {
 			return out, true, nil
 		}

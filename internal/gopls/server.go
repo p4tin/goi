@@ -136,6 +136,21 @@ func New(cfg Config) *Server {
 	}
 }
 
+// Reconfigure updates the configuration and restarts gopls; open documents
+// are re-sent to the new process.
+func (s *Server) Reconfigure(update func(*Config)) {
+	s.mu.Lock()
+	update(&s.cfg)
+	s.mu.Unlock()
+	s.Restart()
+}
+
+func (s *Server) config() Config {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg
+}
+
 // Status returns the current status.
 func (s *Server) Status() Status {
 	s.mu.Lock()
@@ -315,9 +330,10 @@ func (p stdio) Close() error {
 // runOnce starts gopls, initializes it and blocks until it exits.
 func (s *Server) runOnce() error {
 	s.setStatus(Status{State: StateStarting, Message: "Starting gopls…"})
-	cmd := exec.Command(s.cfg.Bin, s.cfg.Args...)
-	cmd.Dir = s.cfg.Root
-	cmd.Env = s.cfg.Env
+	cfg := s.config()
+	cmd := exec.Command(cfg.Bin, cfg.Args...)
+	cmd.Dir = cfg.Root
+	cmd.Env = cfg.Env
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -401,10 +417,11 @@ func (s *Server) workspaceFolders() []map[string]string {
 }
 
 func (s *Server) configuration() map[string]any {
+	c := s.config()
 	cfg := map[string]any{}
-	maps.Copy(cfg, s.cfg.Settings)
-	if len(s.cfg.BuildFlags) > 0 {
-		cfg["buildFlags"] = s.cfg.BuildFlags
+	maps.Copy(cfg, c.Settings)
+	if len(c.BuildFlags) > 0 {
+		cfg["buildFlags"] = c.BuildFlags
 	}
 	return cfg
 }

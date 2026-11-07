@@ -125,6 +125,7 @@ type App struct {
 	searchSvc    *SearchService
 	editorSvc    *EditorService
 	menuSvc      *MenuService
+	langSvc      *LangService
 }
 
 // NewApp initialises logging and constructs the bound services. It runs
@@ -162,6 +163,7 @@ func NewApp(opts Options) (*App, error) {
 	a.searchSvc = &SearchService{app: a}
 	a.editorSvc = &EditorService{app: a}
 	a.menuSvc = &MenuService{app: a}
+	a.langSvc = &LangService{app: a}
 	return a, nil
 }
 
@@ -170,7 +172,7 @@ func (a *App) Logger() logger.Logger { return wailsLogger{log: a.log} }
 
 // Services returns the structs to bind to the frontend.
 func (a *App) Services() []any {
-	return []any{a.appSvc, a.workspaceSvc, a.fileSvc, a.sdkSvc, a.settingsSvc, a.recentSvc, a.searchSvc, a.editorSvc, a.menuSvc}
+	return []any{a.appSvc, a.workspaceSvc, a.fileSvc, a.sdkSvc, a.settingsSvc, a.recentSvc, a.searchSvc, a.editorSvc, a.menuSvc, a.langSvc}
 }
 
 // Startup is the Wails OnStartup hook.

@@ -26,7 +26,11 @@ type session struct {
 	crashed bool
 	app     *App
 	search  *searchIndex
+	lang    *langSession
 }
+
+// startLangHook starts gopls for a new session; tests set it to nil.
+var startLangHook = startLang
 
 func (a *App) openProject(path string) error {
 	abs, err := filepath.Abs(path)
@@ -97,6 +101,9 @@ func (a *App) openProject(path string) error {
 
 	s := &session{root: abs, manager: m, watcher: w, journal: j, lock: lock, crashed: crashed, app: a}
 	s.search = startSearchIndex(a, m, w)
+	if startLangHook != nil {
+		s.lang = startLangHook(a, abs, w)
+	}
 	opened = true
 	a.mu.Lock()
 	a.session = s
@@ -139,6 +146,9 @@ func (a *App) setTitle(title string) {
 
 // close releases the session. clean=true removes the crash journal.
 func (s *session) close(clean bool) {
+	if s.lang != nil {
+		s.lang.close()
+	}
 	if s.search != nil {
 		s.search.close()
 	}
