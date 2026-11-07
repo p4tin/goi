@@ -98,6 +98,7 @@ export const app = {
     }
   },
   quit: (): Promise<void> => AppService.Quit(),
+  setAppearance: (theme: string): Promise<void> => AppService.SetAppearance(theme),
   /** Allows a close the backend prevented (after unsaved work is resolved). */
   confirmClose: (): Promise<void> => AppService.ConfirmClose(),
   /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */

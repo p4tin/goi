@@ -16,7 +16,9 @@ node tools/e2e/cdp.mjs tools/e2e/smoke.json   # headless E2E against a running `
 
 Wails CLI on this machine: `/Users/p4tin/.gvm/pkgsets/go1.25.6/global/bin/wails` (v2.17.1). `go.mod` needs Go 1.26; `GOTOOLCHAIN=auto` fetches it.
 
-GoLand run configurations are shared in `.run/` (Goi, wails dev, wails build, Go tests, frontend build/tests). A plain `go build`/`go run` of the app needs `-tags desktop,production`, `frontend/dist` built first, and on macOS `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`; without the flag it fails to link (`_OBJC_CLASS_$_UTType`).
+GoLand run configurations are shared in `.run/` (Goi, wails dev, wails build, Go tests, frontend build/tests). A plain `go build`/`go run` of the app needs `-tags desktop,production`, `frontend/dist` built first, and on macOS `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`; without the flag it fails to link (`_OBJC_CLASS_$_UTType`). Also add `-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist` (from the repo root) to embed a bundle identifier. Without one, native open/save sheets close by themselves about 0.5 s after opening (the system log shows `masquerading-service-lacks-host-bundle-identifier`). The `Goi` run config does both.
+
+To read the macOS system log, call `/usr/bin/log show …`. In zsh, a bare `log` is a shell builtin and silently prints nothing.
 
 `GOI_HOME=<dir>` redirects user config/cache to `<dir>/config` and `<dir>/cache`. Use it for dev runs and tests so the real profile is untouched.
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Embedded into bare `go build` binaries (GoLand "Goi" run config) via
+  CGO_LDFLAGS=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist.
+  Without a bundle identifier, macOS's out-of-process open panel cannot attach
+  to the window and cancels the folder sheet immediately.
+  Not a Wails template: wails build/dev use Info.plist / Info.dev.plist.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>dev.goi.goi</string>
+	<key>CFBundleName</key>
+	<string>Goi</string>
+</dict>
+</plist>

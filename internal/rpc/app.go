@@ -17,6 +17,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/p4tin/goi/internal/appearance"
 	"github.com/p4tin/goi/internal/applog"
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/journal"
@@ -107,6 +108,8 @@ type App struct {
 	// focusFn brings this window forward when another process asks; set in
 	// Startup (tests override it).
 	focusFn func()
+	// titleFn sets the window title; set in Startup (tests override it).
+	titleFn func(string)
 
 	closing closeState
 	// quitAfterStart is set when the requested project is already open in
@@ -176,6 +179,7 @@ func (a *App) Startup(ctx context.Context) {
 		wruntime.WindowUnminimise(ctx)
 		wruntime.WindowShow(ctx)
 	}
+	a.titleFn = func(title string) { wruntime.WindowSetTitle(ctx, title) }
 	if err := a.start(ctx, wailsBus{ctx: ctx}); err != nil {
 		a.log.Error("startup", "err", err)
 	}
@@ -353,4 +357,20 @@ func (s *AppService) LoadLayout() (string, error) {
 // Quit closes the application.
 func (s *AppService) Quit() {
 	wruntime.Quit(s.app.ctx)
+}
+
+// setAppearance applies the native window appearance; tests replace it.
+var setAppearance = appearance.Set
+
+// SetAppearance matches the native window chrome to the UI theme setting
+// ("auto", "light", "dark", "hc"). Wails' WindowSet*Theme are no-ops on macOS.
+func (s *AppService) SetAppearance(theme string) {
+	switch theme {
+	case "light":
+		setAppearance(appearance.Light)
+	case "dark", "hc":
+		setAppearance(appearance.Dark)
+	default:
+		setAppearance(appearance.System)
+	}
 }

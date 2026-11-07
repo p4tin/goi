@@ -26,3 +26,5 @@ export function PendingRestore():Promise<Array<journal.Entry>>;
 export function Quit():Promise<void>;
 
 export function SaveLayout(arg1:string):Promise<void>;
+
+export function SetAppearance(arg1:string):Promise<void>;

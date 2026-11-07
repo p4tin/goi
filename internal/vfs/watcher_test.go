@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
+
 	"github.com/p4tin/goi/internal/events"
 )
 
@@ -135,6 +137,22 @@ func TestWatcherCreateThenRemoveDropped(t *testing.T) {
 	eventually(t, time.Second, func() bool { return c.seen(marker) })
 	if c.seen(tmp) {
 		t.Errorf("create+remove should be dropped: %+v", c.all())
+	}
+}
+
+// On Linux the Create often arrives after the file is already gone; the
+// following Remove must still be dropped.
+func TestWatcherCreateAlreadyGoneThenRemoveDropped(t *testing.T) {
+	root := t.TempDir()
+	w, c := startWatcher(t, []string{root}, nil, 300*time.Millisecond, nil)
+	gone := filepath.Join(root, "gone.txt")
+	w.handle(fsnotify.Event{Name: gone, Op: fsnotify.Create})
+	w.handle(fsnotify.Event{Name: gone, Op: fsnotify.Remove})
+	marker := filepath.Join(root, "marker.txt")
+	mustWrite(t, marker, "m")
+	eventually(t, time.Second, func() bool { return c.seen(marker) })
+	if c.seen(gone) {
+		t.Errorf("create (already gone) + remove should be dropped: %+v", c.all())
 	}
 }
 
