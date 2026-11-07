@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -195,6 +196,11 @@ func TestServerConfigAndDocumentSync(t *testing.T) {
 	if err != nil || h == nil || h.Contents != "hover" {
 		t.Fatalf("hover = %+v, %v", h, err)
 	}
+
+	// Re-opening with a restarted (lower) version must reach gopls as a
+	// fresh open, not a rejected didChange.
+	s.Open(path, 0, "fresh")
+	eventually(t, "reopen", func() bool { return r.has(path, "open:0:fresh") })
 }
 
 func TestServerRestartsAndReopensAfterCrash(t *testing.T) {
@@ -349,4 +355,57 @@ func TestRealGopls(t *testing.T) {
 		t.Fatalf("no Print* completion in %d items", len(list.Items))
 	}
 	eventually(t, "diagnostics for broken code", func() bool { return r.has(main, "") })
+}
+
+// TestCompletionLatency measures completion on this repository with the real
+// gopls (R12.2). Opt-in: GOI_GOPLS_BENCH=1 go test -run CompletionLatency -v.
+func TestCompletionLatency(t *testing.T) {
+	if os.Getenv("GOI_GOPLS_BENCH") != "1" {
+		t.Skip("set GOI_GOPLS_BENCH=1")
+	}
+	out, _ := exec.Command("go", "env", "GOBIN", "GOPATH").Output()
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	opts := ResolveOptions{}
+	if len(lines) == 2 {
+		opts.GOBIN, opts.GOPATH = lines[0], lines[1]
+	}
+	bin, err := Resolve(opts)
+	if err != nil {
+		t.Skip("gopls not installed")
+	}
+	root, _ := filepath.Abs("../..")
+	file := filepath.Join(root, "internal", "rpc", "lang.go")
+	src, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	marker := "ls.app.bus.Emit(events.TopicLangDiagnostics"
+	off := strings.Index(text, marker) + len("ls.app.")
+	line := strings.Count(text[:off], "\n")
+	char := off - (strings.LastIndex(text[:off], "\n") + 1)
+
+	s := New(Config{Bin: bin, Root: root, Env: os.Environ()})
+	s.Start()
+	defer s.Close()
+	s.Open(file, 1, text)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if _, err := s.Completion(ctx, file, lsp.Position{Line: line, Character: char}); err != nil { // warm-up
+		t.Fatal(err)
+	}
+	var times []time.Duration
+	for range 20 {
+		start := time.Now()
+		list, err := s.Completion(ctx, file, lsp.Position{Line: line, Character: char})
+		if err != nil || len(list.Items) == 0 {
+			t.Fatalf("completion: %d items, %v", len(list.Items), err)
+		}
+		times = append(times, time.Since(start))
+	}
+	slices.Sort(times)
+	t.Logf("completion on %s: p50=%s p95=%s", filepath.Base(root), times[10], times[18])
+	if times[18] > 150*time.Millisecond {
+		t.Errorf("p95 %s exceeds 150ms", times[18])
+	}
 }

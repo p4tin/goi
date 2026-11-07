@@ -20,14 +20,13 @@ export function docDom(markdown: string): HTMLElement {
   return h('div', { class: 'lang-doc' }, renderMarkdown(markdown));
 }
 
-/** A tooltip view that gives its container the shared popup look. */
-export function langTooltip(dom: HTMLElement): TooltipView {
-  return {
-    dom,
-    mount() {
-      dom.parentElement?.classList.add('lang-tooltip');
-    },
-  };
+/** A tooltip view with the shared popup look. CodeMirror makes the view's
+ * dom the .cm-tooltip element itself, so the class goes on dom. */
+export function langTooltip(content: HTMLElement): TooltipView {
+  const dom = document.createElement('div');
+  dom.className = 'lang-tooltip';
+  dom.append(content);
+  return { dom };
 }
 
 /** Documentation for the word at pos: gopls hover, else keyword docs. */

@@ -60,7 +60,7 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, dev
 await send('Page.navigate', { url: spec.url });
 await sleep(spec.initialWait ?? 2500);
 
-const keyCode = { Enter: 13, Escape: 27, Tab: 9, ArrowDown: 40, ArrowUp: 38, Backspace: 8, Shift: 16, F2: 113 };
+const keyCode = { Enter: 13, Escape: 27, Tab: 9, ArrowDown: 40, ArrowUp: 38, Backspace: 8, Shift: 16, '[': 219, ']': 221, ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`F${i + 1}`, 112 + i])) };
 for (const s of spec.steps) {
   if (s.wait) await sleep(s.wait);
   if (s.eval) {

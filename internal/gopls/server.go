@@ -702,15 +702,19 @@ func (s *Server) Open(path string, version int, text string) {
 	s.docMu.Lock()
 	defer s.docMu.Unlock()
 	d := &document{lang: LanguageID(path), version: version, text: text}
-	if _, ok := s.docs[path]; ok {
-		s.docs[path] = d
-		s.sendChange(path, d)
+	_, reopen := s.docs[path]
+	s.docs[path] = d
+	conn := s.readyConn()
+	if conn == nil {
 		return
 	}
-	s.docs[path] = d
-	if conn := s.readyConn(); conn != nil {
-		s.notifyOpen(conn, path, d)
+	if reopen {
+		// The editor re-opened a document gopls already has (e.g. after a
+		// frontend reload, with versions restarting). didChange with a lower
+		// version is rejected, so close and open it again.
+		_ = conn.Notify(context.Background(), "textDocument/didClose", map[string]any{"textDocument": lsp.TextDocumentIdentifier{URI: PathToURI(path)}})
 	}
+	s.notifyOpen(conn, path, d)
 }
 
 // Change replaces a tracked document's text (full sync).
