@@ -12,11 +12,12 @@ import { createDoubleShift } from './doubleShift';
 import { rankItems } from './rank';
 import { installRecentFiles, recentFiles } from './recentFiles';
 
-export type PaletteTab = 'all' | 'files' | 'actions' | 'settings';
+export type PaletteTab = 'all' | 'files' | 'symbols' | 'actions' | 'settings';
 
 const TABS: { id: PaletteTab; title: string }[] = [
   { id: 'all', title: 'All' },
   { id: 'files', title: 'Files' },
+  { id: 'symbols', title: 'Symbols' },
   { id: 'actions', title: 'Actions' },
   { id: 'settings', title: 'Settings' },
 ];
@@ -24,6 +25,25 @@ const TABS: { id: PaletteTab; title: string }[] = [
 const SECTION_LIMIT = 10;
 const TAB_LIMIT = 50;
 const FILE_DEBOUNCE_MS = 30;
+const SYMBOL_DEBOUNCE_MS = 120;
+
+/** A symbol search result supplied by the language feature. */
+export interface SymbolEntry {
+  label: string;
+  detail: string;
+  kind?: string;
+  run: () => void;
+}
+
+/** Returns symbols for a query; throws (with a user-facing message) when
+ * symbol search is unavailable. */
+export type SymbolProvider = (query: string) => Promise<SymbolEntry[]>;
+let symbolProvider: SymbolProvider | null = null;
+
+/** Lets the language feature supply workspace symbols (R10). */
+export function setSymbolProvider(fn: SymbolProvider): void {
+  symbolProvider = fn;
+}
 
 export interface SettingEntry {
   key: string;
@@ -120,6 +140,7 @@ export function installPalette(wb: Workbench): void {
   reg('nav.gotoFile', 'Go to File…', 'files');
   reg('nav.gotoAction', 'Find Action…', 'actions');
   reg('nav.recentFiles', 'Recent Files', 'files', { title: 'Recent Files' });
+  reg('nav.gotoSymbol', 'Go to Symbol…', 'symbols');
 
   const ds = createDoubleShift(() => palette.open('all'));
   const onKey = (e: KeyboardEvent): void => ds.handle({ type: e.type as 'keydown' | 'keyup', key: e.key, repeat: e.repeat });
@@ -136,6 +157,10 @@ function createPalette(wb: Workbench): Palette {
   let fileReq = 0;
   let fileRows: Row[] = [];
   let fileInfo = '';
+  let symTimer: ReturnType<typeof setTimeout> | null = null;
+  let symReq = 0;
+  let symRows: Row[] = [];
+  let symInfo = '';
   let prevFocus: HTMLElement | null = null;
   let titleOverride: string | undefined;
 
@@ -143,7 +168,7 @@ function createPalette(wb: Workbench): Palette {
     class: 'palette-input',
     type: 'text',
     spellcheck: false,
-    placeholder: 'Search files, actions and settings',
+    placeholder: 'Search files, symbols, actions and settings',
     'aria-label': 'Search',
   });
   const tabBar = h('div', { class: 'palette-tabs', role: 'tablist' });
@@ -285,9 +310,52 @@ function createPalette(wb: Workbench): Palette {
     }, FILE_DEBOUNCE_MS);
   }
 
+  function symbolRow(e: SymbolEntry): Row {
+    return {
+      kind: 'item',
+      render: () => [
+        e.kind ? h('span', { class: 'palette-kind' }, e.kind) : null,
+        h('span', { class: 'palette-label' }, e.label),
+        h('span', { class: 'palette-detail' }, e.detail),
+      ].filter((n): n is HTMLElement => n !== null),
+      run: e.run,
+    };
+  }
+
+  function scheduleSymbols(q: string): void {
+    if (symTimer) clearTimeout(symTimer);
+    const req = ++symReq;
+    if (!q.trim()) {
+      symRows = [];
+      symInfo = 'Type to search symbols';
+      return;
+    }
+    if (!symbolProvider) {
+      symRows = [];
+      symInfo = 'Symbol search is not available';
+      return;
+    }
+    const provider = symbolProvider;
+    symTimer = setTimeout(async () => {
+      symTimer = null;
+      try {
+        const res = await provider(q);
+        if (req !== symReq || !root) return;
+        symRows = res.slice(0, TAB_LIMIT).map(symbolRow);
+        symInfo = symRows.length ? '' : 'No matching symbols';
+      } catch (err) {
+        if (req !== symReq || !root) return;
+        symRows = [];
+        symInfo = err instanceof Error ? err.message : String(err);
+      }
+      build();
+    }, SYMBOL_DEBOUNCE_MS);
+  }
+
   function refresh(): void {
     renderTabs();
     if (tab === 'all' || tab === 'files') scheduleFiles(input.value);
+    if (tab === 'all' || tab === 'symbols') scheduleSymbols(input.value);
     build();
   }
 
@@ -299,6 +367,9 @@ function createPalette(wb: Workbench): Palette {
     if (tab === 'files') {
       out.push(...fileRows.slice(0, TAB_LIMIT));
       if (fileInfo) out.push(info(fileInfo));
+    } else if (tab === 'symbols') {
+      out.push(...symRows);
+      if (symInfo) out.push(info(symInfo));
     } else if (tab === 'actions') {
       const a = actionRows(q, TAB_LIMIT);
       out.push(...(a.length ? a : [info('No matching actions')]));
@@ -310,6 +381,7 @@ function createPalette(wb: Workbench): Palette {
       if (f.length || fileInfo === 'Indexing…') out.push(header('Files'), ...f);
       if (fileInfo === 'Indexing…') out.push(info(fileInfo));
       if (q.trim()) {
+        if (symRows.length) out.push(header('Symbols'), ...symRows.slice(0, SECTION_LIMIT));
         const a = actionRows(q, SECTION_LIMIT);
         if (a.length) out.push(header('Actions'), ...a);
         const s = settingRows(q, SECTION_LIMIT);
@@ -352,6 +424,8 @@ function createPalette(wb: Workbench): Palette {
       prevFocus = document.activeElement as HTMLElement | null;
       fileRows = [];
       fileInfo = '';
+      symRows = [];
+      symInfo = '';
       input.value = '';
       const panel = h('div', { class: 'palette', role: 'dialog', 'aria-label': 'Search Everywhere' }, title, tabBar, input, list);
       root = h('div', { class: 'palette-backdrop' }, panel);
@@ -369,7 +443,9 @@ function createPalette(wb: Workbench): Palette {
   function close(): void {
     if (!root) return;
     if (fileTimer) clearTimeout(fileTimer);
+    if (symTimer) clearTimeout(symTimer);
     fileReq++;
+    symReq++;
     root.remove();
     root = null;
     prevFocus?.focus?.();
