@@ -1,0 +1,336 @@
+/* Language intelligence UI. Colors come only from theme tokens. */
+
+.status-item[data-status='lang'][data-state='error'],
+.status-item[data-status='lang'][data-state='missing'] {
+  color: var(--goi-warning);
+}
+.status-item[data-status='lang'][data-state='starting'],
+.status-item[data-status='lang'][data-state='indexing'],
+.status-item[data-status='lang'][data-state='installing'] {
+  color: var(--goi-fg-muted);
+}
+
+/* Markdown documentation */
+.md {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--goi-fg);
+  max-width: 640px;
+  overflow-wrap: anywhere;
+}
+.md p,
+.md ul {
+  margin: 0 0 6px;
+}
+.md ul {
+  padding-left: 18px;
+}
+.md .md-h {
+  margin: 8px 0 4px;
+  font-size: 12.5px;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.md .md-code {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  background: var(--goi-panel-bg);
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.md a {
+  color: var(--goi-accent);
+  text-decoration: none;
+}
+.md a:hover {
+  text-decoration: underline;
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--goi-panel-border);
+}
+
+/* Tooltips (hover, quick doc, signature help) */
+.cm-tooltip.lang-tooltip {
+  background: var(--goi-bg);
+  color: var(--goi-fg);
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+  padding: 8px 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+.lang-signature {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.lang-signature .active-param {
+  font-weight: 700;
+  color: var(--goi-accent);
+}
+.lang-signature-doc {
+  margin-top: 6px;
+  font-family: inherit;
+}
+
+/* Completion */
+.cm-tooltip-autocomplete .cm-completionDetail {
+  color: var(--goi-fg-muted);
+  font-style: normal;
+  margin-left: 0.8em;
+}
+.cm-completionInfo .md {
+  max-width: 420px;
+}
+
+/* List popup */
+.lp {
+  position: fixed;
+  z-index: 60;
+  min-width: 280px;
+  max-width: 640px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--goi-bg);
+  color: var(--goi-fg);
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.25);
+  outline: none;
+}
+.lp-centered {
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  width: min(560px, 90vw);
+}
+.lp-title {
+  padding: 8px 10px 4px;
+  font-size: 12px;
+  color: var(--goi-fg-muted);
+}
+.lp-filter {
+  margin: 6px 8px;
+}
+.lp-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+}
+.lp-row,
+.lp-empty {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: default;
+}
+.lp-row.selected {
+  background: var(--goi-selection);
+}
+.lp-empty {
+  color: var(--goi-fg-muted);
+}
+.lp-detail {
+  color: var(--goi-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-kind {
+  display: inline-block;
+  min-width: 1.4em;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--goi-accent);
+}
+
+/* Usage highlighting */
+.cm-lang-highlight {
+  background: var(--goi-hover);
+  border-radius: 2px;
+}
+.cm-lang-highlight-write {
+  background: var(--goi-selection);
+  border-radius: 2px;
+  outline: 1px solid var(--goi-accent);
+}
+.cm-lang-link {
+  text-decoration: underline;
+  color: var(--goi-accent);
+  cursor: pointer;
+}
+
+/* Breadcrumbs */
+.cm-panel.lang-crumbs {
+  display: flex;
+  gap: 2px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--goi-fg-muted);
+  background: var(--goi-panel-bg);
+  border-top: 1px solid var(--goi-panel-border);
+  min-height: 20px;
+}
+.lang-crumbs button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.lang-crumbs button:hover {
+  color: var(--goi-fg);
+}
+.lang-crumbs .sep {
+  opacity: 0.6;
+}
+
+/* Result tool windows (Problems, Usages, Find) */
+.results {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12.5px;
+}
+.results-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--goi-panel-border);
+  color: var(--goi-fg-muted);
+  flex-wrap: wrap;
+}
+.results-body {
+  flex: 1;
+  overflow: auto;
+  padding: 2px 0;
+}
+.results-empty {
+  padding: 12px;
+  color: var(--goi-fg-muted);
+}
+.res-group {
+  padding: 3px 8px;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  cursor: default;
+  user-select: none;
+}
+.res-group .count,
+.res-file .count {
+  font-weight: 400;
+  color: var(--goi-fg-muted);
+}
+.res-file {
+  padding: 2px 8px 2px 20px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  user-select: none;
+}
+.res-file .dir {
+  color: var(--goi-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res-item {
+  display: flex;
+  gap: 8px;
+  padding: 1px 8px 1px 36px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.res-item:hover,
+.res-item.selected {
+  background: var(--goi-hover);
+}
+.res-item .ln {
+  color: var(--goi-fg-muted);
+  min-width: 3.5em;
+  text-align: right;
+}
+.res-item mark {
+  background: var(--goi-selection);
+  color: inherit;
+  border-radius: 2px;
+}
+.res-item .tag {
+  font-family: system-ui, sans-serif;
+  font-size: 10.5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--goi-panel-border);
+  color: var(--goi-fg-muted);
+}
+.sev {
+  display: inline-block;
+  width: 0.9em;
+  font-weight: 700;
+  text-align: center;
+}
+.sev-1 {
+  color: var(--goi-error);
+}
+.sev-2 {
+  color: var(--goi-warning);
+}
+.sev-3,
+.sev-4 {
+  color: var(--goi-info);
+}
+
+/* Find / Replace in Path */
+.find-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px 8px;
+  align-items: center;
+  min-width: min(560px, 80vw);
+}
+.find-form label {
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
+.find-toggles {
+  display: flex;
+  gap: 4px;
+}
+.find-toggle {
+  min-width: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--goi-input-border);
+  border-radius: 4px;
+  background: var(--goi-input-bg);
+  color: var(--goi-fg);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  cursor: pointer;
+}
+.find-toggle[aria-pressed='true'] {
+  background: var(--goi-accent);
+  color: var(--goi-accent-fg);
+  border-color: var(--goi-accent);
+}
+.find-scope {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+}

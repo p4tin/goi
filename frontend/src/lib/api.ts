@@ -11,7 +11,7 @@ import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
-import { EventsOn } from '../../wailsjs/runtime/runtime';
+import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
 import type { gopls, gosdk, index, journal, lsp, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
@@ -75,6 +75,11 @@ export interface FsBatch {
 export interface SettingsChanged {
   layer: SettingsLayer;
   effective: Settings;
+}
+
+/** Opens an http(s) URL in the system browser; other schemes are ignored. */
+export function openExternal(url: string): void {
+  if (/^https?:\/\//i.test(url)) BrowserOpenURL(url);
 }
 
 /** Subscribes to a backend topic; returns an unsubscribe function. */
