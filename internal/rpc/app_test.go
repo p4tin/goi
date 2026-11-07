@@ -281,6 +281,11 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	sess.lock.Release()
 	sess.watcher.Close()
 	sess.manager.Close()
+	// A dead process holds no files; Windows can't remove open ones.
+	if a1.cfgWatch != nil {
+		a1.cfgWatch.Close()
+	}
+	a1.closer.Close()
 	dead := exec.Command(os.Args[0], "-test.run=^$")
 	dead.Run()
 	lockFile := filepath.Join(home, "cache", "journal", sess.manager.Project().Hash, "session.lock")

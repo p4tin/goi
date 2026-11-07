@@ -322,7 +322,9 @@ func (w *watcher) handle(ev fsnotify.Event) {
 		if st, err := os.Stat(name); err == nil {
 			isDir = st.IsDir()
 		} else if op == OpCreate {
-			// Already gone again; nothing to report.
+			// Already gone again (common on Linux): nothing to report, but
+			// remember it so the Remove that follows is dropped too.
+			w.enqueueGone(name)
 			return
 		}
 	}
@@ -472,18 +474,42 @@ func (w *watcher) enqueue(ev Event) {
 		switch {
 		case p.Op == OpCreate && ev.Op == OpWrite:
 			// still a create
+			p.dropped = false
 		case p.Op == OpCreate && ev.Op == OpRemove:
 			p.dropped = true
 			delete(w.pendingIdx, ev.Path)
 		default:
 			p.Op = ev.Op
 			p.IsDir = ev.IsDir
+			p.dropped = false
 		}
 	} else {
 		p := &pendingEvent{Event: ev}
 		w.pending = append(w.pending, p)
 		w.pendingIdx[ev.Path] = p
 	}
+	if w.timer == nil {
+		w.timer = time.AfterFunc(w.window, w.flush)
+	}
+}
+
+// enqueueGone records a create whose file had already vanished: it is not
+// reported, but a following Remove in the same window is absorbed by it.
+func (w *watcher) enqueueGone(path string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return
+	}
+	if p, ok := w.pendingIdx[path]; ok {
+		if p.Op == OpCreate {
+			p.dropped = true
+		}
+		return
+	}
+	p := &pendingEvent{Event: Event{Path: path, Op: OpCreate}, dropped: true}
+	w.pending = append(w.pending, p)
+	w.pendingIdx[path] = p
 	if w.timer == nil {
 		w.timer = time.AfterFunc(w.window, w.flush)
 	}
