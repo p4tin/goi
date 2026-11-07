@@ -20,6 +20,7 @@ import { breadcrumbsExtension, showFileStructure } from './structure';
 import { installSymbols } from './symbols';
 import { findUsages, highlightExtension, installUsages } from './usages';
 import { applyFileEdits } from './edits';
+import { installFindInPath, openFindDialog } from './findInPath';
 import { installLangStatus } from './status';
 import './lang.css';
 
@@ -41,6 +42,7 @@ export function installLang(wb: Workbench): void {
   installDiagnostics(wb);
   installUsages(wb);
   installSymbols();
+  installFindInPath(wb);
 
   commands.register({ id: 'lang.gotoDefinition', title: 'Go to Declaration', category: 'Navigate', run: () => gotoDefinition() });
   commands.register({ id: 'lang.gotoTypeDefinition', title: 'Go to Type Declaration', category: 'Navigate', run: () => gotoTypeDefinition() });
@@ -52,6 +54,8 @@ export function installLang(wb: Workbench): void {
   commands.register({ id: 'lang.rename', title: 'Rename…', category: 'Refactor', run: () => renameAtCursor() });
   commands.register({ id: 'lang.contextActions', title: 'Show Context Actions', category: 'Code', run: () => showContextActions() });
   commands.register({ id: 'lang.fileStructure', title: 'File Structure', category: 'Navigate', run: () => showFileStructure() });
+  commands.register({ id: 'search.findInPath', title: 'Find in Path…', category: 'Edit', run: () => openFindDialog(wb, false) });
+  commands.register({ id: 'search.replaceInPath', title: 'Replace in Path…', category: 'Edit', run: () => openFindDialog(wb, true) });
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });
   commands.register({ id: 'lang.parameterInfo', title: 'Parameter Info', category: 'Code', run: () => showParameterInfo() });
 
