@@ -43,7 +43,7 @@ export const MENUS: MenuDef[] = [
     label: 'View',
     items: [
       'view.toggleLeft', 'view.toggleBottom', 'view.toggleRight', 'tree.focus', 'view.notifications', '-',
-      'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', '-',
+      'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', 'view.commit', 'view.git', '-',
       'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', '-',
       'view.toggleDarkMode', 'view.themeDark', 'view.themeLight', 'view.themeAuto', 'view.themeHighContrast',
     ],
@@ -66,6 +66,23 @@ export const MENUS: MenuDef[] = [
       'debug.runToCursor', 'debug.setNextStatement', 'debug.evaluate', 'debug.addWatch', '-',
       'debug.toggleBreakpoint', 'debug.editBreakpoint', 'debug.viewBreakpoints', 'debug.muteBreakpoints', '-',
       'debug.installDlv',
+    ],
+  },
+  {
+    label: 'Git',
+    items: [
+      'git.commit', 'git.commitModal', 'git.push', 'git.pull', 'git.fetch', '-',
+      'git.branches', 'git.stash', 'git.stashes', '-',
+      'git.showDiff', 'git.compareWithHead', 'git.annotate', 'git.fileHistory', 'git.log', '-',
+      'git.refresh', 'git.init',
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      'lint.runProject', 'lint.runPackage', 'lint.install', '-',
+      'mod.tidy', 'mod.download', 'mod.vendor', 'mod.init', '-',
+      'mod.workInit', 'mod.workUse', 'mod.workSync',
     ],
   },
 ];

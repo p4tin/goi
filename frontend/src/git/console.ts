@@ -2,7 +2,8 @@
 // Stop, plus notifications for the outcome (and Pull and Push after a
 // rejected push).
 
-import { showDialog } from '../app/dialog';
+import { addCloseCheck } from '../app/closeChecks';
+import { confirmDialog, showDialog } from '../app/dialog';
 import { gitApi, on, Topics } from '../lib/api';
 import type { GitOpEvent, GitOutputEvent } from '../lib/api';
 import { h } from '../lib/dom';
@@ -53,6 +54,11 @@ async function onRejected(): Promise<void> {
 }
 
 export function installGitConsole(): void {
+  addCloseCheck(async () => {
+    const ops = running.peek();
+    if (!ops.length) return true;
+    return confirmDialog('Git Operation Running', `${ops.map((o) => o.title).join(', ')} is still running. Stop it and close?`, 'Stop and Close', true);
+  });
   con = new Console({ maxLines: 5000 });
   stopBtn = iconButton('stop', 'Stop', () => {
     for (const op of running.peek()) void gitApi.stopOp(op.opId).catch(() => {});
