@@ -1,6 +1,7 @@
 package toolbin
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -75,5 +76,22 @@ func TestWithoutKeysAndTail(t *testing.T) {
 	}
 	if Tail("abcdef", 3) != "…def" || Tail("ab", 3) != "ab" {
 		t.Fatal("Tail")
+	}
+}
+
+func TestInstallUsesAbsoluteGOBIN(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a shell script as the go binary")
+	}
+	t.Chdir(t.TempDir())
+	// A fake go that fails unless GOBIN is absolute, then "installs" the tool.
+	fakeGo := filepath.Join(t.TempDir(), "go")
+	os.WriteFile(fakeGo, []byte("#!/bin/sh\ncase \"$GOBIN\" in /*) ;; *) echo 'GOBIN must be an absolute path'; exit 1;; esac\nprintf '#!/bin/sh\\n' > \"$GOBIN/dlv\"; chmod +x \"$GOBIN/dlv\"\n"), 0o755)
+	p, err := Install(context.Background(), fakeGo, os.Environ(), filepath.Join("rel", "tools"), "example.com/dlv@latest", "dlv")
+	if err != nil {
+		t.Fatalf("Install with a relative tools dir: %v", err)
+	}
+	if !filepath.IsAbs(p) {
+		t.Fatalf("installed path %q is not absolute", p)
 	}
 }

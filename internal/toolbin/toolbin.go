@@ -107,6 +107,10 @@ func IsExec(p string) bool {
 // installed binary's path (toolsDir/name). goBin is the SDK's go binary; env
 // is the project environment.
 func Install(ctx context.Context, goBin string, env []string, toolsDir, pkg, name string) (string, error) {
+	// go install requires an absolute GOBIN.
+	if abs, err := filepath.Abs(toolsDir); err == nil {
+		toolsDir = abs
+	}
 	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
 		return "", fmt.Errorf("%s: install: %w", name, err)
 	}
