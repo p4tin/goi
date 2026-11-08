@@ -1,0 +1,29 @@
+/* Git UI. Colors come only from theme tokens. */
+
+.tree-row.vcs-modified .tree-name,
+.tree-row.vcs-renamed .tree-name {
+  color: var(--goi-vcs-modified);
+}
+.tree-row.vcs-added .tree-name {
+  color: var(--goi-vcs-added);
+}
+.tree-row.vcs-deleted .tree-name {
+  color: var(--goi-vcs-deleted);
+  text-decoration: line-through;
+}
+.tree-row.vcs-untracked .tree-name {
+  color: var(--goi-vcs-untracked);
+}
+.tree-row.vcs-ignored .tree-name {
+  color: var(--goi-vcs-ignored);
+}
+.tree-row.vcs-conflict .tree-name {
+  color: var(--goi-vcs-conflict);
+  font-weight: 600;
+}
+.tree-row.vcs-dir-changed .tree-name {
+  color: var(--goi-vcs-modified);
+}
+.status-item[data-status='git'][hidden] {
+  display: none;
+}
