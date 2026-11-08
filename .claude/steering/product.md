@@ -17,7 +17,8 @@ macOS (arm64, amd64), Windows (amd64, arm64), Linux (amd64, arm64). All three ar
 
 ## Current milestone
 **M1: Editor + Project model** — implemented (see `.claude/designs/m1-editor-project/acceptance.md`); Windows/Linux runs and native-window checks pending.
-**Next: M2 — Intelligence** (gopls via LSP: completion, navigation, references, rename, diagnostics).
+**M2: Intelligence** — implemented (see `.claude/designs/m2-intelligence/acceptance.md`): gopls completion, navigation, usages, docs, diagnostics/Problems, quick-fixes, rename, palette symbols, Find/Replace in Path. Windows/Linux runs pending.
+**Next: M3 — Run/Test/Debug** (run configurations, `go test -json` tree, Delve via DAP, terminal).
 
 ## Principles
 - Fast and calm: no UI freeze > 100 ms; heavy work stays off the UI thread.

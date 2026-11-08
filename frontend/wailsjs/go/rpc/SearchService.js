@@ -5,3 +5,11 @@
 export function Files(arg1, arg2, arg3) {
   return window['go']['rpc']['SearchService']['Files'](arg1, arg2, arg3);
 }
+
+export function FindInPath(arg1) {
+  return window['go']['rpc']['SearchService']['FindInPath'](arg1);
+}
+
+export function ReplaceInPath(arg1, arg2) {
+  return window['go']['rpc']['SearchService']['ReplaceInPath'](arg1, arg2);
+}

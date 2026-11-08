@@ -12,6 +12,9 @@ const (
 	TopicIndexUpdated     = "index.updated"
 	TopicNotify           = "notify"
 	TopicMarkersUpdated   = "markers.updated"
+	TopicLangStatus       = "lang.status"
+	TopicLangDiagnostics  = "lang.diagnostics"
+	TopicLangApplyEdit    = "lang.applyEdit"
 )
 
 // Bus publishes a payload under a topic. Implementations must be safe for

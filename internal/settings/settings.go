@@ -67,6 +67,15 @@ type Save struct {
 	Format string `toml:"format" json:"format"`
 }
 
+// Gopls configures the Go language server.
+type Gopls struct {
+	Enabled         bool           `toml:"enabled" json:"enabled"`
+	Path            string         `toml:"path" json:"path"`
+	UsePlaceholders bool           `toml:"usePlaceholders" json:"usePlaceholders"`
+	Staticcheck     bool           `toml:"staticcheck" json:"staticcheck"`
+	Settings        map[string]any `toml:"settings" json:"settings"`
+}
+
 // UI holds theme and keymap selection.
 type UI struct {
 	Theme  string `toml:"theme" json:"theme"`
@@ -81,6 +90,7 @@ type Settings struct {
 	Go      Go                  `toml:"go" json:"go"`
 	Project Project             `toml:"project" json:"project"`
 	Save    Save                `toml:"save" json:"save"`
+	Gopls   Gopls               `toml:"gopls" json:"gopls"`
 	UI      UI                  `toml:"ui" json:"ui"`
 	Keys    map[string][]string `toml:"keys" json:"keys"`
 }
@@ -114,6 +124,9 @@ func decode(doc map[string]any) (Settings, error) {
 	}
 	if s.Keys == nil {
 		s.Keys = map[string][]string{}
+	}
+	if s.Gopls.Settings == nil {
+		s.Gopls.Settings = map[string]any{}
 	}
 	return s, nil
 }

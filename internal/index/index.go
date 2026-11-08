@@ -105,6 +105,18 @@ func (ix *Index) Len() int {
 	return len(ix.entries)
 }
 
+// Paths returns the absolute paths of all indexed files, sorted.
+func (ix *Index) Paths() []string {
+	ix.mu.RLock()
+	out := make([]string, len(ix.entries))
+	for i, e := range ix.entries {
+		out[i] = e.abs
+	}
+	ix.mu.RUnlock()
+	sort.Strings(out)
+	return out
+}
+
 // Add indexes a file if it lies under a root and isn't excluded. Paths that
 // are directories, missing, or already indexed are ignored.
 func (ix *Index) Add(abs string) {

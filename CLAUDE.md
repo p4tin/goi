@@ -8,11 +8,15 @@ Goi is a cross-platform Go IDE (Wails v2 + CodeMirror 6). Product spec: `SPEC.md
 wails dev                        # hot reload (uses GOI_HOME if set)
 wails build                      # macOS: build/bin/Goi.app
 wails generate module            # regenerate frontend/wailsjs bindings after changing bound Go methods
-go test ./internal/...           # backend tests (add -race for rpc/workspace/vfs)
+go test ./internal/...           # backend tests (add -race for rpc/workspace/vfs/lsp/gopls)
 cd frontend && npm test          # vitest
 cd frontend && npx tsc --noEmit  # type-check
 node tools/e2e/cdp.mjs tools/e2e/smoke.json   # headless E2E against a running `wails dev`
+node tools/e2e/cdp.mjs tools/e2e/m2.json      # M2 code intelligence E2E (project: tools/e2e/m2-sample.sh <dir>)
+GOI_GOPLS_BENCH=1 go test -run CompletionLatency -v ./internal/gopls   # completion p95 on this repo
 ```
+
+gopls is needed for code intelligence (`go install golang.org/x/tools/gopls@latest`). Goi resolves it from the `gopls.path` setting, then `$PATH`, `$GOBIN`, `$(go env GOPATH)/bin`, then `<config>/tools/bin` (where "Install gopls" puts it). Tests that need it skip when it's missing.
 
 Wails CLI on this machine: `/Users/p4tin/.gvm/pkgsets/go1.25.6/global/bin/wails` (v2.17.1). `go.mod` needs Go 1.26; `GOTOOLCHAIN=auto` fetches it.
 
@@ -31,6 +35,8 @@ To read the macOS system log, call `/usr/bin/log show …`. In zsh, a bare `log`
 - Every user action is a command (`lib/commands.ts`). Shortcuts live only in `keymap/keymaps.ts`.
 - The native menu bar is a list of command ids in `app/menuBar.ts` (`MENUS`). Labels come from command titles and shortcuts from the active keymap; `internal/rpc/menu.go` builds it and emits `menu.command`. To add a menu entry, add its command id to `MENUS`.
 - Colors come only from theme tokens (`var(--goi-*)`, source of truth `theme/tokens.ts`).
+- Code intelligence: `internal/lsp` is a protocol-only LSP client; `internal/gopls` supervises one gopls per project (sync, requests, restart backoff) and reports through callbacks; `internal/rpc/lang.go` (`LangService`, `langSession`) bridges it. Positions crossing the bridge are LSP positions (0-based line, UTF-16 character), the same units as CodeMirror offsets within a line. Paths cross as OS paths; `file://` URIs stay inside `internal/gopls`.
+- Frontend language features live in `frontend/src/lang/` (one installer, `installLang`). Every request first calls `client.flush(buf)` and drops responses whose buffer version changed (`fresh()`). Edits go through `lang/edits.ts`: open buffers are edited in CodeMirror, unopened files on disk via `LangService.ApplyFileEdits`.
 
 ## Gotchas
 
@@ -41,4 +47,8 @@ To read the macOS system log, call `/usr/bin/log show …`. In zsh, a bare `log`
 - `wails dev` regenerates bindings on Go changes. If its Go rebuild fails, the old backend keeps running; restart it.
 - happy-dom tests: open editor views with `{ focus: false }`. happy-dom fires `selectionchange` synchronously, which re-enters CodeMirror's update.
 - Each project window is its own process (Wails v2 is single-window). Instance locks live in `<cache>/instances/<hash>.lock` (`internal/instance`).
+- rpc tests don't start gopls: `TestMain` in `internal/rpc/lang_test.go` sets `startLangHook = nil`; call `withLang(t)` in tests that need it.
+- CodeMirror tooltips: the `TooltipView.dom` you return *is* the `.cm-tooltip` element. Put classes on it; its parent is the editor.
+- gopls rejects a `didChange` whose version isn't higher than the last one. Re-opening a tracked document must send `didClose` + `didOpen` (`gopls.Server.Open` does).
+- In the CDP harness, synthetic Cmd-A doesn't select all in text inputs. Set input values with `eval` and dispatch an `input` event instead.
 - Don't rebuild DOM from `mousedown`/`pointerdown` handlers. If the pressed element is replaced, the browser sends `click`/`dblclick` to the common ancestor and row handlers never run. Update the existing nodes instead. CDP-dispatched synthetic events don't catch this; tests should dispatch to the common ancestor (see `test/projectTree.test.ts`).

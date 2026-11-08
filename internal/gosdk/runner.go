@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -75,6 +76,28 @@ func (r Runner) environ() []string {
 		env = setEnv(env, "GOROOT", r.SDK.GOROOT)
 	}
 	return env
+}
+
+// Environ returns the project environment for tools other than go (such as
+// gopls): environ() with the SDK's bin directory first on PATH, so the tool
+// runs the selected go.
+func (r Runner) Environ() []string {
+	env := r.environ()
+	if r.SDK.GoBin == "" {
+		return env
+	}
+	bin := filepath.Dir(r.SDK.GoBin)
+	path := os.Getenv("PATH")
+	for _, kv := range env {
+		k, v, ok := strings.Cut(kv, "=")
+		if ok && (k == "PATH" || (runtime.GOOS == "windows" && strings.EqualFold(k, "PATH"))) {
+			path = v
+		}
+	}
+	if path == "" {
+		return setEnv(env, "PATH", bin)
+	}
+	return setEnv(env, "PATH", bin+string(os.PathListSeparator)+path)
 }
 
 // setEnv replaces or appends key=val. Keys compare case-insensitively on Windows.

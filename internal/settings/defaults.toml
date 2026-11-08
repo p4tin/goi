@@ -28,6 +28,13 @@ excludes = [".git", "node_modules", ".idea", ".goi/cache"]
 [save]
 format = "goimports"        # goimports | gofmt | none
 
+[gopls]
+enabled = true
+path = ""                   # empty: $PATH, $GOBIN, $GOPATH/bin, then Goi's tools dir
+usePlaceholders = true      # completion inserts parameter placeholders
+staticcheck = false         # extra staticcheck analyzers in diagnostics
+settings = {}               # passed through to the gopls configuration
+
 [ui]
 theme = "auto"              # auto | light | dark | hc
 scheme = "auto" # auto follows the UI theme; or goi-light, goi-dark, goi-ember, goi-paper

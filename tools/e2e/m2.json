@@ -1,0 +1,342 @@
+{
+ "url": "http://localhost:34115/",
+ "out": "/tmp/goi-e2e-m2",
+ "initialWait": 5000,
+ "steps": [
+  {
+   "label": "dialog at start",
+   "eval": "document.querySelector('.dialog')?.textContent?.slice(0,80) ?? null"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "label": "open main.go",
+   "eval": "(() => { const r=[...document.querySelectorAll('.tree-row')].find(e=>e.textContent.trim().endsWith('main.go')&&!e.textContent.includes('_test')); r.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); r.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); return !!r; })()"
+  },
+  {
+   "label": "editor not styled as tooltip",
+   "eval": "!document.querySelector('.cm-editor.lang-tooltip, .pane-host.lang-tooltip')"
+  },
+  {
+   "label": "R1.7 gopls status ready",
+   "eval": "(async()=>{for(let i=0;i<600;i++){const v=(()=>{const s=document.querySelector('[data-status=lang]'); return s&&s.dataset.state==='ready'&&s.textContent})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "label": "R7.1 error underline (unused var)",
+   "eval": "(async()=>{for(let i=0;i<300;i++){const v=(()=>{const e=document.querySelector('.cm-lintRange-error'); return e && e.textContent})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "label": "R7.2 problems status",
+   "eval": "document.querySelector('[data-status=problems]')?.textContent"
+  },
+  {
+   "label": "R12.2 completion latency ms (p50/p95 of 20)",
+   "eval": "(async()=>{const info=await window.go.rpc.AppService.Info();const p=info.projectPath+'/main.go';const t=[];let n=0;for(let i=0;i<20;i++){const s=performance.now();const r=await window.go.rpc.LangService.Completion(p,16,5);n=r.items.length;t.push(performance.now()-s)}t.sort((a,b)=>a-b);return {items:n,p50:Math.round(t[10]),p95:Math.round(t[18])}})()"
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "17:6"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "Pr"
+  },
+  {
+   "label": "R3.1 completion popup after typing fmt.Pr",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const v=(()=>{const l=[...document.querySelectorAll('.cm-tooltip-autocomplete li')].map(e=>e.textContent); return l.length&&l.slice(0,4).join(' | ')})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "key": "z",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 200
+  },
+  {
+   "key": "z",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "label": "doc restored",
+   "eval": "document.querySelector('.cm-content').textContent.includes('fmt.Println(g.Greet(), helper(2))')"
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "17:26"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "key": "b",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "label": "R4.1 go to declaration of helper \u2192 line 13",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const v=(()=>{const c=document.querySelector('[data-status=editor-cursor]')?.textContent||''; return /^Ln 13|13:/.test(c)&&c})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "[",
+   "code": "BracketLeft",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "label": "R4.4 back \u2192 line 17",
+   "eval": "(async()=>{for(let i=0;i<50;i++){const v=(()=>{const c=document.querySelector('[data-status=editor-cursor]')?.textContent||''; return /^Ln 17|17:/.test(c)&&c})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "17:18"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "key": "F1"
+  },
+  {
+   "label": "R6.2 quick documentation for Greet",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const t=document.querySelector('.cm-tooltip.lang-tooltip .lang-doc');if(t)return t.textContent.slice(0,90);await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "wait": 200
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "17:26"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "key": "F7",
+   "mods": [
+    "Alt"
+   ]
+  },
+  {
+   "label": "R5.1 find usages of helper",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const t=[...document.querySelectorAll('.results-head')].map(e=>e.textContent).find(t=>t.startsWith('Usages'));if(t)return t;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "F12",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "label": "R4.5 file structure",
+   "eval": "(async()=>{for(let i=0;i<50;i++){const v=(()=>{const r=[...document.querySelectorAll('.lp-row')].map(e=>e.textContent); return r.length&&r.join(' | ')})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "wait": 200
+  },
+  {
+   "label": "R4.6 breadcrumbs",
+   "eval": "document.querySelector('.lang-crumbs')?.textContent"
+  },
+  {
+   "key": "o",
+   "mods": [
+    "Meta",
+    "Alt"
+   ]
+  },
+  {
+   "wait": 200
+  },
+  {
+   "type": "Greet"
+  },
+  {
+   "label": "R10 palette symbols for Greet",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const v=(()=>{const r=[...document.querySelectorAll('.palette-row')].map(e=>e.textContent); return r.length&&r.slice(0,3).join(' | ')})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "wait": 200
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "18:7"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "key": "Enter",
+   "mods": [
+    "Alt"
+   ]
+  },
+  {
+   "label": "R8 context actions on unused var",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const v=(()=>{const r=[...document.querySelectorAll('.lp-row')].map(e=>e.textContent); return r.length&&r.join(' | ')})();if(v)return v;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "wait": 200
+  },
+  {
+   "key": "l",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "wait": 300
+  },
+  {
+   "type": "17:26"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "key": "F6",
+   "mods": [
+    "Shift"
+   ]
+  },
+  {
+   "wait": 800
+  },
+  {
+   "label": "rename prompt value",
+   "eval": "document.querySelector('.dialog input')?.value"
+  },
+  {
+   "label": "set new name",
+   "eval": "(()=>{const i=document.querySelector('.dialog input');i.value='double';i.dispatchEvent(new Event('input',{bubbles:true}));return i.value})()"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "wait": 1500
+  },
+  {
+   "label": "R9.2 multi-file preview",
+   "eval": "document.querySelector('.rename-preview')?.textContent?.slice(0,120) ?? 'no preview'"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "label": "R9 rename helper \u2192 double",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const t=document.querySelector('.cm-content').textContent;if(t.includes('func double(n int)')&&t.includes('double(2)'))return 'renamed';await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "key": "f",
+   "mods": [
+    "Meta",
+    "Shift"
+   ]
+  },
+  {
+   "wait": 500
+  },
+  {
+   "label": "set find text",
+   "eval": "(()=>{const i=document.querySelector('.find-form input');i.value='hello';i.dispatchEvent(new Event('input',{bubbles:true}));return document.activeElement?.tagName})()"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "label": "R11 find in path 'hello'",
+   "eval": "(async()=>{for(let i=0;i<100;i++){const t=[...document.querySelectorAll('.results-head')].map(e=>e.textContent).find(t=>t.includes('hello'));if(t)return t;await new Promise(r=>setTimeout(r,100))}return 'TIMEOUT'})()"
+  },
+  {
+   "shot": "m2.png"
+  }
+ ]
+}

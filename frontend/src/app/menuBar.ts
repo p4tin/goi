@@ -31,19 +31,31 @@ export const MENUS: MenuDef[] = [
   },
   {
     label: 'Code',
-    items: ['editor.find', 'editor.replace', '-', 'editor.reformat', 'editor.toggleSoftWrap'],
+    items: [
+      'editor.find', 'editor.replace', 'search.findInPath', 'search.replaceInPath', '-',
+      'lang.contextActions', 'lang.quickDoc', 'lang.parameterInfo', '-',
+      'lang.findUsages', 'lang.rename', '-',
+      'editor.reformat', 'editor.toggleSoftWrap', '-',
+      'lang.restart', 'lang.installGopls',
+    ],
   },
   {
     label: 'View',
     items: [
       'view.toggleLeft', 'view.toggleBottom', 'view.toggleRight', 'tree.focus', 'view.notifications', '-',
+      'view.problems', 'view.usages', 'view.find', '-',
       'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', '-',
       'view.toggleDarkMode', 'view.themeDark', 'view.themeLight', 'view.themeAuto', 'view.themeHighContrast',
     ],
   },
   {
     label: 'Navigate',
-    items: ['nav.searchEverywhere', 'nav.gotoFile', 'nav.gotoAction', 'nav.recentFiles', '-', 'editor.nextTab', 'editor.prevTab'],
+    items: [
+      'nav.searchEverywhere', 'nav.gotoFile', 'nav.gotoSymbol', 'nav.gotoAction', 'nav.recentFiles', '-',
+      'lang.gotoDefinition', 'lang.gotoTypeDefinition', 'lang.gotoImplementation', 'lang.gotoTest', 'lang.fileStructure', '-',
+      'nav.back', 'nav.forward', '-',
+      'editor.nextTab', 'editor.prevTab',
+    ],
   },
 ];
 

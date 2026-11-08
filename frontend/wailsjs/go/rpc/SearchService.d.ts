@@ -3,3 +3,7 @@
 import {rpc} from '../models';
 
 export function Files(arg1:string,arg2:number,arg3:Array<string>):Promise<rpc.FileSearchResult>;
+
+export function FindInPath(arg1:rpc.FindQuery):Promise<rpc.FindResult>;
+
+export function ReplaceInPath(arg1:rpc.FindQuery,arg2:Array<string>):Promise<number>;

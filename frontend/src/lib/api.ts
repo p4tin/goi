@@ -4,14 +4,15 @@
 import * as AppService from '../../wailsjs/go/rpc/AppService';
 import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
+import * as LangService from '../../wailsjs/go/rpc/LangService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
-import { EventsOn } from '../../wailsjs/runtime/runtime';
-import type { gosdk, index, journal, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
+import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
+import type { gopls, gosdk, index, journal, lsp, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
 export type Project = workspace.Project;
@@ -45,6 +46,9 @@ export const Topics = {
   openFile: 'app.openFile',
   beforeClose: 'app.beforeClose',
   menuCommand: 'menu.command',
+  langStatus: 'lang.status',
+  langDiagnostics: 'lang.diagnostics',
+  langApplyEdit: 'lang.applyEdit',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -71,6 +75,11 @@ export interface FsBatch {
 export interface SettingsChanged {
   layer: SettingsLayer;
   effective: Settings;
+}
+
+/** Opens an http(s) URL in the system browser; other schemes are ignored. */
+export function openExternal(url: string): void {
+  if (/^https?:\/\//i.test(url)) BrowserOpenURL(url);
 }
 
 /** Subscribes to a backend topic; returns an unsubscribe function. */
@@ -169,10 +178,202 @@ export const recentApi = {
   remove: (path: string): Promise<void> => RecentService.Remove(path),
 };
 
+export interface FindQuery {
+  pattern: string;
+  regex: boolean;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  /** Comma-separated base-name globs; "!" excludes. */
+  mask: string;
+  replace: string;
+  /** Directory to search ("" = whole project). */
+  scope: string;
+  /** Unsaved open buffers, searched instead of the file on disk. */
+  buffers: { path: string; text: string }[];
+}
+
+/** A Find in Path match. col/end/previewStart are UTF-16 offsets in the line. */
+export interface TextMatch {
+  path: string;
+  line: number;
+  col: number;
+  end: number;
+  preview: string;
+  previewStart: number;
+}
+
+export interface FindResult {
+  matches: TextMatch[];
+  truncated: boolean;
+}
+
 export const search = {
   /** Fuzzy file search; recent = absolute paths, most recent first. */
   files: (query: string, limit = 50, recent: string[] = []): Promise<FileSearchResult> =>
     SearchService.Files(query, limit, recent),
+  findInPath: (q: FindQuery): Promise<FindResult> =>
+    SearchService.FindInPath(q as unknown as rpc.FindQuery) as unknown as Promise<FindResult>,
+  /** Replaces in files that are not open; returns the replacement count. */
+  replaceInPath: (q: FindQuery, paths: string[]): Promise<number> =>
+    SearchService.ReplaceInPath(q as unknown as rpc.FindQuery, paths),
+};
+
+// ---- Language intelligence (gopls). Positions are LSP: 0-based line and
+// UTF-16 character, which matches CodeMirror offsets within a line.
+
+export interface Pos {
+  line: number;
+  character: number;
+}
+export interface Range {
+  start: Pos;
+  end: Pos;
+}
+export interface Location {
+  path: string;
+  range: Range;
+}
+export interface TextEdit {
+  range: Range;
+  newText: string;
+}
+export interface FileEdit {
+  path: string;
+  edits: TextEdit[];
+}
+export type Severity = 1 | 2 | 3 | 4;
+export interface Diagnostic {
+  range: Range;
+  severity?: Severity;
+  code?: unknown;
+  source?: string;
+  message: string;
+  tags?: number[];
+  data?: unknown;
+}
+export interface Command {
+  title: string;
+  command: string;
+  arguments?: unknown[];
+}
+export interface CompletionItem {
+  label: string;
+  kind?: number;
+  detail?: string;
+  documentation?: string;
+  deprecated?: boolean;
+  tags?: number[];
+  preselect?: boolean;
+  sortText?: string;
+  filterText?: string;
+  insertText?: string;
+  insertTextFormat?: number;
+  textEdit?: TextEdit;
+  additionalTextEdits?: TextEdit[];
+  command?: Command;
+}
+export interface CompletionList {
+  isIncomplete: boolean;
+  items: CompletionItem[];
+}
+export interface ParameterInfo {
+  label: string;
+  start: number;
+  end: number;
+  documentation?: string;
+}
+export interface SignatureInfo {
+  label: string;
+  documentation?: string;
+  parameters: ParameterInfo[];
+  activeParameter?: number;
+}
+export interface SignatureHelp {
+  signatures: SignatureInfo[];
+  activeSignature: number;
+  activeParameter: number;
+}
+export interface DocumentSymbol {
+  name: string;
+  detail?: string;
+  kind: number;
+  range: Range;
+  selectionRange: Range;
+  children?: DocumentSymbol[];
+}
+export interface WorkspaceSymbol {
+  name: string;
+  kind: number;
+  containerName: string;
+  location: Location;
+}
+export interface DocumentHighlight {
+  range: Range;
+  kind?: number;
+}
+export interface CodeAction {
+  title: string;
+  kind?: string;
+  diagnostics?: Diagnostic[];
+  isPreferred?: boolean;
+  disabled?: { reason: string };
+  edit?: unknown;
+  command?: Command;
+  data?: unknown;
+}
+export interface PrepareRename {
+  ok: boolean;
+  range: Range;
+  placeholder: string;
+}
+export interface HoverResult {
+  markdown: string;
+  range?: Range;
+}
+export type LangState = 'starting' | 'indexing' | 'ready' | 'error' | 'stopped' | 'missing' | 'disabled' | 'installing';
+export interface LangStatus {
+  state: LangState;
+  message: string;
+  bin: string;
+}
+export interface DiagnosticsEvent {
+  path: string;
+  items: Diagnostic[];
+}
+export interface ApplyEditEvent {
+  label: string;
+  edits: FileEdit[];
+}
+
+type P = Promise<unknown>;
+const cast = <T>(p: P): Promise<T> => p as Promise<T>;
+
+export const lang = {
+  status: (): Promise<LangStatus> => cast(LangService.Status()),
+  restart: (): Promise<void> => LangService.Restart(),
+  install: (): Promise<void> => LangService.InstallGopls(),
+  didOpen: (path: string, version: number, text: string): Promise<void> => LangService.DidOpen(path, version, text),
+  didChange: (path: string, version: number, text: string): Promise<void> => LangService.DidChange(path, version, text),
+  didSave: (path: string): Promise<void> => LangService.DidSave(path),
+  didClose: (path: string): Promise<void> => LangService.DidClose(path),
+  completion: (path: string, p: Pos): Promise<CompletionList> => cast(LangService.Completion(path, p.line, p.character)),
+  hover: (path: string, p: Pos): Promise<HoverResult> => cast(LangService.Hover(path, p.line, p.character)),
+  signatureHelp: (path: string, p: Pos): Promise<SignatureHelp | null> => cast(LangService.SignatureHelp(path, p.line, p.character)),
+  definition: (path: string, p: Pos): Promise<Location[]> => cast(LangService.Definition(path, p.line, p.character)),
+  typeDefinition: (path: string, p: Pos): Promise<Location[]> => cast(LangService.TypeDefinition(path, p.line, p.character)),
+  implementation: (path: string, p: Pos): Promise<Location[]> => cast(LangService.Implementation(path, p.line, p.character)),
+  references: (path: string, p: Pos): Promise<Location[]> => cast(LangService.References(path, p.line, p.character)),
+  documentHighlight: (path: string, p: Pos): Promise<DocumentHighlight[]> =>
+    cast(LangService.DocumentHighlight(path, p.line, p.character)),
+  documentSymbols: (path: string): Promise<DocumentSymbol[]> => cast(LangService.DocumentSymbols(path)),
+  workspaceSymbols: (query: string): Promise<WorkspaceSymbol[]> => cast(LangService.WorkspaceSymbols(query)),
+  prepareRename: (path: string, p: Pos): Promise<PrepareRename> => cast(LangService.PrepareRename(path, p.line, p.character)),
+  rename: (path: string, p: Pos, newName: string): Promise<FileEdit[]> =>
+    cast(LangService.Rename(path, p.line, p.character, newName)),
+  codeActions: (path: string, range: Range, diags: Diagnostic[]): Promise<CodeAction[]> =>
+    cast(LangService.CodeActions(path, range as unknown as lsp.Range, diags as unknown as lsp.Diagnostic[])),
+  runCodeAction: (a: CodeAction): Promise<FileEdit[]> => cast(LangService.RunCodeAction(a as unknown as lsp.CodeAction)),
+  applyFileEdits: (edits: FileEdit[]): Promise<void> => LangService.ApplyFileEdits(edits as unknown as gopls.FileEdit[]),
 };
 
 export type FormatResult = rpc.FormatResult;
