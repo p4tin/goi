@@ -32,6 +32,7 @@ type session struct {
 	terms   *termSession
 	git     *gitSession
 	lint    *lintSession
+	mod     *modSession
 }
 
 // startLangHook starts gopls for a new session; tests set it to nil.
@@ -111,6 +112,7 @@ func (a *App) openProject(path string) error {
 	s.terms = newTermSession(a)
 	s.git = startGit(a, abs, w)
 	s.lint = newLintSession()
+	s.mod = &modSession{}
 	if startLangHook != nil {
 		s.lang = startLangHook(a, abs, w)
 	}

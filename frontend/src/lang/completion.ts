@@ -4,6 +4,7 @@
 // one transaction so the whole completion is a single undo step.
 
 import { autocompletion, snippet, startCompletion } from '@codemirror/autocomplete';
+import type { CompletionSource } from '@codemirror/autocomplete';
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
@@ -254,9 +255,14 @@ const typingTrigger = ViewPlugin.define((view) => ({
   },
 }));
 
+/** Extra completion sources other features add for some buffers (e.g.
+ * module paths and versions in go.mod). */
+export const extraCompletionSources: ((buf: Buffer) => CompletionSource | null)[] = [];
+
 export function completionExtension(buf: Buffer): Extension {
+  const extra = extraCompletionSources.map((f) => f(buf)).filter((s): s is CompletionSource => s !== null);
   return [
-    autocompletion({ override: [source(buf)], icons: true, maxRenderedOptions: 200 }),
+    autocompletion({ override: [source(buf), ...extra], icons: true, maxRenderedOptions: 200 }),
     typingTrigger,
     EditorView.theme({ '.cm-completion-deprecated .cm-completionLabel': { textDecoration: 'line-through' } }),
   ];

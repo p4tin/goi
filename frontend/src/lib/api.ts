@@ -9,6 +9,7 @@ import * as GitService from '../../wailsjs/go/rpc/GitService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
 import * as LintService from '../../wailsjs/go/rpc/LintService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
+import * as ModService from '../../wailsjs/go/rpc/ModService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as RunService from '../../wailsjs/go/rpc/RunService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
@@ -858,4 +859,11 @@ export const lintApi = {
   status: (): Promise<LintStatus> => cast(LintService.Status()),
   install: (): Promise<void> => LintService.Install(),
   run: (scope: 'package' | 'project', path: string): Promise<LintResult> => cast(LintService.Run(scope, path)),
+};
+
+// ---- go.mod support (M4)
+
+export const modApi = {
+  versions: (module: string): Promise<string[]> => ModService.Versions(module),
+  modules: (prefix: string): Promise<string[]> => ModService.Modules(prefix),
 };

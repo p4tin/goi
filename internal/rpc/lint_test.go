@@ -61,3 +61,19 @@ func TestModuleDirFor(t *testing.T) {
 		t.Fatalf("outside = %q", got)
 	}
 }
+
+func TestModServiceModulesFromGoSum(t *testing.T) {
+	root := runModule(t)
+	os.WriteFile(filepath.Join(root, "go.sum"), []byte("github.com/stretchr/testify v1.9.0 h1:x=\n"), 0o644)
+	a, _ := started(t, root)
+	got := a.modSvc.Modules("github.com/stre")
+	found := false
+	for _, m := range got {
+		if m == "github.com/stretchr/testify" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Modules = %v", got)
+	}
+}
