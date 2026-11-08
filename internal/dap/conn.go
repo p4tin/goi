@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ErrClosed is returned by calls made after the connection closed.
@@ -85,10 +86,11 @@ type Conn struct {
 	pending map[int]chan result
 	closed  bool
 
-	evMu   sync.Mutex
-	evCond *sync.Cond
-	evQ    []Event
-	evDone bool
+	evMu       sync.Mutex
+	evCond     *sync.Cond
+	evQ        []Event
+	evDone     bool
+	delivering bool
 
 	done chan struct{}
 }
@@ -256,10 +258,31 @@ func (c *Conn) deliver() {
 		}
 		ev := c.evQ[0]
 		c.evQ = c.evQ[1:]
+		c.delivering = true
 		c.evMu.Unlock()
 		if c.onEvent != nil {
 			c.onEvent(ev)
 		}
+		c.evMu.Lock()
+		c.delivering = false
+		c.evCond.Broadcast()
+		c.evMu.Unlock()
+	}
+}
+
+// DrainEvents waits (up to timeout) until every event received so far has
+// been delivered. Call it after a response to see the events the adapter
+// sent before it. It must not be called from the event handler.
+func (c *Conn) DrainEvents(timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for {
+		c.evMu.Lock()
+		idle := len(c.evQ) == 0 && !c.delivering
+		c.evMu.Unlock()
+		if idle || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
 	}
 }
 
