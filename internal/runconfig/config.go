@@ -57,6 +57,9 @@ type Config struct {
 	Package   string   `toml:"package,omitempty" json:"package"`
 	Directory string   `toml:"directory,omitempty" json:"directory"`
 	Files     []string `toml:"files,omitempty" json:"files"`
+	// Packages lists several import paths for a function-kind test run
+	// (reruns across packages); it overrides Package.
+	Packages []string `toml:"packages,omitempty" json:"packages"`
 	// Pattern is the -run regexp of a function-kind test configuration.
 	Pattern string `toml:"pattern,omitempty" json:"pattern"`
 
@@ -112,6 +115,9 @@ func (c Config) Normalize() Config {
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Files == nil {
 		c.Files = []string{}
+	}
+	if c.Packages == nil {
+		c.Packages = []string{}
 	}
 	if c.Tags == nil {
 		c.Tags = []string{}

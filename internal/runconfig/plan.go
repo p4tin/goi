@@ -114,6 +114,9 @@ func (c Config) ResolveTarget(ctx Context) (Target, error) {
 		}
 		return Target{Dir: d, Arg: []string{"."}, Recursive: c.Type == TypeTest}, nil
 	default: // package, function
+		if len(c.Packages) > 0 {
+			return Target{Dir: ctx.Root, Arg: append([]string{}, c.Packages...)}, nil
+		}
 		pkg := strings.TrimSpace(c.Package)
 		if pkg == "" && c.Directory != "" {
 			return Target{Dir: c.abs(ctx, c.Directory), Arg: []string{"."}}, nil

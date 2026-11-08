@@ -76,6 +76,28 @@ type Gopls struct {
 	Settings        map[string]any `toml:"settings" json:"settings"`
 }
 
+// Run configures the Run tool window.
+type Run struct {
+	OutputLimitLines int `toml:"outputLimitLines" json:"outputLimitLines"`
+}
+
+// Debug configures the debugger (Delve).
+type Debug struct {
+	DlvPath        string `toml:"dlvPath" json:"dlvPath"`
+	ShowTypes      bool   `toml:"showTypes" json:"showTypes"`
+	ShowAddresses  bool   `toml:"showAddresses" json:"showAddresses"`
+	ShowUnreadable bool   `toml:"showUnreadable" json:"showUnreadable"`
+	InlineValues   bool   `toml:"inlineValues" json:"inlineValues"`
+}
+
+// Terminal configures the integrated terminal.
+type Terminal struct {
+	Shell            string `toml:"shell" json:"shell"`
+	ShellIntegration bool   `toml:"shellIntegration" json:"shellIntegration"`
+	FontSize         int    `toml:"fontSize" json:"fontSize"`
+	Scrollback       int    `toml:"scrollback" json:"scrollback"`
+}
+
 // UI holds theme and keymap selection.
 type UI struct {
 	Theme  string `toml:"theme" json:"theme"`
@@ -85,14 +107,17 @@ type UI struct {
 
 // Settings is the effective, merged configuration.
 type Settings struct {
-	Startup Startup             `toml:"startup" json:"startup"`
-	Editor  Editor              `toml:"editor" json:"editor"`
-	Go      Go                  `toml:"go" json:"go"`
-	Project Project             `toml:"project" json:"project"`
-	Save    Save                `toml:"save" json:"save"`
-	Gopls   Gopls               `toml:"gopls" json:"gopls"`
-	UI      UI                  `toml:"ui" json:"ui"`
-	Keys    map[string][]string `toml:"keys" json:"keys"`
+	Startup  Startup             `toml:"startup" json:"startup"`
+	Editor   Editor              `toml:"editor" json:"editor"`
+	Go       Go                  `toml:"go" json:"go"`
+	Project  Project             `toml:"project" json:"project"`
+	Save     Save                `toml:"save" json:"save"`
+	Gopls    Gopls               `toml:"gopls" json:"gopls"`
+	Run      Run                 `toml:"run" json:"run"`
+	Debug    Debug               `toml:"debug" json:"debug"`
+	Terminal Terminal            `toml:"terminal" json:"terminal"`
+	UI       UI                  `toml:"ui" json:"ui"`
+	Keys     map[string][]string `toml:"keys" json:"keys"`
 }
 
 // ChangedEvent is the payload of events.TopicSettingsChanged.

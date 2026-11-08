@@ -27,6 +27,7 @@ type session struct {
 	app     *App
 	search  *searchIndex
 	lang    *langSession
+	runs    *runManager
 }
 
 // startLangHook starts gopls for a new session; tests set it to nil.
@@ -101,6 +102,7 @@ func (a *App) openProject(path string) error {
 
 	s := &session{root: abs, manager: m, watcher: w, journal: j, lock: lock, crashed: crashed, app: a}
 	s.search = startSearchIndex(a, m, w)
+	s.runs = startRuns(a, s, w)
 	if startLangHook != nil {
 		s.lang = startLangHook(a, abs, w)
 	}
@@ -146,6 +148,9 @@ func (a *App) setTitle(title string) {
 
 // close releases the session. clean=true removes the crash journal.
 func (s *session) close(clean bool) {
+	if s.runs != nil {
+		s.runs.close()
+	}
 	if s.lang != nil {
 		s.lang.close()
 	}

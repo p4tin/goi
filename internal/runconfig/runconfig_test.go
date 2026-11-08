@@ -244,6 +244,14 @@ func TestPlanTest(t *testing.T) {
 	if got := strings.Join(p.Exec.Args, " "); !strings.Contains(got, "-run=^(TestOne|TestTwo)$ .") {
 		t.Fatalf("file kind args = %s", got)
 	}
+	c = Config{Name: "p", Type: TypeTest, Kind: KindFunction, Packages: []string{"example.com/a", "example.com/b"}, Pattern: "^TestA$"}
+	p, _ = c.MakePlan(ctx)
+	if got := strings.Join(p.Exec.Args, " "); !strings.HasSuffix(got, "-run=^TestA$ example.com/a example.com/b") || p.Exec.Dir != ctx.Root {
+		t.Fatalf("packages args = %s (dir %s)", got, p.Exec.Dir)
+	}
+	if _, err := c.DebugLaunch(ctx, "b"); err == nil {
+		t.Fatal("several packages can't be debugged")
+	}
 	c = Config{Name: "b", Type: TypeTest, Kind: KindFunction, Package: ".", Pattern: "^$", Bench: "^BenchmarkX$", Benchmem: true}
 	p, _ = c.MakePlan(ctx)
 	if got := strings.Join(p.Exec.Args, " "); !strings.Contains(got, "-run=^$ -bench=^BenchmarkX$ -benchmem .") {

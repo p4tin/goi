@@ -35,6 +35,22 @@ usePlaceholders = true      # completion inserts parameter placeholders
 staticcheck = false         # extra staticcheck analyzers in diagnostics
 settings = {}               # passed through to the gopls configuration
 
+[run]
+outputLimitLines = 50000    # Run console lines kept per tab
+
+[debug]
+dlvPath = ""                # empty: $PATH, $GOBIN, $GOPATH/bin, then Goi's tools dir
+showTypes = true            # variables show their types
+showAddresses = false       # keep 0x… pointer addresses in values
+showUnreadable = true       # show variables Delve can't read
+inlineValues = true         # show variable values in the editor while stopped
+
+[terminal]
+shell = ""                  # empty: $SHELL (Windows: pwsh, powershell, cmd)
+shellIntegration = true     # cwd tracking and go completion for zsh/bash
+fontSize = 0                # 0: editor font size
+scrollback = 10000
+
 [ui]
 theme = "auto"              # auto | light | dark | hc
 scheme = "auto" # auto follows the UI theme; or goi-light, goi-dark, goi-ember, goi-paper

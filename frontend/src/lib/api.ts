@@ -7,12 +7,13 @@ import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
+import * as RunService from '../../wailsjs/go/rpc/RunService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
 import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
-import type { gopls, gosdk, index, journal, lsp, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
+import type { gopls, gosdk, index, journal, lsp, recent, rpc, runconfig, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
 export type Project = workspace.Project;
@@ -49,6 +50,10 @@ export const Topics = {
   langStatus: 'lang.status',
   langDiagnostics: 'lang.diagnostics',
   langApplyEdit: 'lang.applyEdit',
+  runConfigs: 'run.configs',
+  runState: 'run.state',
+  runOutput: 'run.output',
+  runTest: 'run.test',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -394,3 +399,133 @@ export interface RunMarker {
   name: string;
   line: number;
 }
+
+// ---- Run configurations and runs (M3)
+
+export type RunConfigType = 'app' | 'test' | 'remote' | 'shell' | 'make';
+export type RunTaskType = 'config' | 'generate' | 'command';
+export interface RunTask {
+  type: RunTaskType;
+  config: string;
+  package: string;
+  command: string;
+}
+
+export interface RunConfig {
+  name: string;
+  type: RunConfigType;
+  shared: boolean;
+  temporary: boolean;
+  created: number;
+  kind: string;
+  package: string;
+  directory: string;
+  files: string[];
+  packages: string[];
+  pattern: string;
+  workingDir: string;
+  args: string;
+  env: Record<string, string>;
+  envFile: string;
+  buildFlags: string;
+  tags: string[];
+  output: string;
+  runAfterBuild?: boolean | null;
+  inputFile: string;
+  race: boolean;
+  short: boolean;
+  count: number;
+  timeout: string;
+  testFlags: string;
+  bench: string;
+  benchmem: boolean;
+  fuzz: string;
+  fuzzTime: string;
+  host: string;
+  port: number;
+  script: string;
+  scriptText: string;
+  interpreter: string;
+  makefile: string;
+  targets: string[];
+  beforeLaunch: RunTask[];
+}
+
+export type RunState = 'starting' | 'building' | 'running' | 'exited' | 'failed';
+export interface ExitInfo {
+  code: number;
+  signal: string;
+  err: string;
+}
+export interface RunInfo {
+  id: string;
+  config: RunConfig;
+  state: RunState;
+  debug: boolean;
+  exit: ExitInfo | null;
+  elapsedMs: number;
+  message: string;
+  command: string;
+  test: boolean;
+}
+export type OutputStream = 'stdout' | 'stderr' | 'system';
+export interface OutputChunk {
+  stream: OutputStream;
+  text: string;
+}
+export interface RunOutputEvent {
+  id: string;
+  chunks: OutputChunk[];
+}
+export interface TestEvent {
+  action: string;
+  package: string;
+  test: string;
+  elapsed: number;
+  output: string;
+  importPath: string;
+  failedBuild: string;
+}
+export interface RunTestEvent {
+  id: string;
+  events: TestEvent[];
+}
+export type ContextKind = 'main' | 'test' | 'bench' | 'fuzz' | 'example' | 'file' | 'dir';
+export interface ContextRequest {
+  path: string;
+  kind: ContextKind;
+  name: string;
+}
+
+/** A blank configuration of the given type with every field present. */
+export function emptyRunConfig(type: RunConfigType, name = ''): RunConfig {
+  return {
+    name, type, shared: false, temporary: false, created: 0,
+    kind: type === 'test' ? 'directory' : 'package', package: '', directory: '', files: [], packages: [], pattern: '',
+    workingDir: '', args: '', env: {}, envFile: '', buildFlags: '', tags: [], output: '', runAfterBuild: null, inputFile: '',
+    race: false, short: false, count: 0, timeout: '', testFlags: '', bench: '', benchmem: false, fuzz: '', fuzzTime: '',
+    host: type === 'remote' ? 'localhost' : '', port: type === 'remote' ? 2345 : 0,
+    script: '', scriptText: '', interpreter: '', makefile: '', targets: [], beforeLaunch: [],
+  };
+}
+
+const toGoConfig = (c: RunConfig): runconfig.Config => c as unknown as runconfig.Config;
+
+export const run = {
+  configs: (): Promise<RunConfig[]> => cast(RunService.Configs()),
+  saveConfig: (c: RunConfig, oldName: string): Promise<RunConfig> => cast(RunService.SaveConfig(toGoConfig(c), oldName)),
+  deleteConfig: (name: string): Promise<void> => RunService.DeleteConfig(name),
+  validate: (c: RunConfig): Promise<string[]> => RunService.Validate(toGoConfig(c)),
+  contextConfig: (req: ContextRequest): Promise<RunConfig> => cast(RunService.ContextConfig(req as rpc.ContextRequest)),
+  addTemporary: (c: RunConfig): Promise<RunConfig> => cast(RunService.AddTemporary(toGoConfig(c))),
+  run: (name: string, debug: boolean): Promise<string> => RunService.Run(name, debug),
+  runConfig: (c: RunConfig, reuseId: string, debug: boolean): Promise<string> => RunService.RunConfig(toGoConfig(c), reuseId, debug),
+  rerun: (id: string): Promise<void> => RunService.Rerun(id),
+  stop: (id: string): Promise<void> => RunService.Stop(id),
+  close: (id: string): Promise<void> => RunService.Close(id),
+  input: (id: string, text: string): Promise<void> => RunService.Input(id, text),
+  runs: (): Promise<RunInfo[]> => cast(RunService.Runs()),
+  active: (): Promise<number> => RunService.Active(),
+  loadBench: (): Promise<string> => RunService.LoadBench(),
+  saveBench: (data: string): Promise<void> => RunService.SaveBench(data),
+};

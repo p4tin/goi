@@ -19,7 +19,7 @@ func (c Config) DebugLaunch(ctx Context, bin string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t.Recursive {
+	if t.Recursive || len(t.Arg) > 1 && c.Kind != KindFile {
 		return nil, errors.New("debugging needs a single package: choose a package, file or function")
 	}
 	env, err := c.Environ(ctx)
