@@ -27,3 +27,230 @@
 .status-item[data-status='git'][hidden] {
   display: none;
 }
+
+/* Commit panel */
+.commit-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.commit-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--goi-panel-border);
+}
+.commit-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--goi-panel-bg);
+  border-bottom: 1px solid var(--goi-panel-border);
+  color: var(--goi-vcs-conflict);
+  font-size: 12px;
+}
+.commit-banner[hidden] {
+  display: none;
+}
+.commit-list {
+  flex: 1;
+  overflow: auto;
+  font-size: 12px;
+  outline: none;
+}
+.commit-panel .results-empty[hidden] {
+  display: none;
+}
+.commit-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 2px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.commit-group .count {
+  color: var(--goi-fg-muted);
+  font-weight: 400;
+}
+.commit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 6px 1px 20px;
+  white-space: nowrap;
+  cursor: default;
+}
+.commit-row:hover {
+  background: var(--goi-hover);
+}
+.commit-letter {
+  width: 12px;
+  flex: none;
+  font-family: var(--goi-editor-font, ui-monospace, monospace);
+  font-weight: 600;
+}
+.commit-row.vcs-modified .commit-name,
+.commit-row.vcs-renamed .commit-name,
+.commit-row.vcs-modified .commit-letter,
+.commit-row.vcs-renamed .commit-letter {
+  color: var(--goi-vcs-modified);
+}
+.commit-row.vcs-added .commit-name,
+.commit-row.vcs-added .commit-letter {
+  color: var(--goi-vcs-added);
+}
+.commit-row.vcs-deleted .commit-name {
+  color: var(--goi-vcs-deleted);
+  text-decoration: line-through;
+}
+.commit-row.vcs-untracked .commit-name,
+.commit-row.vcs-untracked .commit-letter {
+  color: var(--goi-vcs-untracked);
+}
+.commit-row.vcs-conflict .commit-name,
+.commit-row.vcs-conflict .commit-letter {
+  color: var(--goi-vcs-conflict);
+}
+.commit-dir {
+  color: var(--goi-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.commit-row-action {
+  margin-left: auto;
+  visibility: hidden;
+}
+.commit-row:hover .commit-row-action {
+  visibility: visible;
+}
+.commit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-top: 1px solid var(--goi-panel-border);
+}
+.commit-message {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+.commit-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.commit-spacer {
+  flex: 1;
+}
+.dialog:has(.commit-modal) {
+  width: min(600px, 92vw);
+}
+.commit-summary {
+  margin-bottom: 6px;
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
+
+/* Diff viewer (over the editor area) */
+.diff-host-area {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--goi-bg);
+}
+.diff-host-area[hidden] {
+  display: none;
+}
+.diff-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px 0;
+  border-bottom: 1px solid var(--goi-panel-border);
+  background: var(--goi-tab-inactive-bg);
+}
+.diff-bodies {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.diff-tab-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.diff-tab-body[hidden] {
+  display: none;
+}
+.diff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--goi-panel-border);
+  font-size: 12px;
+}
+.diff-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+.diff-info .btn {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.diff-count {
+  color: var(--goi-fg-muted);
+}
+.diff-path {
+  margin-left: auto;
+  color: var(--goi-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diff-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.diff-body > .cm-editor {
+  flex: 1;
+  min-height: 0;
+}
+.diff-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--goi-fg-muted);
+  border-bottom: 1px solid var(--goi-panel-border);
+}
+.diff-mv {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.diff-mv .cm-mergeView {
+  height: 100%;
+}
+.diff-host-area .cm-changedLine,
+.diff-host-area .cm-insertedLine {
+  background: var(--goi-diff-added-bg);
+}
+.diff-host-area .cm-deletedChunk,
+.diff-host-area .cm-merge-a .cm-changedLine {
+  background: var(--goi-diff-removed-bg);
+}

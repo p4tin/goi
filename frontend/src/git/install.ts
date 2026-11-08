@@ -9,7 +9,10 @@ import type { GitState } from '../lib/api';
 import { commands } from '../lib/commands';
 import { effect } from '../lib/store';
 import { treeDecorators, treeDecorationsVersion } from '../views/projectTree';
+import { focusCommit, installCommitPanel, openCommitDialog } from './commitPanel';
 import { installGitConsole, renderGitConsole, runGitOp } from './console';
+import { installDiffRefresh, openDiff } from './diffView';
+import { editors } from '../editor/install';
 import { branchLabel, byPath, changedDirs, emptyState, fileKind, gitError, gitState, KIND_LABEL, normalize, setGitWorkbench } from './state';
 import './git.css';
 
@@ -81,6 +84,27 @@ export function installGit(wb: Workbench): void {
         gitError('Cannot initialize repository', err);
       }
     },
+  });
+
+  installCommitPanel();
+  installDiffRefresh();
+  commands.register({ id: 'git.commit', title: 'Commit…', category: 'Git', when: repo, run: () => focusCommit() });
+  commands.register({ id: 'git.commitModal', title: 'Commit (Modal)…', category: 'Git', when: repo, run: () => openCommitDialog() });
+  commands.register({ id: 'view.commit', title: 'Show Commit Window', category: 'View', run: () => wb.panels.show('commit') });
+  const activeFile = (): string => editors.activeBuffer()?.path ?? '';
+  commands.register({
+    id: 'git.showDiff',
+    title: 'Show Diff (Working Tree vs Staged)',
+    category: 'Git',
+    when: () => repo() && !!activeFile(),
+    run: () => openDiff({ path: activeFile(), mode: 'work' }),
+  });
+  commands.register({
+    id: 'git.compareWithHead',
+    title: 'Compare with HEAD',
+    category: 'Git',
+    when: () => repo() && !!activeFile(),
+    run: () => openDiff({ path: activeFile(), mode: 'head' }),
   });
 
 }
