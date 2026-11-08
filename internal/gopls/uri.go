@@ -6,7 +6,6 @@ package gopls
 
 import (
 	"net/url"
-	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -46,5 +45,7 @@ func uriToPath(uri string, windows bool) string {
 		}
 		return strings.ReplaceAll(p, "/", `\`)
 	}
-	return filepath.FromSlash(p)
+	// Not filepath.FromSlash: the result must follow the windows argument,
+	// not the OS the code runs on (tests exercise both).
+	return p
 }

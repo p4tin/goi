@@ -122,7 +122,9 @@ func TestConcurrentStoresDoNotLoseWrites(t *testing.T) {
 		wg.Add(1)
 		go func(g int, s *Store) {
 			defer wg.Done()
-			for i := 0; i < 50; i++ {
+			// MaxEntries/2 touches each: nothing is evicted, so every write
+			// must survive whatever the interleaving.
+			for i := 0; i < MaxEntries/2; i++ {
 				if err := s.Touch(Entry{Path: fmt.Sprintf("/g%d/%d", g, i)}); err != nil {
 					errs <- err
 					return
@@ -166,7 +168,11 @@ func TestConcurrentStoresDoNotLoseWrites(t *testing.T) {
 	for _, e := range raw {
 		top[filepath.ToSlash(e.Path)] = true
 	}
-	if !top["/g0/49"] || !top["/g1/49"] {
-		t.Errorf("latest writes lost: %v", paths(raw))
+	for g := 0; g < 2; g++ {
+		for i := 0; i < MaxEntries/2; i++ {
+			if p := fmt.Sprintf("/g%d/%d", g, i); !top[p] {
+				t.Errorf("write %s lost: %v", p, paths(raw))
+			}
+		}
 	}
 }
