@@ -43,7 +43,7 @@ export const MENUS: MenuDef[] = [
     label: 'View',
     items: [
       'view.toggleLeft', 'view.toggleBottom', 'view.toggleRight', 'tree.focus', 'view.notifications', '-',
-      'view.problems', 'view.usages', 'view.find', '-',
+      'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', '-',
       'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', '-',
       'view.toggleDarkMode', 'view.themeDark', 'view.themeLight', 'view.themeAuto', 'view.themeHighContrast',
     ],
@@ -55,6 +55,17 @@ export const MENUS: MenuDef[] = [
       'lang.gotoDefinition', 'lang.gotoTypeDefinition', 'lang.gotoImplementation', 'lang.gotoTest', 'lang.fileStructure', '-',
       'nav.back', 'nav.forward', '-',
       'editor.nextTab', 'editor.prevTab',
+    ],
+  },
+  {
+    label: 'Run',
+    items: [
+      'run.run', 'run.debug', 'run.runContext', 'run.debugContext', 'run.rerun', 'run.stop', '-',
+      'run.selectConfiguration', 'run.editConfigurations', 'run.saveConfiguration', '-',
+      'debug.resume', 'debug.pause', 'debug.stepOver', 'debug.stepInto', 'debug.forceStepInto', 'debug.stepOut',
+      'debug.runToCursor', 'debug.setNextStatement', 'debug.evaluate', 'debug.addWatch', '-',
+      'debug.toggleBreakpoint', 'debug.editBreakpoint', 'debug.viewBreakpoints', 'debug.muteBreakpoints', '-',
+      'debug.installDlv',
     ],
   },
 ];

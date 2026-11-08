@@ -29,6 +29,12 @@ goi/
 │   ├── lsp/                 # LSP JSON-RPC client + protocol types (no Goi knowledge)
 │   ├── gopls/               # gopls resolve/install, supervised server, sync, requests, UTF-16 edits
 │   ├── textsearch/          # Find/Replace in Path engine (line-based Go regexp)
+│   ├── toolbin/             # resolve/install Go tools (gopls, dlv): setting → PATH → GOBIN → GOPATH/bin → tools dir
+│   ├── runconfig/           # run configurations: model, TOML store (shared/local/temporary), validate, plans, dlv launch args
+│   ├── process/             # user processes: process groups, stdin, interrupt-then-kill stop
+│   ├── dap/                 # Debug Adapter Protocol client + types (no Goi knowledge)
+│   ├── debugger/            # dlv dap sessions: launch/attach, breakpoints, stepping, evaluation, run to cursor, path mapping
+│   ├── terminal/            # PTY terminals (go-pty) + zsh/bash shell integration
 │   └── rpc/                 # Wails-bound services + App/session lifecycle, native menu (menu.go)
 ├── frontend/                # Wails frontend (TypeScript + Vite)
 │   ├── src/
@@ -40,6 +46,9 @@ goi/
 │   │   ├── lang/            # gopls features: completion, hover/docs, signature, diagnostics + Problems,
 │   │   │                    # navigation/history, usages, rename, context actions, structure/breadcrumbs,
 │   │   │                    # palette symbols, Find/Replace in Path, gopls status
+│   │   ├── run/             # run configurations, widget, Run window, ANSI console, test tree, benchmarks, context runs
+│   │   ├── debug/           # breakpoints, Debug window (goroutines, frames, variables, watches), inline values, evaluate
+│   │   ├── terminal/        # xterm.js terminal tabs
 │   │   ├── palette/         # Search Everywhere (files, symbols, actions, settings), ranking, double-Shift, recent files
 │   │   ├── keymap/          # keymaps, chords, dispatcher, rebinding
 │   │   ├── theme/           # tokens, themes, editor schemes, theme commands (dark mode toggle)
@@ -56,10 +65,10 @@ goi/
 4. **Frontend never touches the filesystem or spawns processes.** Everything goes through bindings.
 5. **`frontend/wailsjs/` is generated.** Wrap it in `frontend/src/lib/` and import the wrappers, not the generated files.
 5a. **Features are installers** in `frontend/src/features.ts`; they extend the editor via `editors.hooks` / `editors.addExtension`, not by editing `editorManager.ts`.
-6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp`. Domain packages don't depend on each other unless the design says so.
+6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp` + `toolbin`, `debugger` uses `dap`, `runconfig` uses `gosyntax`. Domain packages don't depend on each other unless the design says so.
 
 ## Project-local state
 - `.goi/settings.toml`: project settings (shareable).
-- `.goi/runConfigurations/*.toml`: arrives in M3.
+- `.goi/runConfigurations/*.toml`: shared run configurations (local ones: `<config>/workspaces/<hash>/runConfigurations/`; benchmark history `<config>/workspaces/<hash>/bench.json`).
 - User state: `os.UserConfigDir()/Goi/<major.minor>/` (settings, recent projects, window layouts keyed by workspace hash).
 - Caches: `os.UserCacheDir()/Goi/<major.minor>/`.

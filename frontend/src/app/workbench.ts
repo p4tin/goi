@@ -6,6 +6,7 @@ import type { Notification } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
 import { effect } from '../lib/store';
+import { runCloseChecks } from './closeChecks';
 import { LayoutStore } from './layout';
 import { Notifications, renderNotificationsPanel } from './notifications';
 import { PanelRegistry, renderDock, splitter } from './panels';
@@ -134,6 +135,7 @@ function installShellCommands(wb: Workbench): void {
     category: 'File',
     when: () => !!project.peek(),
     run: async () => {
+      if (!(await runCloseChecks())) return;
       await wb.layout.flush();
       await app.closeProject();
     },

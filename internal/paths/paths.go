@@ -17,7 +17,7 @@ const Version = "0.1"
 // ConfigDir returns the user config directory, e.g.
 // ~/Library/Application Support/Goi/0.1 on macOS.
 func ConfigDir() (string, error) {
-	if h := os.Getenv("GOI_HOME"); h != "" {
+	if h := goiHome(); h != "" {
 		return filepath.Join(h, "config"), nil
 	}
 	d, err := os.UserConfigDir()
@@ -29,7 +29,7 @@ func ConfigDir() (string, error) {
 
 // CacheDir returns the user cache directory, e.g. ~/Library/Caches/Goi/0.1.
 func CacheDir() (string, error) {
-	if h := os.Getenv("GOI_HOME"); h != "" {
+	if h := goiHome(); h != "" {
 		return filepath.Join(h, "cache"), nil
 	}
 	d, err := os.UserCacheDir()
@@ -37,6 +37,20 @@ func CacheDir() (string, error) {
 		return "", fmt.Errorf("paths: user cache dir: %w", err)
 	}
 	return filepath.Join(d, "Goi", Version), nil
+}
+
+// goiHome returns $GOI_HOME made absolute (relative values, as in a run
+// configuration, resolve against the working directory). Tools such as
+// `go install` reject relative paths derived from it.
+func goiHome() string {
+	h := os.Getenv("GOI_HOME")
+	if h == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(h); err == nil {
+		return abs
+	}
+	return h
 }
 
 // LogsDir returns the directory holding goi.log.

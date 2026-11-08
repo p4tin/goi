@@ -23,6 +23,7 @@ import (
 	"github.com/p4tin/goi/internal/journal"
 	"github.com/p4tin/goi/internal/paths"
 	"github.com/p4tin/goi/internal/recent"
+	"github.com/p4tin/goi/internal/runconfig"
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
 )
@@ -126,6 +127,13 @@ type App struct {
 	editorSvc    *EditorService
 	menuSvc      *MenuService
 	langSvc      *LangService
+	runSvc       *RunService
+	debugSvc     *DebugService
+	termSvc      *TerminalService
+
+	// debugLaunch starts a debug session for a run whose before-launch
+	// tasks finished (set by the debugger integration).
+	debugLaunch func(r *runInstance, pctx runconfig.Context)
 }
 
 // NewApp initialises logging and constructs the bound services. It runs
@@ -164,6 +172,10 @@ func NewApp(opts Options) (*App, error) {
 	a.editorSvc = &EditorService{app: a}
 	a.menuSvc = &MenuService{app: a}
 	a.langSvc = &LangService{app: a}
+	a.runSvc = &RunService{app: a}
+	a.debugSvc = &DebugService{app: a}
+	a.termSvc = &TerminalService{app: a}
+	a.debugLaunch = a.startDebug
 	return a, nil
 }
 
@@ -172,7 +184,7 @@ func (a *App) Logger() logger.Logger { return wailsLogger{log: a.log} }
 
 // Services returns the structs to bind to the frontend.
 func (a *App) Services() []any {
-	return []any{a.appSvc, a.workspaceSvc, a.fileSvc, a.sdkSvc, a.settingsSvc, a.recentSvc, a.searchSvc, a.editorSvc, a.menuSvc, a.langSvc}
+	return []any{a.appSvc, a.workspaceSvc, a.fileSvc, a.sdkSvc, a.settingsSvc, a.recentSvc, a.searchSvc, a.editorSvc, a.menuSvc, a.langSvc, a.runSvc, a.debugSvc, a.termSvc}
 }
 
 // Startup is the Wails OnStartup hook.

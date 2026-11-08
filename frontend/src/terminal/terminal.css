@@ -1,0 +1,43 @@
+/* Integrated terminal. Colors come only from theme tokens. */
+.term-window {
+  background: var(--goi-bg);
+}
+.term-tabs {
+  align-items: center;
+}
+.term-tabs .term-add {
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+}
+.term-tabs:empty,
+.term-tabs .term-add:only-child {
+  display: flex;
+}
+.run-tab.exited .run-tab-label {
+  color: var(--goi-fg-muted);
+  font-style: italic;
+}
+.term-bodies {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.term-body {
+  position: absolute;
+  inset: 4px 0 0 8px;
+}
+.term-body[hidden] {
+  display: none;
+}
+.term-body .xterm {
+  height: 100%;
+}
+.term-body .xterm-viewport {
+  background: var(--goi-bg) !important;
+}
+.term-tabs .run-tab-label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

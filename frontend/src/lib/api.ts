@@ -2,17 +2,20 @@
 // from here, never from wailsjs/ directly.
 
 import * as AppService from '../../wailsjs/go/rpc/AppService';
+import * as DebugService from '../../wailsjs/go/rpc/DebugService';
 import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
+import * as RunService from '../../wailsjs/go/rpc/RunService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
+import * as TerminalService from '../../wailsjs/go/rpc/TerminalService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
 import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
-import type { gopls, gosdk, index, journal, lsp, recent, rpc, settings, vfs, workspace } from '../../wailsjs/go/models';
+import type { gopls, gosdk, index, journal, lsp, recent, rpc, runconfig, settings, vfs, workspace } from '../../wailsjs/go/models';
 
 export type AppInfo = rpc.AppInfo;
 export type Project = workspace.Project;
@@ -49,6 +52,15 @@ export const Topics = {
   langStatus: 'lang.status',
   langDiagnostics: 'lang.diagnostics',
   langApplyEdit: 'lang.applyEdit',
+  runConfigs: 'run.configs',
+  runState: 'run.state',
+  runOutput: 'run.output',
+  runTest: 'run.test',
+  debugState: 'debug.state',
+  debugBreakpoints: 'debug.breakpoints',
+  debugInstall: 'debug.install',
+  termOutput: 'term.output',
+  termExit: 'term.exit',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -394,3 +406,279 @@ export interface RunMarker {
   name: string;
   line: number;
 }
+
+// ---- Run configurations and runs (M3)
+
+export type RunConfigType = 'app' | 'test' | 'remote' | 'shell' | 'make';
+export type RunTaskType = 'config' | 'generate' | 'command';
+export interface RunTask {
+  type: RunTaskType;
+  config: string;
+  package: string;
+  command: string;
+}
+
+export interface RunConfig {
+  name: string;
+  type: RunConfigType;
+  shared: boolean;
+  temporary: boolean;
+  created: number;
+  kind: string;
+  package: string;
+  directory: string;
+  files: string[];
+  packages: string[];
+  pattern: string;
+  workingDir: string;
+  args: string;
+  env: Record<string, string>;
+  envFile: string;
+  buildFlags: string;
+  tags: string[];
+  output: string;
+  runAfterBuild?: boolean | null;
+  inputFile: string;
+  race: boolean;
+  short: boolean;
+  count: number;
+  timeout: string;
+  testFlags: string;
+  bench: string;
+  benchmem: boolean;
+  fuzz: string;
+  fuzzTime: string;
+  host: string;
+  port: number;
+  script: string;
+  scriptText: string;
+  interpreter: string;
+  makefile: string;
+  targets: string[];
+  beforeLaunch: RunTask[];
+}
+
+export type RunState = 'starting' | 'building' | 'running' | 'exited' | 'failed';
+export interface ExitInfo {
+  code: number;
+  signal: string;
+  err: string;
+}
+export interface RunInfo {
+  id: string;
+  config: RunConfig;
+  state: RunState;
+  debug: boolean;
+  exit: ExitInfo | null;
+  elapsedMs: number;
+  message: string;
+  command: string;
+  test: boolean;
+}
+/** Output streams; "console" carries debugger messages. */
+export type OutputStream = 'stdout' | 'stderr' | 'system' | 'console';
+export interface OutputChunk {
+  stream: OutputStream;
+  text: string;
+}
+export interface RunOutputEvent {
+  id: string;
+  chunks: OutputChunk[];
+}
+export interface TestEvent {
+  action: string;
+  package: string;
+  test: string;
+  elapsed: number;
+  output: string;
+  importPath: string;
+  failedBuild: string;
+}
+export interface RunTestEvent {
+  id: string;
+  events: TestEvent[];
+}
+export type ContextKind = 'main' | 'test' | 'bench' | 'fuzz' | 'example' | 'file' | 'dir';
+export interface ContextRequest {
+  path: string;
+  kind: ContextKind;
+  name: string;
+}
+
+/** A blank configuration of the given type with every field present. */
+export function emptyRunConfig(type: RunConfigType, name = ''): RunConfig {
+  return {
+    name, type, shared: false, temporary: false, created: 0,
+    kind: type === 'test' ? 'directory' : 'package', package: '', directory: '', files: [], packages: [], pattern: '',
+    workingDir: '', args: '', env: {}, envFile: '', buildFlags: '', tags: [], output: '', runAfterBuild: null, inputFile: '',
+    race: false, short: false, count: 0, timeout: '', testFlags: '', bench: '', benchmem: false, fuzz: '', fuzzTime: '',
+    host: type === 'remote' ? 'localhost' : '', port: type === 'remote' ? 2345 : 0,
+    script: '', scriptText: '', interpreter: '', makefile: '', targets: [], beforeLaunch: [],
+  };
+}
+
+const toGoConfig = (c: RunConfig): runconfig.Config => c as unknown as runconfig.Config;
+
+export const run = {
+  configs: (): Promise<RunConfig[]> => cast(RunService.Configs()),
+  saveConfig: (c: RunConfig, oldName: string): Promise<RunConfig> => cast(RunService.SaveConfig(toGoConfig(c), oldName)),
+  deleteConfig: (name: string): Promise<void> => RunService.DeleteConfig(name),
+  validate: (c: RunConfig): Promise<string[]> => RunService.Validate(toGoConfig(c)),
+  contextConfig: (req: ContextRequest): Promise<RunConfig> => cast(RunService.ContextConfig(req as rpc.ContextRequest)),
+  addTemporary: (c: RunConfig): Promise<RunConfig> => cast(RunService.AddTemporary(toGoConfig(c))),
+  run: (name: string, debug: boolean): Promise<string> => RunService.Run(name, debug),
+  runConfig: (c: RunConfig, reuseId: string, debug: boolean): Promise<string> => RunService.RunConfig(toGoConfig(c), reuseId, debug),
+  rerun: (id: string): Promise<void> => RunService.Rerun(id),
+  stop: (id: string): Promise<void> => RunService.Stop(id),
+  close: (id: string): Promise<void> => RunService.Close(id),
+  input: (id: string, text: string): Promise<void> => RunService.Input(id, text),
+  runs: (): Promise<RunInfo[]> => cast(RunService.Runs()),
+  active: (): Promise<number> => RunService.Active(),
+  loadBench: (): Promise<string> => RunService.LoadBench(),
+  saveBench: (data: string): Promise<void> => RunService.SaveBench(data),
+};
+
+// ---- Debugger (M3). Lines and columns are 1-based (DAP).
+
+export interface DapSource {
+  name?: string;
+  path?: string;
+  sourceReference?: number;
+}
+export interface DapBreakpoint {
+  id: number;
+  verified: boolean;
+  message: string;
+  source?: DapSource | null;
+  line: number;
+}
+export interface DapThread {
+  id: number;
+  name: string;
+}
+export interface DapStackFrame {
+  id: number;
+  name: string;
+  source?: DapSource | null;
+  line: number;
+  column: number;
+  presentationHint?: string;
+}
+export interface DapStackTrace {
+  stackFrames: DapStackFrame[];
+  totalFrames: number;
+}
+export interface DapScope {
+  name: string;
+  variablesReference: number;
+  expensive: boolean;
+}
+export interface DapVariable {
+  name: string;
+  value: string;
+  type: string;
+  evaluateName: string;
+  variablesReference: number;
+  namedVariables: number;
+  indexedVariables: number;
+}
+export interface DapEvaluate {
+  result: string;
+  type: string;
+  variablesReference: number;
+  namedVariables: number;
+  indexedVariables: number;
+}
+export interface DapExceptionInfo {
+  exceptionId: string;
+  description: string;
+  breakMode: string;
+  details?: { message: string; typeName: string; stackTrace: string } | null;
+}
+export interface LineBreakpoint {
+  line: number;
+  condition: string;
+  hitCondition: string;
+  logMessage: string;
+  enabled: boolean;
+}
+export interface FunctionBreakpoint {
+  name: string;
+  condition: string;
+  enabled: boolean;
+}
+export type DebugStateName = 'starting' | 'running' | 'stopped' | 'exited';
+export interface DebugStateEvent {
+  id: string;
+  state: DebugStateName;
+  threadId: number;
+  reason: string;
+  description: string;
+  text: string;
+  exitCode: number | null;
+  remote: boolean;
+  caps: { supportsSetVariable: boolean; supportsGotoTargets: boolean; supportsRestart: boolean };
+}
+export interface DebugBreakpointsEvent {
+  id: string;
+  path: string;
+  function: boolean;
+  breakpoints: DapBreakpoint[];
+}
+export interface DlvStatus {
+  path: string;
+  found: boolean;
+  installing: boolean;
+  message: string;
+}
+
+export const debug = {
+  dlvStatus: (): Promise<DlvStatus> => cast(DebugService.DlvStatus()),
+  installDlv: (): Promise<void> => DebugService.InstallDlv(),
+  setFileBreakpoints: (path: string, bps: LineBreakpoint[]): Promise<void> =>
+    DebugService.SetFileBreakpoints(path, bps as unknown as rpc.LineBreakpoint[]),
+  setFunctionBreakpoints: (fns: FunctionBreakpoint[], breakOnPanic: boolean): Promise<void> =>
+    DebugService.SetFunctionBreakpoints(fns as unknown as rpc.FunctionBreakpoint[], breakOnPanic),
+  threads: (id: string): Promise<DapThread[]> => cast(DebugService.Threads(id)),
+  stackTrace: (id: string, threadId: number, start = 0, levels = 0): Promise<DapStackTrace> =>
+    cast(DebugService.StackTrace(id, threadId, start, levels)),
+  scopes: (id: string, frameId: number): Promise<DapScope[]> => cast(DebugService.Scopes(id, frameId)),
+  variables: (id: string, ref: number): Promise<DapVariable[]> => cast(DebugService.Variables(id, ref)),
+  evaluate: (id: string, expr: string, frameId: number, context: 'watch' | 'repl' | 'hover' | 'clipboard'): Promise<DapEvaluate> =>
+    cast(DebugService.Evaluate(id, expr, frameId, context)),
+  setVariable: (id: string, ref: number, name: string, value: string): Promise<{ value: string; type: string; variablesReference: number }> =>
+    cast(DebugService.SetVariable(id, ref, name, value)),
+  exceptionInfo: (id: string, threadId: number): Promise<DapExceptionInfo> => cast(DebugService.ExceptionInfo(id, threadId)),
+  continue: (id: string, threadId: number): Promise<void> => DebugService.Continue(id, threadId),
+  next: (id: string, threadId: number): Promise<void> => DebugService.Next(id, threadId),
+  stepIn: (id: string, threadId: number): Promise<void> => DebugService.StepIn(id, threadId),
+  stepOut: (id: string, threadId: number): Promise<void> => DebugService.StepOut(id, threadId),
+  runToCursor: (id: string, threadId: number, path: string, line: number): Promise<void> => DebugService.RunToCursor(id, threadId, path, line),
+  pause: (id: string, threadId: number): Promise<void> => DebugService.Pause(id, threadId),
+  stop: (id: string): Promise<void> => DebugService.Stop(id),
+  sessions: (): Promise<string[]> => DebugService.Sessions(),
+};
+
+// ---- Terminal (M3)
+
+export interface TermInfo {
+  id: string;
+  shell: string;
+  cwd: string;
+}
+export interface TermOutputEvent {
+  id: string;
+  data: string;
+}
+export interface TermExitEvent {
+  id: string;
+  code: number;
+}
+
+export const terminalApi = {
+  open: (cols: number, rows: number): Promise<TermInfo> => cast(TerminalService.Open(cols, rows)),
+  write: (id: string, data: string): Promise<void> => TerminalService.Write(id, data),
+  resize: (id: string, cols: number, rows: number): Promise<void> => TerminalService.Resize(id, cols, rows),
+  close: (id: string): Promise<void> => TerminalService.Close(id),
+  count: (): Promise<number> => TerminalService.Count(),
+};

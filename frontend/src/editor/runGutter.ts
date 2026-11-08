@@ -1,6 +1,7 @@
 // Run markers gutter (R7): ▶ icons on main/Test/Benchmark/Fuzz/Example
 // functions in Go files, computed by the backend with go/parser and refreshed
-// 300 ms after edits stop. Clicking shows a placeholder until M3 adds running.
+// 300 ms after edits stop. Clicking offers Run / Debug / Modify Run
+// Configuration through the run.marker commands (M3 R4.1).
 
 import { RangeSet, StateEffect, StateField } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
@@ -9,6 +10,7 @@ import type { EditorView } from '@codemirror/view';
 import { showMenu } from '../app/menu';
 import type { Workbench } from '../app/workbench';
 import { editorApi } from '../lib/api';
+import { commands } from '../lib/commands';
 import type { RunMarker } from '../lib/api';
 import type { Buffer } from './buffer';
 import { editors } from './install';
@@ -74,10 +76,13 @@ function runGutterExtension(onRefresh: (buf: Buffer) => void, buf: Buffer): Exte
           const marker = view.state.field(markersField).find((m) => m.line === line);
           if (!marker) return false;
           const e = event as MouseEvent;
+          const target = { path: buf.path, kind: marker.kind, name: marker.name };
+          const label = marker.kind === 'main' ? `'go build'` : `'${marker.name}'`;
           showMenu(e.clientX, e.clientY, [
-            { label: `${KIND_TITLE[marker.kind]} ${marker.name}`, disabled: true, run: () => {} },
-            { label: 'Run (coming in M3)', disabled: true, run: () => {} },
-            { label: 'Debug (coming in M3)', disabled: true, run: () => {} },
+            { label: `Run ${label}`, run: () => void commands.run('run.marker', target, false) },
+            { label: `Debug ${label}`, run: () => void commands.run('run.marker', target, true) },
+            { separator: true },
+            { label: 'Modify Run Configuration…', run: () => void commands.run('run.editMarker', target) },
           ]);
           return true;
         },

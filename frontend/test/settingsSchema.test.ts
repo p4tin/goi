@@ -26,7 +26,7 @@ describe('settings schema', () => {
 
   it('filterSchema matches title, key and description case-insensitively', () => {
     expect(filterSchema('').length).toBe(schema.length);
-    expect(filterSchema('FONT SIZE').map((d) => d.key)).toEqual(['editor.fontSize']);
+    expect(filterSchema('FONT SIZE').map((d) => d.key)).toEqual(['editor.fontSize', 'terminal.fontSize']);
     expect(filterSchema('goproxy').map((d) => d.key)).toEqual(['go.env']);
     expect(filterSchema('save.format').map((d) => d.key)).toEqual(['save.format']);
     expect(filterSchema('zzzz')).toEqual([]);
