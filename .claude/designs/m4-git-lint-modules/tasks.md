@@ -1,5 +1,7 @@
 # M4 — Git + Lint + Modules: Tasks
 
+Status: **all tasks done** (T1–T15 on branch `feat/m4-git-lint-modules`). Results: `acceptance.md`.
+
 Branch `feat/m4-git-lint-modules`, one commit per task. Each task ends green: `gofmt -l`, `go vet ./...`, `go test -race ./internal/...`, and `cd frontend && npx tsc --noEmit && npm test`. After changing bound methods, run `wails generate module`, then `git checkout frontend/wailsjs/runtime`.
 
 | # | Task | Reqs | Verify |

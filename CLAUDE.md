@@ -15,6 +15,9 @@ node tools/e2e/cdp.mjs tools/e2e/smoke.json   # headless E2E against a running `
 node tools/e2e/cdp.mjs tools/e2e/m2.json      # M2 code intelligence E2E (project: tools/e2e/m2-sample.sh <dir>)
 node tools/e2e/cdp.mjs tools/e2e/m3.json      # M3 run/test/debug/terminal E2E (project: tools/e2e/m3-sample.sh <dir>)
 GOI_DLV=/path/to/dlv go test -race ./internal/debugger ./internal/rpc  # debugger tests skip without Delve
+GOI_GOLANGCI=/path/to/golangci-lint go test ./internal/lint ./internal/rpc  # lint integration tests
+node tools/e2e/cdp.mjs tools/e2e/m4.json      # M4 git/lint/go.mod E2E (sample: tools/e2e/m4-sample.sh <dir>; run Goi with GIT_CONFIG_GLOBAL=<dir>/gitconfig)
+scripts/version.sh [tag]                      # product version from wails.json (checks a release tag)
 GOI_GOPLS_BENCH=1 go test -run CompletionLatency -v ./internal/gopls   # completion p95 on this repo
 ```
 
@@ -27,6 +30,12 @@ GoLand run configurations are shared in `.run/` (Goi, wails dev, wails build, Go
 To read the macOS system log, call `/usr/bin/log show …`. In zsh, a bare `log` is a shell builtin and silently prints nothing.
 
 Debugging needs Delve. Goi resolves it like gopls: the `debug.dlvPath` setting, `$PATH`, `$GOBIN`, `$(go env GOPATH)/bin`, then `<config>/tools/bin` (where "Install Delve" puts it). Delve tests skip unless dlv is found or `GOI_DLV` is set.
+
+golangci-lint is resolved the same way (`lint.golangciPath`, then the usual places, then `<config>/tools/bin`, where "Install golangci-lint" puts it). Git is the `git` CLI (`git.path`).
+
+Releases: set `info.productVersion` in `wails.json`, then tag `v<version>`. `.github/workflows/release.yml` builds the macOS universal dmg/zip, the Windows NSIS installer and zips, and Linux deb/rpm/tar.gz. It checks the tag against `wails.json` and creates a draft GitHub Release. Packaging files live in `build/package/` (`macos/make-dmg.sh`, `linux/nfpm.yaml`); `paths.BuildVersion` is stamped with `-ldflags`.
+
+After merging to `main`, watch CI (`gh run watch`) before starting new work. Windows-only failures have slipped through before.
 
 `GOI_HOME=<dir>` redirects user config/cache to `<dir>/config` and `<dir>/cache`. Use it for dev runs and tests so the real profile is untouched.
 
@@ -41,6 +50,9 @@ Debugging needs Delve. Goi resolves it like gopls: the `debug.dlvPath` setting, 
 - Colors come only from theme tokens (`var(--goi-*)`, source of truth `theme/tokens.ts`).
 - Code intelligence: `internal/lsp` is a protocol-only LSP client; `internal/gopls` supervises one gopls per project (sync, requests, restart backoff) and reports through callbacks; `internal/rpc/lang.go` (`LangService`, `langSession`) bridges it. Positions crossing the bridge are LSP positions (0-based line, UTF-16 character), the same units as CodeMirror offsets within a line. Paths cross as OS paths; `file://` URIs stay inside `internal/gopls`.
 - Run/test/debug: `internal/runconfig` models configurations (`.goi/runConfigurations/*.toml` shared, `<config>/workspaces/<hash>/runConfigurations` local) and turns them into command plans and dlv launch args. `internal/process` runs programs in process groups. `internal/dap` is a protocol-only DAP client; `internal/debugger` drives `dlv dap`. `internal/terminal` owns PTYs and shell integration. `internal/toolbin` resolves and installs Go tools (gopls, dlv). rpc: `RunService` (`run.go`, runManager), `DebugService` (`debug.go`), `TerminalService` (`terminal.go`). A debug session's id is its run id: Run and Debug share before-launch tasks, output batching and stop/rerun.
+- Git / lint / modules: `internal/git` wraps the git CLI (porcelain v2 status, diffs, hunk patches, branches, stash, log, blame, conflicts). `internal/lint` runs golangci-lint v1/v2 and normalizes issues and fixes. `internal/gomod` covers proxy versions and known modules. rpc: `GitService` (`git.go`, gitSession: watcher plus `.git/index|HEAD|FETCH_HEAD|logs/HEAD` file watches, streamed fetch/pull/push ops), `LintService` (`lint.go`), `ModService` (`mod.go`). Frontend: `git/`, `lint/`, `mod/`.
+- Extension hooks (use them instead of editing core modules): `treeDecorators` / `treeDecorationsVersion` and `treeMenuContributors` (`views/projectTree.ts`), `extraCompletionSources` (`lang/completion.ts`), `actionProviders` (`lang/codeActions.ts`), `setDiagnosticsSource` / `replaceDiagnosticsSource` (`lang/diagnostics.ts`, multi-source), `addCloseCheck` (`app/closeChecks.ts`), `runHooks` (`run/launch.ts`).
+- Feature order in `features.ts` matters for dock defaults: the first panel registered in a dock becomes its default tab (Project must come before Commit).
 - Frontend: `run/` (run window, console, test tree, configs dialog, widget, context runs), `debug/` (breakpoints, debug window, variables, inline values, evaluate), `terminal/` (xterm.js). Tool windows build their DOM and subscribe to events at install time; the panel's `render` only attaches the element, so events that arrive before the panel was ever shown aren't lost.
 - Frontend language features live in `frontend/src/lang/` (one installer, `installLang`). Every request first calls `client.flush(buf)` and drops responses whose buffer version changed (`fresh()`). Edits go through `lang/edits.ts`: open buffers are edited in CodeMirror, unopened files on disk via `LangService.ApplyFileEdits`.
 
@@ -57,6 +69,8 @@ Debugging needs Delve. Goi resolves it like gopls: the `debug.dlvPath` setting, 
 - CodeMirror tooltips: the `TooltipView.dom` you return *is* the `.cm-tooltip` element. Put classes on it; its parent is the editor.
 - gopls rejects a `didChange` whose version isn't higher than the last one. Re-opening a tracked document must send `didClose` + `didOpen` (`gopls.Server.Open` does).
 - In the CDP harness, synthetic Cmd-A doesn't select all in text inputs. Set input values with `eval` and dispatch an `input` event instead.
+- z-index scale: CodeMirror panels are 300 (CodeMirror's own value). The diff overlay is 320, popups 350–360, toasts 390, the palette 395, dialogs 400, menus 410. Anything drawn over editors must be above 300.
+- Git in tests and E2E: isolate from the user's config (`HOME`/`XDG_CONFIG_HOME` in Go tests; `GIT_CONFIG_GLOBAL=<sample>/gitconfig` and `GIT_CONFIG_NOSYSTEM=1` for `wails dev`), or user hooks and signing settings leak in. `rpc` test modules from `module()` have an empty `.git`, so set `GOFLAGS=-buildvcs=false` before building them.
 - CodeMirror `EditorView.domEventHandlers` only see events on the content DOM, not gutters. For clicks on line numbers, listen on `view.dom` (see `debug/breakpoints.ts`).
 - Delve: always pass `output` (a temp path) in launch args or it writes `__debug_bin*` into the project; resolve symlinks in `program`/`cwd` (the go command calls symlinked package paths "outside main module"); after `terminated` the client must send `disconnect` or the connection stays open.
 - go-pty's `Close` is not safe to call concurrently (wrap in `sync.Once`).

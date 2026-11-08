@@ -17,6 +17,9 @@
 | Find in Path | `internal/textsearch` | Go `regexp`, line-based; same engine for search and replace |
 | Debugger | Delve `dlv dap` over DAP | Own minimal DAP client (`internal/dap`); Delve installed on demand into Goi's tools dir |
 | Test runner | `go test -json` | test2json events streamed to a frontend tree reducer |
+| Version control | `git` CLI | porcelain v2 status, `git apply --cached` for partial staging; no git library |
+| Linting | golangci-lint (v1 and v2 JSON) | Installed on demand into Goi's tools dir |
+| Packaging | Wails (`-platform darwin/universal`, `-nsis`), `hdiutil` dmg, nfpm deb/rpm | `release.yml` on `v*` tags |
 | Terminal | `github.com/aymanbagabas/go-pty` + `@xterm/xterm` 6 (fit, search, web-links addons) | ConPTY on Windows; zsh/bash integration via ZDOTDIR / --rcfile |
 
 ## Prerequisites (dev machine)
@@ -27,7 +30,8 @@
 - Windows: WebView2 runtime (bundled bootstrapper via Wails)
 - gopls (M2+): `go install golang.org/x/tools/gopls@latest`, or "Install gopls" in the app
 - dlv (M3+): `go install github.com/go-delve/delve/cmd/dlv@latest`, or "Install Delve" in the app
-- golangci-lint: not needed until M4
+- golangci-lint (M4+): "Install golangci-lint" in the app, or your own install
+- Releases: nfpm (`go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0`) for Linux packages; NSIS for the Windows installer
 
 ## Dependencies (as built)
 - Go: wails/v2, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock, aymanbagabas/go-pty
