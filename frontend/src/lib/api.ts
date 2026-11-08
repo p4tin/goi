@@ -472,7 +472,8 @@ export interface RunInfo {
   command: string;
   test: boolean;
 }
-export type OutputStream = 'stdout' | 'stderr' | 'system';
+/** Output streams; "console" carries debugger messages. */
+export type OutputStream = 'stdout' | 'stderr' | 'system' | 'console';
 export interface OutputChunk {
   stream: OutputStream;
   text: string;
