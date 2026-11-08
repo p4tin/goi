@@ -85,6 +85,7 @@ export const MENUS: MenuDef[] = [
       'mod.workInit', 'mod.workUse', 'mod.workSync',
     ],
   },
+  { label: 'Help', items: ['nav.gotoAction', '-', 'help.about'] },
 ];
 
 const KEY_NAMES: Record<string, string> = {

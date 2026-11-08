@@ -212,7 +212,7 @@ func (a *App) Startup(ctx context.Context) {
 // start performs startup with an explicit bus (tests use a Recorder).
 func (a *App) start(ctx context.Context, bus events.Bus) error {
 	a.ctx, a.bus = ctx, bus
-	a.log.Info("startup", "version", paths.Version, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
+	a.log.Info("startup", "version", paths.Version, "build", paths.BuildVersion, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
 
 	st, err := settings.Load(filepath.Join(a.configDir, "settings.toml"), "", bus)
 	if err != nil {
@@ -288,6 +288,8 @@ func (a *App) notify(level, title, body string) {
 type AppInfo struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
+	Build       string `json:"build"`
+	GoVersion   string `json:"goVersion"`
 	OS          string `json:"os"`
 	Arch        string `json:"arch"`
 	ProjectPath string `json:"projectPath"`
@@ -303,11 +305,13 @@ type AppService struct {
 // open in this window, if any.
 func (s *AppService) Info() AppInfo {
 	info := AppInfo{
-		Name:    "Goi",
-		Version: paths.Version,
-		OS:      runtime.GOOS,
-		Arch:    runtime.GOARCH,
-		LogPath: s.app.logPath,
+		Name:      "Goi",
+		Version:   paths.Version,
+		Build:     paths.BuildVersion,
+		GoVersion: runtime.Version(),
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+		LogPath:   s.app.logPath,
 	}
 	if sess, err := s.app.current(); err == nil {
 		info.ProjectPath = sess.root

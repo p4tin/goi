@@ -1428,6 +1428,8 @@ export namespace rpc {
 	export class AppInfo {
 	    name: string;
 	    version: string;
+	    build: string;
+	    goVersion: string;
 	    os: string;
 	    arch: string;
 	    projectPath: string;
@@ -1441,6 +1443,8 @@ export namespace rpc {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.version = source["version"];
+	        this.build = source["build"];
+	        this.goVersion = source["goVersion"];
 	        this.os = source["os"];
 	        this.arch = source["arch"];
 	        this.projectPath = source["projectPath"];

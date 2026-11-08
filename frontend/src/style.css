@@ -21,3 +21,31 @@ body {
   gap: 16px;
   text-align: center;
 }
+
+/* About */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 360px;
+}
+.about-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+.about-sub {
+  margin-bottom: 8px;
+  color: var(--goi-fg-muted);
+}
+.about-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
+  font-size: 12px;
+}
+.about-row span {
+  color: var(--goi-fg-muted);
+}
+.about-row code {
+  overflow-wrap: anywhere;
+}
