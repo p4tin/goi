@@ -24,6 +24,11 @@ const (
 	TopicDebugInstall     = "debug.install"
 	TopicTermOutput       = "term.output"
 	TopicTermExit         = "term.exit"
+	TopicGitStatus        = "git.status"
+	TopicGitOutput        = "git.output"
+	TopicGitOp            = "git.op"
+	TopicLintDiagnostics  = "lint.diagnostics"
+	TopicLintStatus       = "lint.status"
 )
 
 // Bus publishes a payload under a topic. Implementations must be safe for

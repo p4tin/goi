@@ -5,6 +5,7 @@ import * as AppService from '../../wailsjs/go/rpc/AppService';
 import * as DebugService from '../../wailsjs/go/rpc/DebugService';
 import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
+import * as GitService from '../../wailsjs/go/rpc/GitService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
@@ -61,6 +62,11 @@ export const Topics = {
   debugInstall: 'debug.install',
   termOutput: 'term.output',
   termExit: 'term.exit',
+  gitStatus: 'git.status',
+  gitOutput: 'git.output',
+  gitOp: 'git.op',
+  lintDiagnostics: 'lint.diagnostics',
+  lintStatus: 'lint.status',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -681,4 +687,147 @@ export const terminalApi = {
   resize: (id: string, cols: number, rows: number): Promise<void> => TerminalService.Resize(id, cols, rows),
   close: (id: string): Promise<void> => TerminalService.Close(id),
   count: (): Promise<number> => TerminalService.Count(),
+};
+
+// ---- Git (M4). Paths are absolute OS paths; rel fields are repo-relative.
+
+export interface GitFileStatus {
+  path: string;
+  rel: string;
+  orig: string;
+  /** Porcelain status letters: '.', M, A, D, R, C, T, U, '?' (untracked), '!' (ignored). */
+  index: string;
+  work: string;
+  conflict: boolean;
+  untracked: boolean;
+  ignored: boolean;
+}
+export type GitOp = '' | 'merge' | 'rebase' | 'cherry-pick' | 'revert';
+export interface GitStatus {
+  root: string;
+  branch: string;
+  head: string;
+  upstream: string;
+  ahead: number;
+  behind: number;
+  detached: boolean;
+  initial: boolean;
+  op: GitOp;
+  files: GitFileStatus[];
+}
+export interface GitState {
+  repo: boolean;
+  status: GitStatus;
+}
+export interface GitHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  header: string;
+  lines: string[];
+}
+export interface GitFileDiff {
+  oldPath: string;
+  newPath: string;
+  header: string[];
+  hunks: GitHunk[];
+  binary: boolean;
+}
+export interface GitBranch {
+  name: string;
+  remote: boolean;
+  current: boolean;
+  upstream: string;
+  hash: string;
+  subject: string;
+  date: string;
+}
+export interface GitCommit {
+  hash: string;
+  short: string;
+  parents: string[];
+  author: string;
+  email: string;
+  date: string;
+  subject: string;
+  body: string;
+  refs: string;
+}
+export interface GitChangedFile {
+  path: string;
+  rel: string;
+  status: string;
+  orig: string;
+}
+export interface GitBlameLine {
+  line: number;
+  hash: string;
+  author: string;
+  date: string;
+  summary: string;
+}
+export interface GitStash {
+  index: number;
+  message: string;
+  date: string;
+}
+export interface GitLogQuery {
+  path: string;
+  skip: number;
+  max: number;
+  grep: string;
+  ref: string;
+}
+export interface GitOutputEvent {
+  opId: string;
+  chunks: OutputChunk[];
+}
+export interface GitOpEvent {
+  opId: string;
+  title: string;
+  state: 'running' | 'done' | 'failed';
+  error: string;
+  rejected: boolean;
+}
+
+export const gitApi = {
+  state: (): Promise<GitState> => cast(GitService.State()),
+  refresh: (): Promise<void> => GitService.Refresh(),
+  init: (): Promise<void> => GitService.Init(),
+  show: (rev: string, path: string): Promise<{ text: string; found: boolean }> => cast(GitService.Show(rev, path)),
+  diff: (path: string, staged: boolean, rev = '', commit = ''): Promise<GitFileDiff[]> => cast(GitService.Diff(path, staged, rev, commit)),
+  applyPatch: (patch: string, cached: boolean, reverse: boolean): Promise<void> => GitService.ApplyPatch(patch, cached, reverse),
+  stage: (paths: string[]): Promise<void> => GitService.Stage(paths),
+  unstage: (paths: string[]): Promise<void> => GitService.Unstage(paths),
+  rollback: (paths: string[]): Promise<void> => GitService.Rollback(paths),
+  commit: (message: string, amend: boolean): Promise<void> => GitService.Commit(message, amend),
+  lastMessage: (): Promise<string> => GitService.LastMessage(),
+  branches: (): Promise<GitBranch[]> => cast(GitService.Branches()),
+  checkout: (ref: string, newBranch = ''): Promise<void> => GitService.Checkout(ref, newBranch),
+  renameBranch: (from: string, to: string): Promise<void> => GitService.RenameBranch(from, to),
+  deleteBranch: (name: string, force: boolean): Promise<void> => GitService.DeleteBranch(name, force),
+  merge: (ref: string): Promise<void> => GitService.Merge(ref),
+  rebase: (onto: string): Promise<void> => GitService.Rebase(onto),
+  cherryPick: (hash: string): Promise<void> => GitService.CherryPick(hash),
+  revert: (hash: string): Promise<void> => GitService.Revert(hash),
+  reset: (rev: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void> => GitService.Reset(rev, mode),
+  continueOp: (): Promise<void> => GitService.Continue(),
+  skipOp: (): Promise<void> => GitService.Skip(),
+  abortOp: (): Promise<void> => GitService.Abort(),
+  acceptSide: (path: string, side: 'ours' | 'theirs'): Promise<void> => GitService.AcceptSide(path, side),
+  stash: (message: string, untracked: boolean): Promise<void> => GitService.Stash(message, untracked),
+  stashes: (): Promise<GitStash[]> => cast(GitService.Stashes()),
+  stashApply: (i: number, pop: boolean): Promise<void> => GitService.StashApply(i, pop),
+  stashDrop: (i: number): Promise<void> => GitService.StashDrop(i),
+  stashDiff: (i: number): Promise<GitFileDiff[]> => cast(GitService.StashDiff(i)),
+  log: (q: Partial<GitLogQuery>): Promise<GitCommit[]> => cast(GitService.Log({ path: '', skip: 0, max: 200, grep: '', ref: '', ...q } as never)),
+  commitFiles: (hash: string): Promise<GitChangedFile[]> => cast(GitService.CommitFiles(hash)),
+  blame: (path: string, contents: string): Promise<GitBlameLine[]> => cast(GitService.Blame(path, contents)),
+  addToGitignore: (paths: string[]): Promise<void> => GitService.AddToGitignore(paths),
+  remotes: (): Promise<string[]> => GitService.Remotes(),
+  fetch: (): Promise<string> => GitService.Fetch(),
+  pull: (): Promise<string> => GitService.Pull(),
+  push: (force = false): Promise<string> => GitService.Push(force),
+  stopOp: (id: string): Promise<void> => GitService.StopOp(id),
 };
