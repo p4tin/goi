@@ -15,6 +15,9 @@
 | E2E | `tools/e2e/cdp.mjs` | Headless Chrome over CDP against `wails dev` |
 | Code intelligence | gopls over LSP (stdio) | Own minimal LSP client (`internal/lsp`); no third-party LSP library |
 | Find in Path | `internal/textsearch` | Go `regexp`, line-based; same engine for search and replace |
+| Debugger | Delve `dlv dap` over DAP | Own minimal DAP client (`internal/dap`); Delve installed on demand into Goi's tools dir |
+| Test runner | `go test -json` | test2json events streamed to a frontend tree reducer |
+| Terminal | `github.com/aymanbagabas/go-pty` + `@xterm/xterm` 6 (fit, search, web-links addons) | ConPTY on Windows; zsh/bash integration via ZDOTDIR / --rcfile |
 
 ## Prerequisites (dev machine)
 - Go 1.26+ (auto-downloaded via GOTOOLCHAIN=auto; local go1.25.6 is fine)
@@ -23,11 +26,12 @@
 - Linux builds: `libgtk-3-dev libwebkit2gtk-4.1-dev` (build tag `webkit2_41`)
 - Windows: WebView2 runtime (bundled bootstrapper via Wails)
 - gopls (M2+): `go install golang.org/x/tools/gopls@latest`, or "Install gopls" in the app
+- dlv (M3+): `go install github.com/go-delve/delve/cmd/dlv@latest`, or "Install Delve" in the app
 - golangci-lint: not needed until M4
 
 ## Dependencies (as built)
-- Go: wails/v2, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock
-- Frontend: @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @tanstack/virtual-core; dev: vite, typescript, vitest, happy-dom
+- Go: wails/v2, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock, aymanbagabas/go-pty
+- Frontend: @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @tanstack/virtual-core, @xterm/{xterm,addon-fit,addon-search,addon-web-links} (exact versions); dev: vite, typescript, vitest, happy-dom
 
 ## Developer commands
 ```

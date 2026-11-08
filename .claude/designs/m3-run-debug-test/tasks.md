@@ -1,5 +1,7 @@
 # M3 — Run / Test / Debug: Tasks
 
+Status: **all tasks done** (T1–T16 on branch `feat/m3-run-debug-test`). Results: `acceptance.md`.
+
 Branch `feat/m3-run-debug-test`, one commit per task. Each task ends green: `gofmt -l`, `go vet ./internal/...`, `go test ./internal/...` (with `-race` for process/dap/debugger/terminal/rpc), and `cd frontend && npx tsc --noEmit && npm test`. After changing bound methods, run `wails generate module`, then `git checkout frontend/wailsjs/runtime`.
 
 | # | Task | Reqs | Verify |
