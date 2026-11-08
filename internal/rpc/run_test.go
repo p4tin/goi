@@ -10,6 +10,7 @@ import (
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/runconfig"
+	"github.com/p4tin/goi/internal/settings"
 )
 
 // runModule is a module with an interactive main package and tests.
@@ -333,5 +334,42 @@ func TestParseTestLine(t *testing.T) {
 	}
 	if ev := parseTestLine("# build error"); ev.Action != "output" || ev.Output != "# build error\n" {
 		t.Fatalf("plain line = %+v", ev)
+	}
+}
+
+func TestTerminalServiceRoundTrip(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses /bin/sh")
+	}
+	a, bus := started(t, runModule(t))
+	a.settings.Set(settings.LayerUser, "terminal.shell", "/bin/sh")
+	info, err := a.termSvc.Open(100, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Shell != "/bin/sh" || a.termSvc.Count() != 1 {
+		t.Fatalf("info = %+v", info)
+	}
+	a.termSvc.Write(info.ID, "echo term_$((1+1)); exit 7\n")
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		out := ""
+		for _, e := range bus.Events(events.TopicTermOutput) {
+			out += e.Payload.(TermOutputEvent).Data
+		}
+		exits := bus.Events(events.TopicTermExit)
+		if strings.Contains(out, "term_2") && len(exits) == 1 {
+			if code := exits[0].Payload.(TermExitEvent).Code; code != 7 {
+				t.Fatalf("exit code = %d", code)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("output %q exits %v", out, exits)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := a.termSvc.Close(info.ID); err != nil {
+		t.Fatal(err)
 	}
 }

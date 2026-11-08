@@ -17,6 +17,7 @@ import { installKeyHints } from './keymap/hints';
 import { installRunGutter } from './editor/runGutter';
 import { installRun } from './run/install';
 import { installDebug } from './debug/install';
+import { installTerminal } from './terminal/terminal';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
@@ -39,6 +40,7 @@ export const features: Feature[] = [
   installLang,
   installRun,
   installDebug,
+  installTerminal,
   installPalette,
   installKeymaps,
   installKeyHints,

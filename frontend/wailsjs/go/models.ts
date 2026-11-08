@@ -1664,6 +1664,22 @@ export namespace rpc {
 	        this.project = source["project"];
 	    }
 	}
+	export class TermInfo {
+	    id: string;
+	    shell: string;
+	    cwd: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TermInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.shell = source["shell"];
+	        this.cwd = source["cwd"];
+	    }
+	}
 
 }
 

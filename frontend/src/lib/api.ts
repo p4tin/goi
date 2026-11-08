@@ -12,6 +12,7 @@ import * as RunService from '../../wailsjs/go/rpc/RunService';
 import * as SDKService from '../../wailsjs/go/rpc/SDKService';
 import * as SearchService from '../../wailsjs/go/rpc/SearchService';
 import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
+import * as TerminalService from '../../wailsjs/go/rpc/TerminalService';
 import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
 import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
 import type { gopls, gosdk, index, journal, lsp, recent, rpc, runconfig, settings, vfs, workspace } from '../../wailsjs/go/models';
@@ -58,6 +59,8 @@ export const Topics = {
   debugState: 'debug.state',
   debugBreakpoints: 'debug.breakpoints',
   debugInstall: 'debug.install',
+  termOutput: 'term.output',
+  termExit: 'term.exit',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -654,4 +657,28 @@ export const debug = {
   pause: (id: string, threadId: number): Promise<void> => DebugService.Pause(id, threadId),
   stop: (id: string): Promise<void> => DebugService.Stop(id),
   sessions: (): Promise<string[]> => DebugService.Sessions(),
+};
+
+// ---- Terminal (M3)
+
+export interface TermInfo {
+  id: string;
+  shell: string;
+  cwd: string;
+}
+export interface TermOutputEvent {
+  id: string;
+  data: string;
+}
+export interface TermExitEvent {
+  id: string;
+  code: number;
+}
+
+export const terminalApi = {
+  open: (cols: number, rows: number): Promise<TermInfo> => cast(TerminalService.Open(cols, rows)),
+  write: (id: string, data: string): Promise<void> => TerminalService.Write(id, data),
+  resize: (id: string, cols: number, rows: number): Promise<void> => TerminalService.Resize(id, cols, rows),
+  close: (id: string): Promise<void> => TerminalService.Close(id),
+  count: (): Promise<number> => TerminalService.Count(),
 };

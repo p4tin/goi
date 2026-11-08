@@ -2,7 +2,7 @@
 // to commands. Runs in the capture phase so Goi bindings win over editor
 // defaults for the same keys.
 
-import { formatForDisplay, hasCommandModifier, strokeFromEvent } from './chords';
+import { formatForDisplay, hasCommandModifier, parseStroke, strokeFromEvent } from './chords';
 import type { KeyEventLike } from './chords';
 
 export const CHORD_TIMEOUT_MS = 1500;
@@ -31,6 +31,36 @@ function inTextField(target: EventTarget | null): boolean {
   if (!el || typeof el.closest !== 'function') return false;
   if (el.closest('.cm-editor')) return false;
   return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable === true;
+}
+
+/** True when target is inside the integrated terminal. */
+function inTerminal(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el && typeof el.closest === 'function' && !!el.closest('.xterm');
+}
+
+/** Commands that still run while the terminal has focus; other keys go to
+ * the shell (Ctrl-R, Ctrl-D, … belong to it). */
+export const TERMINAL_PASSTHROUGH = new Set([
+  'terminal.toggle',
+  'terminal.new',
+  'terminal.close',
+  'view.toggleBottom',
+  'view.toggleLeft',
+  'nav.gotoFile',
+  'nav.gotoAction',
+  'nav.recentFiles',
+  'settings.open',
+]);
+
+/** Whether a binding may run while the terminal is focused: allowlisted
+ * commands, function keys, and on macOS Cmd shortcuts that aren't editor
+ * commands (shells don't use Cmd). */
+export function allowedInTerminal(id: string, stroke: string, isMac: boolean): boolean {
+  if (TERMINAL_PASSTHROUGH.has(id)) return true;
+  const s = parseStroke(stroke);
+  if (/^F\d{1,2}$/.test(s.key)) return true;
+  return isMac && s.meta && !id.startsWith('editor.');
 }
 
 function inDialog(target: EventTarget | null): boolean {
@@ -65,6 +95,10 @@ export class KeyDispatcher {
     const hadPending = this.pending.length > 0;
     const seq = [...this.pending, stroke].join(' ');
     const id = map.get(seq);
+    if (id && inTerminal(e.target) && !allowedInTerminal(id, stroke, this.opts.isMac())) {
+      this.reset();
+      return false;
+    }
     if (id) {
       this.reset();
       if (!this.opts.canRun(id)) return hadPending ? this.consume(e) : false;
