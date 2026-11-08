@@ -16,6 +16,7 @@ import { installPalette } from './palette/palette';
 import { installKeyHints } from './keymap/hints';
 import { installRunGutter } from './editor/runGutter';
 import { installRun } from './run/install';
+import { installDebug } from './debug/install';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
@@ -37,6 +38,7 @@ export const features: Feature[] = [
   installCloseGuard,
   installLang,
   installRun,
+  installDebug,
   installPalette,
   installKeymaps,
   installKeyHints,

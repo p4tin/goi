@@ -1,0 +1,111 @@
+/* Debugger UI. Colors come only from theme tokens. */
+
+/* Breakpoint gutter */
+.cm-bp-gutter {
+  width: 14px;
+  cursor: pointer;
+}
+.cm-bp-gutter .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cm-lineNumbers .cm-gutterElement {
+  cursor: pointer;
+}
+.bp {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--goi-breakpoint);
+  border: 1px solid var(--goi-breakpoint);
+  box-sizing: border-box;
+}
+.bp.bp-cond::after {
+  content: '?';
+  display: block;
+  font-size: 8px;
+  line-height: 8px;
+  text-align: center;
+  color: var(--goi-bg);
+  font-weight: 700;
+}
+.bp.bp-log {
+  border-radius: 1px;
+  transform: rotate(45deg) scale(0.85);
+}
+.bp.bp-disabled {
+  background: transparent;
+}
+.bp.bp-disabled.bp-cond::after {
+  color: var(--goi-breakpoint);
+}
+.bp.bp-unverified {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+/* Breakpoint editor and View Breakpoints */
+.bp-form {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 10px;
+  align-items: center;
+  min-width: 420px;
+}
+.bp-form > .rc-check,
+.bp-form > .rc-hint {
+  grid-column: 1 / -1;
+}
+.dialog:has(.bpv) {
+  width: min(760px, 94vw);
+  max-width: none;
+}
+.bpv {
+  max-height: 60vh;
+  overflow: auto;
+}
+.bpv-group {
+  margin: 10px 0 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.bpv-file {
+  margin: 6px 0 2px;
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
+.bpv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.bpv-row .input {
+  flex: 1;
+}
+.bpv-line {
+  padding-left: 12px;
+}
+.bpv-link {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--goi-fg);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.bpv-link:hover {
+  text-decoration: underline;
+}
+.bpv-help {
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
+.bpv-err {
+  color: var(--goi-warning);
+}
