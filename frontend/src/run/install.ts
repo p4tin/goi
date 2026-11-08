@@ -1,6 +1,8 @@
 // Run feature (M3): run configurations, the run widget, the Run tool window
 // and run commands.
 
+import { addCloseCheck } from '../app/closeChecks';
+import { confirmDialog } from '../app/dialog';
 import { showMenu } from '../app/menu';
 import type { MenuItem } from '../app/menu';
 import { project } from '../app/state';
@@ -93,6 +95,21 @@ function installWidget(wb: Workbench): void {
 export function installRun(wb: Workbench): void {
   setRunWorkbench(wb);
   setTestViewFactory(createTestView);
+  addCloseCheck(async () => {
+    let active = 0;
+    try {
+      active = await run.active();
+    } catch {
+      return true;
+    }
+    if (!active) return true;
+    return confirmDialog(
+      'Processes Are Running',
+      `${active === 1 ? 'A run or debug session is' : `${active} runs or debug sessions are`} still running. Stop and close?`,
+      'Stop and Close',
+      true,
+    );
+  });
   wb.panels.register({ id: 'run', title: 'Run', dock: 'bottom', order: 5, render: (c) => renderRunWindow(c) });
   installWidget(wb);
 

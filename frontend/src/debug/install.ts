@@ -78,7 +78,14 @@ export function installDebug(wb: Workbench): void {
   const cmd = (id: string, title: string, run: () => unknown, when: () => boolean = stopped): void => {
     commands.register({ id, title, category: 'Run', when, run });
   };
-  cmd('debug.resume', 'Resume Program', actions.resume);
+  // Resume, or start debugging the selected configuration when no session
+  // is live (VS Code's F5).
+  cmd(
+    'debug.resume',
+    'Resume Program',
+    () => (live() ? actions.resume() : commands.run('run.debug')),
+    () => !!project.peek() && (stopped() || !live()),
+  );
   cmd('debug.pause', 'Pause Program', actions.pause, () => live() && !stopped());
   cmd('debug.stepOver', 'Step Over', actions.stepOver);
   cmd('debug.stepInto', 'Step Into', actions.stepInto);

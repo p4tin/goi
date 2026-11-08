@@ -318,6 +318,7 @@ function renderTerminalPanel(wb: Workbench, container: HTMLElement): () => void 
 }
 
 export function installTerminal(wb: Workbench): void {
+
   wb.panels.register({ id: 'terminal', title: 'Terminal', dock: 'bottom', order: 8, render: (c) => renderTerminalPanel(wb, c) });
   on<TermOutputEvent>(Topics.termOutput, (ev) => {
     const t = tabs.peek().find((x) => x.id === ev.id);

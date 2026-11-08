@@ -4,7 +4,7 @@
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
 export type WritableLayer = 'user' | 'project';
 
-export const sections = ['Appearance', 'Editor', 'Go', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
+export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
 export type Section = (typeof sections)[number];
 
 export interface SettingDescriptor {
@@ -84,6 +84,16 @@ export const schema: SettingDescriptor[] = [
   },
   { key: 'gopls.usePlaceholders', title: 'Complete Function Parameters', section: 'Go', description: 'Completing a function inserts placeholders for its parameters.', type: 'bool', layers: both },
   { key: 'gopls.staticcheck', title: 'Staticcheck Analyzers', section: 'Go', description: 'Report the extra staticcheck analyzers in diagnostics (slower on large projects).', type: 'bool', layers: both },
+  { key: 'run.outputLimitLines', title: 'Console Line Limit', section: 'Run & Debug', description: 'Lines kept per Run/Debug console tab; older lines are dropped.', type: 'int', min: 1000, max: 1000000, layers: userOnly },
+  { key: 'debug.dlvPath', title: 'Delve Path', section: 'Run & Debug', description: "dlv executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi's tools folder.", type: 'string', layers: userOnly },
+  { key: 'debug.showTypes', title: 'Show Variable Types', section: 'Run & Debug', description: 'Show types next to variables in the debugger.', type: 'bool', layers: userOnly },
+  { key: 'debug.showAddresses', title: 'Show Pointer Addresses', section: 'Run & Debug', description: 'Keep 0x… memory addresses in variable values.', type: 'bool', layers: userOnly },
+  { key: 'debug.showUnreadable', title: 'Show Unreadable Variables', section: 'Run & Debug', description: 'List variables Delve cannot read (optimized away or invalid memory).', type: 'bool', layers: userOnly },
+  { key: 'debug.inlineValues', title: 'Inline Values', section: 'Run & Debug', description: 'Show variable values in the editor while the program is suspended.', type: 'bool', layers: userOnly },
+  { key: 'terminal.shell', title: 'Shell', section: 'Terminal', description: 'Shell executable. Empty uses $SHELL (Windows: pwsh, powershell, cmd).', type: 'string', layers: userOnly },
+  { key: 'terminal.shellIntegration', title: 'Shell Integration', section: 'Terminal', description: 'For zsh and bash: track the working directory and complete go commands.', type: 'bool', layers: userOnly },
+  { key: 'terminal.fontSize', title: 'Font Size', section: 'Terminal', description: 'Terminal font size in pixels. 0 uses the editor font size.', type: 'int', min: 0, max: 40, layers: userOnly },
+  { key: 'terminal.scrollback', title: 'Scrollback Lines', section: 'Terminal', description: 'Lines kept in each terminal tab.', type: 'int', min: 100, max: 1000000, layers: userOnly },
   { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
   { key: 'go.env', title: 'Environment Variables', section: 'Go', description: 'Extra environment for go commands (GOPROXY, GOPRIVATE, GOFLAGS…).', type: 'map', layers: both },
   { key: 'go.tags', title: 'Build Tags', section: 'Go', description: 'Build tags passed as -tags to go commands.', type: 'stringList', layers: both },

@@ -1,6 +1,7 @@
 // Window close guard (R6.9): the backend prevents the close and asks; we
 // resolve unsaved buffers and then confirm.
 
+import { runCloseChecks } from '../app/closeChecks';
 import { showDialog } from '../app/dialog';
 import type { Workbench } from '../app/workbench';
 import { app, on, Topics } from '../lib/api';
@@ -13,6 +14,7 @@ export function installCloseGuard(wb: Workbench): void {
   let asking = false;
 
   const confirm = async (): Promise<void> => {
+    if (!(await runCloseChecks())) return;
     try {
       await wb.layout.flush();
     } catch (err) {
