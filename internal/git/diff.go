@@ -48,7 +48,7 @@ func (r *Repo) Diff(ctx context.Context, s DiffSpec) (string, error) {
 	args := []string{"diff", "--no-ext-diff", "--no-color", "-M"}
 	switch {
 	case s.Commit != "":
-		args = []string{"show", "--no-ext-diff", "--no-color", "-M", "--format=", s.Commit}
+		args = []string{"show", "--no-ext-diff", "--no-color", "-M", "--format=", "-m", "--first-parent", s.Commit}
 	case s.Staged:
 		args = append(args, "--cached")
 		if s.Rev != "" {

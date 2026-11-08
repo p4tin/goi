@@ -1,0 +1,232 @@
+{
+ "url": "http://localhost:34115/",
+ "out": "/tmp/goi-e2e-m4",
+ "initialWait": 6000,
+ "steps": [
+  {
+   "label": "helpers",
+   "eval": "(() => { window.__w = async (fn, ms = 60000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 100)); } return 'TIMEOUT'; }; window.__open = (suffix) => { const pt = [...document.querySelectorAll('.dock-tab')].find(b => b.textContent === 'Project'); if (pt && !pt.classList.contains('active')) pt.click(); const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === suffix); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; window.__palette = async (text) => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'a', code: 'KeyA', metaKey: true, shiftKey: true, bubbles: true})); const i = await __w(() => document.querySelector('.palette input, .pal-input, input.palette-input')); i.value = text; i.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 400)); i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return true; }; window.__panel = (id) => { const t = [...document.querySelectorAll('.dock-tab')].find(b => b.textContent === id); t?.click(); return !!t; }; return true; })()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R1.4 branch widget",
+   "eval": "__w(() => { const t = document.querySelector('[data-status=git]')?.textContent; return t && t.includes('main') && t; })"
+  },
+  {
+   "label": "R1.3 tree colors",
+   "eval": "(__panel('Project'), __w(() => { const r = (n) => [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === n); const m = r('main.go'), u = r('notes.txt'); return m && u && m.className.includes('vcs-modified') && u.className.includes('vcs-untracked') && 'main.go modified, notes.txt untracked'; }))"
+  },
+  {
+   "label": "open main.go",
+   "eval": "__w(() => __open('main.go'))"
+  },
+  {
+   "label": "R2.1 gutter change markers",
+   "eval": "__w(() => { const n = document.querySelectorAll('.cm-vcs-gutter .vcs-gutter-modified').length; return n >= 2 && `${n} modified-line markers`; })"
+  },
+  {
+   "label": "R2.2 hunk popup",
+   "eval": "(() => { const g = document.querySelector('.cm-vcs-gutter .vcs-gutter-modified').closest('.cm-gutterElement'); const r = g.getBoundingClientRect(); g.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, clientX: r.x + 1, clientY: r.y + 2})); return __w(() => document.querySelector('.vcs-popup')?.textContent.slice(0, 120)); })()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R3.1 commit panel groups",
+   "eval": "(async () => { __panel('Commit'); return __w(() => { const g = [...document.querySelectorAll('.commit-group')].map(x => x.textContent); return g.length && g.join(' | ') + ' :: ' + [...document.querySelectorAll('.commit-row')].map(x => x.textContent).join(', '); }); })()"
+  },
+  {
+   "label": "R4.1 open diff from the panel",
+   "eval": "(async () => { const r = [...document.querySelectorAll('.commit-row')].find(x => x.dataset.path.endsWith('main.go')); r.click(); return __w(() => { const h = document.querySelector('.diff-host-area'); return h && !h.hidden && document.querySelector('.diff-count')?.textContent; }); })()"
+  },
+  {
+   "shot": "m4-diff.png"
+  },
+  {
+   "label": "R4.2 stage one change (partial staging)",
+   "eval": "(async () => { [...document.querySelectorAll('.diff-info .btn')].find(b => b.textContent === 'Stage Change').click(); return __w(() => { const g = [...document.querySelectorAll('.commit-group')].map(x => x.textContent).join(' | '); const staged = [...document.querySelectorAll('.commit-row')].filter(x => x.dataset.group === 'staged').length; const changed = [...document.querySelectorAll('.commit-row')].filter(x => x.dataset.group === 'changes' && x.dataset.path.endsWith('main.go')).length; return staged === 1 && changed === 1 && g; }); })()"
+  },
+  {
+   "label": "R4.2 staged content has only the first change",
+   "eval": "(async () => { const info = await window.go.rpc.AppService.Info(); const r = await window.go.rpc.GitService.Show(':0', info.projectPath + '/main.go'); return r.text.includes('\"ONE\"') && r.text.includes('\"ten\"') && 'index: ONE \u2026 ten'; })()"
+  },
+  {
+   "label": "close diff",
+   "eval": "(document.querySelector('.diff-host-area .run-tab-close').click(), __w(() => document.querySelector('.diff-host-area').hidden))"
+  },
+  {
+   "label": "R3.3 commit staged",
+   "eval": "(async () => { const a = document.querySelector('.commit-panel .commit-message'); a.value = 'Shout ONE'; a.dispatchEvent(new Event('input', {bubbles: true})); [...document.querySelectorAll('.commit-panel .btn')].find(b => b.textContent === 'Commit').click(); return __w(() => !document.querySelector('.commit-row[data-group=staged]') && document.querySelector('[data-status=git]').textContent); })()"
+  },
+  {
+   "label": "log has the commit",
+   "eval": "window.go.rpc.GitService.Log({path: '', skip: 0, max: 3, grep: '', ref: ''}).then(l => l.map(c => c.subject).join(' | '))"
+  },
+  {
+   "label": "R6.1 push (Mod-Shift-K) with Git console",
+   "eval": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', code: 'KeyK', metaKey: true, shiftKey: true, bubbles: true})); return __w(() => { const t = document.querySelector('[data-status=git]').textContent; return !t.includes('\u2191') && [...document.querySelectorAll('.toast, .notification')].map(n => n.textContent).find(x => x.includes('Push finished')); }, 30000); })()"
+  },
+  {
+   "label": "git console output",
+   "eval": "(() => { const c = [...document.querySelectorAll('.con-body')].map(b => b.textContent).find(t => t.includes('git push')); return c && c.slice(0, 160); })()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R1.3 tree colors",
+   "eval": "(__panel('Project'), __w(() => { const r = (n) => [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === n); const m = r('main.go'), u = r('notes.txt'); return m && u && m.className.includes('vcs-modified') && u.className.includes('vcs-untracked') && 'main.go modified, notes.txt untracked'; }))"
+  },
+  {
+   "label": "open main.go",
+   "eval": "__w(() => __open('main.go'))"
+  },
+  {
+   "label": "R2.1 gutter change markers",
+   "eval": "__w(() => { const n = document.querySelectorAll('.cm-vcs-gutter .vcs-gutter-modified').length; return n >= 1 && `${n} modified-line marker(s)`; })"
+  },
+  {
+   "label": "R2.2 hunk popup shows old text",
+   "eval": "(() => { const g = document.querySelector('.cm-vcs-gutter .vcs-gutter-modified').closest('.cm-gutterElement'); const r = g.getBoundingClientRect(); g.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, clientX: r.x + 1, clientY: r.y + 2})); return __w(() => document.querySelector('.vcs-popup')?.textContent.slice(0, 120)); })()"
+  },
+  {
+   "label": "R2.2 rollback hunk (undoable edit)",
+   "eval": "(async () => { [...document.querySelectorAll('.vcs-popup .btn')].find(b => b.textContent === 'Rollback').click(); return __w(() => { const t = [...document.querySelectorAll('.cm-content')].map(c => c.textContent).find(x => x.includes('func main')); return t && t.includes('\"ten\"') && !t.includes('\"TEN\"') && document.querySelectorAll('.cm-vcs-gutter .vcs-gutter-modified').length === 0 && 'TEN rolled back, markers gone'; }); })()"
+  },
+  {
+   "label": "undo the rollback (Mod-Z)",
+   "eval": "(async () => { const c = [...document.querySelectorAll('.cm-content')].find(x => x.textContent.includes('func main')); c.focus(); document.execCommand && null; c.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', metaKey: true, bubbles: true})); return __w(() => [...document.querySelectorAll('.cm-content')].map(x => x.textContent).find(t => t.includes('func main'))?.includes('\"TEN\"') && 'TEN back'); })()"
+  },
+  {
+   "label": "R5.1 branches popup (Ctrl-Shift-`)",
+   "eval": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '~', code: 'Backquote', ctrlKey: true, shiftKey: true, bubbles: true})); return __w(() => { const items = [...document.querySelectorAll('.lp-list li')].map(li => li.textContent); return items.length && items.join(' | '); }); })()"
+  },
+  {
+   "label": "R5.1 merge feature into main \u2192 conflict",
+   "eval": "(async () => { const li = [...document.querySelectorAll('.lp-list li')].find(x => x.textContent.includes('feature') && !x.textContent.includes('origin')); li.click(); li.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); await __w(() => document.querySelector('.menu')); const it = [...document.querySelectorAll('.menu-item')].find(b => b.textContent.startsWith(\"Merge 'feature'\")); it.click(); return __w(() => { const b = document.querySelector('.commit-banner'); return b && !b.hidden && b.textContent; }); })()"
+  },
+  {
+   "label": "R10.1 conflict listed + status widget",
+   "eval": "__w(() => { const r = [...document.querySelectorAll('.commit-row[data-group=conflicts]')].map(x => x.textContent).join(','); return r && r + ' :: ' + document.querySelector('[data-status=git]').textContent; })"
+  },
+  {
+   "label": "R10.2 open merge editor",
+   "eval": "(async () => { document.querySelector('.commit-row[data-group=conflicts]').click(); return __w(() => { const d = document.querySelector('.merge-dialog'); return d && document.querySelector('.merge-info').textContent + ' | ' + [...document.querySelectorAll('.merge-pane .cm-content')].map(c => c.textContent.match(/\"(hey|hi) \"/)?.[1] ?? '?').join('/'); }); })()"
+  },
+  {
+   "shot": "m4-merge.png"
+  },
+  {
+   "label": "R10.2 accept theirs and apply",
+   "eval": "(async () => { [...document.querySelectorAll('.merge-bar .btn')].find(b => b.textContent.startsWith('Accept Theirs')).click(); await __w(() => document.querySelector('.merge-info').textContent.includes('All conflicts resolved')); [...document.querySelectorAll('.dialog .btn')].find(b => b.textContent === 'Apply').click(); return __w(() => !document.querySelector('.merge-dialog') && !document.querySelector('.commit-row[data-group=conflicts]') && 'resolved and staged'); })()"
+  },
+  {
+   "label": "R10.1 continue merge",
+   "eval": "(async () => { [...document.querySelectorAll('.commit-banner .btn')].find(b => b.textContent === 'Continue').click(); return __w(() => { const b = document.querySelector('.commit-banner'); return b.hidden && document.querySelector('[data-status=git]').textContent; }); })()"
+  },
+  {
+   "label": "merged file content",
+   "eval": "(async () => { const info = await window.go.rpc.AppService.Info(); const r = await window.go.rpc.GitService.Show('HEAD', info.projectPath + '/util.go'); return r.text.match(/return .*/)[0]; })()"
+  },
+  {
+   "label": "R8.1 Git Log (Mod-9)",
+   "eval": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '9', code: 'Digit9', metaKey: true, bubbles: true})); return __w(() => { const rows = [...document.querySelectorAll('.git-log-row')].map(r => r.querySelector('.git-log-subject').textContent); return rows.length >= 4 && rows.slice(0, 5).join(' | '); }); })()"
+  },
+  {
+   "label": "R8.2 commit details and files",
+   "eval": "__w(() => { const f = [...document.querySelectorAll('.git-log-file')].map(x => x.textContent); return f.length && document.querySelector('.git-log-message b').textContent + ' :: ' + f.join(', '); })"
+  },
+  {
+   "label": "R8.2 commit context menu",
+   "eval": "(() => { const r = document.querySelector('.git-log-row'); r.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: 100, clientY: 100})); const items = [...document.querySelectorAll('.menu-item')].map(b => b.textContent).join(' | '); document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return items; })()"
+  },
+  {
+   "label": "open util.go",
+   "eval": "__w(() => __open('util.go'))"
+  },
+  {
+   "label": "R9 annotate (palette)",
+   "eval": "(async () => { await __palette('Annotate with Git Blame'); return __w(() => { const b = [...document.querySelectorAll('.git-blame')].map(x => x.textContent).filter(Boolean); return b.length && b.slice(0, 3).join(' | '); }); })()"
+  },
+  {
+   "shot": "m4-blame.png"
+  },
+  {
+   "label": "R11 lint on save (errcheck in util.go)",
+   "eval": "(async () => { const c = [...document.querySelectorAll('.cm-content')].find(x => x.textContent.includes('func cleanup')); c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', {key: 's', code: 'KeyS', metaKey: true, bubbles: true})); return __w(() => { const st = document.querySelector('[data-status=problems]')?.textContent; return st && /\u26a0\\s*[1-9]/.test(st) && st; }, 120000); })()"
+  },
+  {
+   "label": "R11 Problems shows golangci-lint source",
+   "eval": "(async () => { __panel('Problems'); return __w(() => [...document.querySelectorAll('.res-item')].map(r => r.textContent).find(t => t.includes('golangci-lint'))); })()"
+  },
+  {
+   "label": "open go.mod",
+   "eval": "__w(() => __open('go.mod'))"
+  },
+  {
+   "label": "R13 module actions bar",
+   "eval": "__w(() => [...document.querySelectorAll('.gomod-bar .gomod-btn')].map(b => b.textContent).join(' | '))"
+  },
+  {
+   "label": "R12.2 module path completion",
+   "eval": "(async () => { const c = [...document.querySelectorAll('.cm-content')].find(x => x.textContent.includes('module example.com/m4')); c.focus(); return true; })()"
+  },
+  {
+   "key": "ArrowDown",
+   "mods": [
+    "Meta"
+   ]
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "type": "require golang.org/x/mo"
+  },
+  {
+   "key": " ",
+   "code": "Space",
+   "mods": [
+    "Control"
+   ]
+  },
+  {
+   "label": "path options",
+   "eval": "__w(() => { const o = [...document.querySelectorAll('.cm-tooltip-autocomplete li')].map(l => l.textContent); return o.some(x => x.includes('golang.org/x/mod')) && o.slice(0, 5).join(' | '); }, 20000)"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "type": "d v0.2"
+  },
+  {
+   "key": " ",
+   "code": "Space",
+   "mods": [
+    "Control"
+   ]
+  },
+  {
+   "label": "R12.2 version options from the proxy",
+   "eval": "__w(() => { const o = [...document.querySelectorAll('.cm-tooltip-autocomplete li')].map(l => l.textContent); return o.length && o.slice(0, 5).join(' | '); }, 20000)"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R12.3 module link decoration",
+   "eval": "__w(() => [...document.querySelectorAll('.cm-gomod-link')].map(e => e.textContent).join(', '))"
+  },
+  {
+   "label": "R13 go mod tidy runs in the Run window",
+   "eval": "(async () => { [...document.querySelectorAll('.gomod-bar .gomod-btn')].find(b => b.textContent === 'go mod tidy').click(); return __w(() => { const t = [...document.querySelectorAll('.run-tab-body:not([hidden]) .con-body')].map(b => b.textContent).find(x => x.includes('go mod tidy')); return t && t.includes('Process finished') && t.slice(t.indexOf('Process finished')); }, 120000); })()"
+  },
+  {
+   "label": "R15.6 About dialog",
+   "eval": "(async () => { await __palette('About Goi'); const t = await __w(() => document.querySelector('.about')?.textContent); document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return t; })()"
+  }
+ ]
+}

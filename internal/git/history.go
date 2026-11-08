@@ -188,7 +188,9 @@ type ChangedFile struct {
 
 // CommitFiles lists the files a commit changed (against its first parent).
 func (r *Repo) CommitFiles(ctx context.Context, hash string) ([]ChangedFile, error) {
-	out, err := r.run(ctx, nil, "show", "--format=", "--name-status", "-M", "-z", hash)
+	// -m --first-parent: merge commits list their changes against the
+	// first parent (plain show gives merges an empty combined diff).
+	out, err := r.run(ctx, nil, "show", "--format=", "--name-status", "-M", "-z", "-m", "--first-parent", hash)
 	if err != nil {
 		return nil, err
 	}

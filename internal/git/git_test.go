@@ -284,6 +284,18 @@ func TestBranchesMergeConflictAndResolve(t *testing.T) {
 	if err := r.DeleteBranch(ctx, "feature", false); err != nil {
 		t.Fatalf("delete merged = %v", err)
 	}
+	// The merge commit lists its changes against the first parent.
+	head, _ := r.Log(ctx, LogQuery{Max: 1})
+	if len(head[0].Parents) != 2 {
+		t.Fatalf("not a merge commit: %+v", head[0])
+	}
+	mf, err := r.CommitFiles(ctx, head[0].Hash)
+	if err != nil || len(mf) != 1 || mf[0].Rel != "b.txt" {
+		t.Fatalf("merge commit files = %+v %v", mf, err)
+	}
+	if d, _ := r.Diff(ctx, DiffSpec{Commit: head[0].Hash, Path: r.abs("b.txt")}); !strings.Contains(d, "+feature bee") {
+		t.Fatalf("merge commit diff = %q", d)
+	}
 	_ = env
 }
 
