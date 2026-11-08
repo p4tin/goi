@@ -17,7 +17,7 @@ import type { ContextRequest } from '../lib/api';
 import { openConfigDialog } from './configDialog';
 import { runAtCursor, runContextRequest, runDirTests } from './context';
 import { icon, iconButton } from './icons';
-import { activeTab, liveTab, renderRunWindow, rerunTab, setTestViewFactory, stopTab } from './runWindow';
+import { activeTab, installRunWindow, liveTab, renderRunWindow, rerunTab, setTestViewFactory, stopTab } from './runWindow';
 import { createTestView } from './testView';
 import { configs, notifyError, selectedConfig, selectedName, setRunWorkbench, TYPE_LABEL } from './state';
 import { launch, runHooks } from './launch';
@@ -110,6 +110,7 @@ export function installRun(wb: Workbench): void {
       true,
     );
   });
+  installRunWindow();
   wb.panels.register({ id: 'run', title: 'Run', dock: 'bottom', order: 5, render: (c) => renderRunWindow(c) });
   installWidget(wb);
 

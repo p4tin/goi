@@ -323,7 +323,15 @@ async function onStopped(t: DebugTab, ev: DebugStateEvent): Promise<void> {
   }
   await selectFrame(t, t.frameIndex, true);
   activeDebugId.set(t.id);
+  ensureHeight(360);
   workbench().panels.show('debug');
+}
+
+/** Grows the bottom dock so the debugger's lists are usable. */
+export function ensureHeight(px: number): void {
+  const p = workbench().panels;
+  const avail = window.innerHeight * 0.7;
+  if (p.state.peek().bottom.size < Math.min(px, avail)) p.patch('bottom', { size: Math.round(Math.min(px, avail)) });
 }
 
 function onRunning(t: DebugTab, ev: DebugStateEvent): void {
@@ -611,11 +619,15 @@ async function closeTab(id: string): Promise<void> {
   if (activeDebugId.peek() === id) activeDebugId.set(rest[rest.length - 1]?.id ?? '');
 }
 
-export function renderDebugWindow(container: HTMLElement, evaluateFn: (t: DebugTab) => void): () => void {
+let root: HTMLElement | null = null;
+
+/** Builds the Debug window and subscribes to events at install time (see
+ * installRunWindow); the panel attaches the element when it renders. */
+export function installDebugWindow(evaluateFn: (t: DebugTab) => void): void {
   const strip = h('div', { class: 'run-tabs', role: 'tablist' });
   const body = h('div', { class: 'run-bodies' });
   const empty = h('div', { class: 'results-empty' }, 'Debug a configuration (Ctrl+D) or click ▶ in the gutter and choose Debug');
-  container.append(h('div', { class: 'run-window' }, strip, body, empty));
+  root = h('div', { class: 'run-window' }, strip, body, empty);
   const host = { strip, body };
   const byId = (id: string): DebugTab | undefined => debugTabs.peek().find((t) => t.id === id);
 
@@ -659,28 +671,37 @@ export function renderDebugWindow(container: HTMLElement, evaluateFn: (t: DebugT
     renderStatus(t);
   };
 
-  const offs = [
-    on<RunInfo>(Topics.runState, onRunState),
-    on<RunOutputEvent>(Topics.runOutput, (ev) => {
-      const t = byId(ev.id);
-      if (t) for (const c of ev.chunks) t.console.append(c.stream, c.text);
-    }),
-    on<DebugStateEvent>(Topics.debugState, (ev) => {
-      const t = byId(ev.id);
-      if (!t) return;
-      if (ev.state === 'stopped') void onStopped(t, ev);
-      else if (ev.state === 'running') onRunning(t, ev);
-      else {
-        t.state = ev;
-        renderStatus(t);
-      }
-    }),
-  ];
-  void run.runs().then((list) => {
-    for (const info of list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) if (info.debug && !byId(info.id)) onRunState(info);
+  on<RunInfo>(Topics.runState, onRunState);
+  on<RunOutputEvent>(Topics.runOutput, (ev) => {
+    const t = byId(ev.id);
+    if (t) for (const c of ev.chunks) t.console.append(c.stream, c.text);
   });
-
-  const stopFx = effect(() => {
+  on<DebugStateEvent>(Topics.debugState, (ev) => {
+    const t = byId(ev.id);
+    if (!t) return;
+    if (ev.state === 'stopped') void onStopped(t, ev);
+    else if (ev.state === 'running') onRunning(t, ev);
+    else {
+      t.state = ev;
+      renderStatus(t);
+    }
+  });
+  effect(() => {
+    if (!project()) {
+      for (const t of debugTabs.peek()) {
+        t.tab.remove();
+        t.el.remove();
+      }
+      debugTabs.set([]);
+      activeDebugId.set('');
+      showDebugPosition(null);
+      return;
+    }
+    void run.runs().then((list) => {
+      for (const info of list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) if (info.debug && !byId(info.id)) onRunState(info);
+    });
+  });
+  effect(() => {
     const active = activeDebugId();
     const tabs = debugTabs();
     empty.hidden = tabs.length > 0;
@@ -689,13 +710,12 @@ export function renderDebugWindow(container: HTMLElement, evaluateFn: (t: DebugT
       t.el.hidden = t.id !== active;
     }
   });
-  const stopWatchFx = effect(() => {
+  effect(() => {
     watches();
     for (const t of debugTabs.peek()) void refreshWatches(t);
   });
-  return () => {
-    for (const off of offs) off();
-    stopFx();
-    stopWatchFx();
-  };
+}
+
+export function renderDebugWindow(container: HTMLElement): void {
+  if (root) container.append(root);
 }

@@ -1,0 +1,319 @@
+{
+ "url": "http://localhost:34115/",
+ "out": "/tmp/goi-e2e-m3",
+ "initialWait": 6000,
+ "steps": [
+  {
+   "label": "helpers",
+   "eval": "(() => { window.__w = async (fn, ms = 60000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 100)); } return 'TIMEOUT'; }; window.__open = (suffix) => { const r = [...document.querySelectorAll('.tree-row')].find(e => e.textContent.trim().endsWith(suffix)); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; window.__expand = (name) => { const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === name); if (!r) return false; if (r.getAttribute('aria-expanded') !== 'true') r.querySelector('.tree-chevron').click(); return true; }; return true; })()"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R1.2 shared config loaded in run widget",
+   "eval": "__w(() => document.querySelector('[data-status=run] .rw-name')?.textContent)"
+  },
+  {
+   "label": "expand calc",
+   "eval": "__w(() => __expand('calc'))"
+  },
+  {
+   "wait": 500
+  },
+  {
+   "label": "open calc_test.go",
+   "eval": "__w(() => __open('calc_test.go'))"
+  },
+  {
+   "label": "R4.1 run markers",
+   "eval": "__w(() => document.querySelectorAll('.cm-run-gutter .run-marker').length >= 3 && document.querySelectorAll('.cm-run-gutter .run-marker').length)"
+  },
+  {
+   "label": "gutter menu for TestAdd",
+   "eval": "(() => { const m = [...document.querySelectorAll('.cm-run-gutter .run-marker')].find(e => e.title.includes('TestAdd')); const r = m.getBoundingClientRect(); m.parentElement.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, clientX: r.x + 3, clientY: r.y + 3})); return [...document.querySelectorAll('.menu-item')].map(b => b.textContent).join(' | '); })()"
+  },
+  {
+   "label": "click Run 'TestAdd'",
+   "eval": "(() => { const b = [...document.querySelectorAll('.menu-item')].find(b => b.textContent.startsWith('Run')); b.click(); return !!b; })()"
+  },
+  {
+   "label": "R3.1 test tree summary",
+   "eval": "__w(() => { const s = document.querySelector('.run-tab-body:not([hidden]) .tv-summary')?.textContent; return s && !s.includes('running') && s.includes('of') && s; }, 120000)"
+  },
+  {
+   "label": "R3.1 tree rows",
+   "eval": "[...document.querySelectorAll('.run-tab-body:not([hidden]) .tv-row')].map(r => r.textContent).join(' | ')"
+  },
+  {
+   "label": "temporary config selected",
+   "eval": "document.querySelector('[data-status=run] .rw-name')?.textContent"
+  },
+  {
+   "shot": "m3-tests.png"
+  },
+  {
+   "label": "R3.3 rerun failed enabled",
+   "eval": "!document.querySelector('.run-tab-body:not([hidden]) .tb-rerun-failed').disabled"
+  },
+  {
+   "label": "click rerun failed",
+   "eval": "(document.querySelector('.run-tab-body:not([hidden]) .tb-rerun-failed').click(), true)"
+  },
+  {
+   "label": "R3.3 rerun result",
+   "eval": "__w(async () => { await new Promise(r => setTimeout(r, 300)); const s = document.querySelector('.run-tab-body:not([hidden]) .tv-summary')?.textContent; return s && !s.includes('running') && s.includes('1 test') && s + ' || ' + [...document.querySelectorAll('.run-tab-body:not([hidden]) .tv-row')].map(r => r.textContent).join(' | '); }, 120000)"
+  },
+  {
+   "label": "run file tests via tree context (whole file)",
+   "eval": "(async () => { const p = (await window.go.rpc.AppService.Info()).projectPath; const c = await window.go.rpc.RunService.ContextConfig({path: p + '/calc/calc_test.go', kind: 'file', name: ''}); await window.go.rpc.RunService.Run(c.name, false); return c.name; })()"
+  },
+  {
+   "label": "file run summary",
+   "eval": "__w(async () => { await new Promise(r => setTimeout(r, 300)); const s = document.querySelector('.run-tab-body:not([hidden]) .tv-summary')?.textContent; return s && !s.includes('running') && s.includes('of 4') && s; }, 120000)"
+  },
+  {
+   "label": "R3.4 select TestGreeting shows difference link",
+   "eval": "(() => { const r = [...document.querySelectorAll('.run-tab-body:not([hidden]) .tv-row')].find(r => r.textContent.includes('TestGreeting')); r.click(); return __w(() => !document.querySelector('.run-tab-body:not([hidden]) .tv-diff-link').hidden); })()"
+  },
+  {
+   "label": "R3.4 open diff",
+   "eval": "(document.querySelector('.run-tab-body:not([hidden]) .tv-diff-link').click(), __w(() => document.querySelector('.diff-dialog') && document.querySelector('.diff-dialog').textContent.slice(0, 120)))"
+  },
+  {
+   "shot": "m3-diff.png"
+  },
+  {
+   "key": "Escape"
+  },
+  {
+   "label": "R3.2 node output in console",
+   "eval": "document.querySelector('.run-tab-body:not([hidden]) .con-body').textContent.slice(0, 200)"
+  },
+  {
+   "label": "R1.5 widget lists shared Work config",
+   "eval": "(() => { document.querySelector('.rw-pick').click(); const items = [...document.querySelectorAll('.menu-item')].map(b => b.textContent); const w = [...document.querySelectorAll('.menu-item')].find(b => b.textContent.startsWith('Work')); w?.click(); return items.join(' | '); })()"
+  },
+  {
+   "label": "selected",
+   "eval": "document.querySelector('.rw-name').textContent"
+  },
+  {
+   "label": "click Run in widget",
+   "eval": "(document.querySelector('.rw-run').click(), true)"
+  },
+  {
+   "label": "R2.2 waiting for input prompt",
+   "eval": "__w(() => { const b = document.querySelector('.run-tab-body:not([hidden]) .con-body'); return b && b.textContent.includes('type a line') && b.textContent; }, 120000)"
+  },
+  {
+   "label": "R2.2 ANSI green span",
+   "eval": "document.querySelector('.run-tab-body:not([hidden]) .ansi-fg-p2')?.textContent"
+  },
+  {
+   "label": "R2.2 stderr styled",
+   "eval": "document.querySelector('.run-tab-body:not([hidden]) .con-stderr')?.textContent"
+  },
+  {
+   "label": "R2.2 location link",
+   "eval": "document.querySelector('.run-tab-body:not([hidden]) a.con-link')?.textContent"
+  },
+  {
+   "label": "R2.2 input enabled while running",
+   "eval": "!document.querySelector('.run-tab-body:not([hidden]) .con-input').hidden"
+  },
+  {
+   "label": "type input",
+   "eval": "(() => { const i = document.querySelector('.run-tab-body:not([hidden]) .con-input'); i.value = 'hello goi'; i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return true; })()"
+  },
+  {
+   "label": "R2.2 echo + exit line",
+   "eval": "__w(() => { const t = document.querySelector('.run-tab-body:not([hidden]) .con-body').textContent; return t.includes('Process finished') && t.slice(t.indexOf('you typed')); }, 30000)"
+  },
+  {
+   "shot": "m3-run.png"
+  },
+  {
+   "label": "click link opens file",
+   "eval": "(document.querySelector('.run-tab-body:not([hidden]) a.con-link').click(), __w(() => { const e = [...document.querySelectorAll('.cm-content')].find(c => c.textContent.includes('green output')); return e && 'opened main.go'; }))"
+  },
+  {
+   "label": "R2.4 rerun then stop (R2.3)",
+   "eval": "(async () => { const con = () => document.querySelector('.run-tab-body:not([hidden]) .con-body').textContent; document.querySelector('.run-tab-body:not([hidden]) .tb-rerun').click(); await __w(() => !con().includes('Process finished') && con().includes('type a line'), 60000); document.querySelector('.run-tab-body:not([hidden]) .tb-stop').click(); return __w(() => con().includes('Process finished') && con().slice(con().indexOf('Process finished')), 20000); })()"
+  },
+  {
+   "label": "R3.5 benchmark config",
+   "eval": "(async () => { const c = {name: 'Bench', type: 'test', kind: 'package', package: './calc', pattern: '^$', bench: '^BenchmarkAdd$', benchmem: true, shared: false, temporary: false, created: 0, directory: '', files: [], packages: [], workingDir: '', args: '', env: {}, envFile: '', buildFlags: '', tags: [], output: '', inputFile: '', race: false, short: false, count: 0, timeout: '', testFlags: '-benchtime=2000x', fuzz: '', fuzzTime: '', host: '', port: 0, script: '', scriptText: '', interpreter: '', makefile: '', targets: [], beforeLaunch: []}; await window.go.rpc.RunService.DeleteConfig('Bench').catch(() => {}); await window.go.rpc.RunService.SaveConfig(c, ''); await window.go.rpc.RunService.Run('Bench', false); return true; })()"
+  },
+  {
+   "label": "R3.5 benchmarks table",
+   "eval": "__w(() => { const b = document.querySelector('.run-tab-body:not([hidden]) .tv-bench'); return b && !b.hidden && document.querySelector('.run-tab-body:not([hidden]) .tv-summary').textContent.includes('\u2013') && b.textContent; }, 120000)"
+  },
+  {
+   "label": "rerun bench for comparison",
+   "eval": "(async () => { document.querySelector('.run-tab-body:not([hidden]) .tb-rerun').click(); await new Promise(r => setTimeout(r, 1500)); return __w(() => { const d = document.querySelector('.run-tab-body:not([hidden]) .tv-delta'); return d && d.textContent; }, 120000); })()"
+  },
+  {
+   "shot": "m3-bench.png"
+  },
+  {
+   "label": "expand worker",
+   "eval": "__w(() => __expand('worker'))"
+  },
+  {
+   "wait": 500
+  },
+  {
+   "label": "open worker_test.go",
+   "eval": "__w(() => __open('worker_test.go'))"
+  },
+  {
+   "label": "editor shows TestWorkers",
+   "eval": "__w(() => [...document.querySelectorAll('.cm-content')].some(c => c.textContent.includes('func TestWorkers')) && document.querySelectorAll('.cm-run-gutter .run-marker').length)"
+  },
+  {
+   "label": "R6.1 click line number 10 sets breakpoint (kept if restored from the last run)",
+   "eval": "(() => { const vis = () => [...document.querySelectorAll('.cm-bp-gutter .bp')].filter(b => b.closest('.cm-gutterElement').style.visibility !== 'hidden'); if (!vis().length) { const n = [...document.querySelectorAll('.cm-lineNumbers .cm-gutterElement')].find(e => e.textContent === '10' && e.closest('.cm-editor').textContent.includes('func process')); const r = n.getBoundingClientRect(); n.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, button: 0, clientX: r.x + 2, clientY: r.y + r.height / 2})); } return __w(() => vis().map(b => b.className + ' ' + b.title).join(';')); })()"
+  },
+  {
+   "label": "R6.2 edit breakpoint: condition i == 3",
+   "eval": "(async () => { const b = [...document.querySelectorAll('.cm-bp-gutter .bp')].find(b => b.closest('.cm-gutterElement').style.visibility !== 'hidden'); const r = b.getBoundingClientRect(); b.closest('.cm-gutterElement').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, button: 2, clientX: r.x + 2, clientY: r.y + 2})); await __w(() => document.querySelector('.bp-form')); const cond = document.querySelector('.bp-form input[type=text]'); cond.value = 'i == 3'; cond.dispatchEvent(new Event('input', {bubbles: true})); [...document.querySelectorAll('.dialog .btn')].find(x => x.textContent === 'Done').click(); return __w(() => { const m = [...document.querySelectorAll('.cm-bp-gutter .bp')].find(b => b.closest('.cm-gutterElement').style.visibility !== 'hidden'); return m && m.className.includes('bp-cond') && m.title; }); })()"
+  },
+  {
+   "label": "gutter Debug 'TestWorkers'",
+   "eval": "(() => { const m = [...document.querySelectorAll('.cm-run-gutter .run-marker')].find(e => e.title.includes('TestWorkers')); const r = m.getBoundingClientRect(); m.parentElement.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, clientX: r.x + 3, clientY: r.y + 3})); const b = [...document.querySelectorAll('.menu-item')].find(b => b.textContent.startsWith('Debug')); b.click(); return b.textContent; })()"
+  },
+  {
+   "label": "R5.1 Delve missing \u2192 install offer (only when not installed yet)",
+   "eval": "__w(() => document.querySelector('.dialog')?.textContent.slice(0, 120) || (document.querySelector('.dbg-tab-body:not([hidden]) .dbg-status') && 'dlv already installed'), 30000)"
+  },
+  {
+   "label": "click Install Delve",
+   "eval": "(() => { const b = [...document.querySelectorAll('.dialog .btn')].find(x => x.textContent === 'Install Delve'); b?.click(); return b ? 'installing' : 'not needed'; })()"
+  },
+  {
+   "label": "R5.1 installed \u2192 debug session stops at conditional breakpoint",
+   "eval": "__w(() => { const s = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-status')?.textContent; return s && s.startsWith('Breakpoint hit') && s; }, 240000)"
+  },
+  {
+   "label": "R9.1 variables (i must be 3)",
+   "eval": "__w(() => { const t = [...document.querySelectorAll('.dbg-tab-body:not([hidden]) .var-tree')[0].querySelectorAll('.vt-row')].map(r => r.textContent); return t.some(x => x.startsWith('i')) && t.join(' | '); })"
+  },
+  {
+   "label": "R5.4 execution line + R9.6 inline values",
+   "eval": "__w(() => document.querySelector('.cm-debug-line') && [...document.querySelectorAll('.cm-inline-value')].map(e => e.textContent).join(' | '))"
+  },
+  {
+   "shot": "m3-debug-stopped.png"
+  },
+  {
+   "label": "R8.1 goroutines listed",
+   "eval": "[...document.querySelectorAll('.dbg-tab-body:not([hidden]) .dbg-list')[0].querySelectorAll('.dbg-row')].map(r => r.textContent).slice(0, 12).join(' | ')"
+  },
+  {
+   "label": "R8.3 goroutine filter 'process'",
+   "eval": "(async () => { const f = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-filter'); f.value = 'process'; f.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 100)); const rows = [...document.querySelectorAll('.dbg-tab-body:not([hidden]) .dbg-list')[0].querySelectorAll('.dbg-row')].map(r => r.textContent); return rows.join(' | '); })()"
+  },
+  {
+   "label": "R8.3 hide a goroutine, then reset",
+   "eval": "(async () => { const list = document.querySelectorAll('.dbg-tab-body:not([hidden]) .dbg-list')[0]; { const f = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-filter'); f.value = ''; f.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 50)); } const row = [...list.querySelectorAll('.dbg-row[data-goroutine]')].find(r => !r.classList.contains('current')); if (!row) return 'only the current goroutine matches'; row.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: 50, clientY: 50})); [...document.querySelectorAll('.menu-item')].find(b => b.textContent.startsWith('Hide Goroutine ')).click(); await new Promise(r => setTimeout(r, 100)); const note = list.querySelector('.dbg-hidden-note')?.textContent; document.querySelector('.dbg-tab-body:not([hidden]) .dbg-section-tools button[title=\"Reset hidden goroutines\"]').click(); await new Promise(r => setTimeout(r, 100)); const f = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-filter'); f.value = ''; f.dispatchEvent(new Event('input', {bubbles: true})); return note + ' \u2192 after reset: ' + (list.querySelector('.dbg-hidden-note')?.textContent ?? 'none hidden'); })()"
+  },
+  {
+   "label": "R8.4 show thread ids",
+   "eval": "(async () => { document.querySelector('.dbg-tab-body:not([hidden]) .dbg-section-tools button[title=\"Show thread IDs\"]').click(); await new Promise(r => setTimeout(r, 100)); const t = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-row.current')?.textContent; document.querySelector('.dbg-tab-body:not([hidden]) .dbg-section-tools button[title=\"Show thread IDs\"]').click(); return t; })()"
+  },
+  {
+   "label": "R8.1 frames",
+   "eval": "[...document.querySelectorAll('.dbg-tab-body:not([hidden]) .dbg-list')[1].querySelectorAll('.dbg-row')].map(r => r.textContent).join(' | ')"
+  },
+  {
+   "label": "R9.5 add watch i*10",
+   "eval": "(async () => { const i = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-watch-input'); i.value = 'i*10'; i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return __w(() => { const r = [...document.querySelectorAll('.dbg-tab-body:not([hidden]) .var-tree')[1].querySelectorAll('.vt-row')].map(r => r.textContent).join(' | '); return r.includes('=30') && r; }); })()"
+  },
+  {
+   "label": "R9.4 evaluate dialog (Alt-F8)",
+   "eval": "(async () => { const { } = {}; document.dispatchEvent(new KeyboardEvent('keydown', {key: 'F8', code: 'F8', altKey: true, bubbles: true})); await __w(() => document.querySelector('.eval-input')); const inp = document.querySelector('.eval-input'); inp.value = 'out'; inp.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); const r = await __w(() => { const t = document.querySelector('.eval-result')?.textContent; return t && t.includes('out') && t.includes('=') && t; }); document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return r; })()"
+  },
+  {
+   "label": "R9.3 set value i = 4",
+   "eval": "(async () => { const tree = document.querySelectorAll('.dbg-tab-body:not([hidden]) .var-tree')[0]; const row = [...tree.querySelectorAll('.vt-row')].find(r => r.querySelector('.vt-name')?.textContent === 'i'); row.querySelector('.vt-value').dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); const inp = await __w(() => tree.querySelector('.vt-edit')); inp.value = '4'; inp.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return __w(() => { const r = [...tree.querySelectorAll('.vt-row')].find(r => r.querySelector('.vt-name')?.textContent === 'i'); return r && r.textContent.endsWith('=4') && r.textContent; }); })()"
+  },
+  {
+   "label": "R7.1 step over (F8) \u2192 v = 16",
+   "eval": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'F8', code: 'F8', bubbles: true})); await __w(() => document.querySelector('.dbg-tab-body:not([hidden]) .dbg-status').textContent.startsWith('Stepped')); return __w(() => { const t = [...document.querySelectorAll('.dbg-tab-body:not([hidden]) .var-tree')[0].querySelectorAll('.vt-row')].map(r => r.textContent); return t.find(x => x.startsWith('v') && x.endsWith('=16')); }); })()"
+  },
+  {
+   "label": "inline values follow",
+   "eval": "[...document.querySelectorAll('.cm-inline-value')].map(e => e.textContent).join(' | ')"
+  },
+  {
+   "label": "R7.1 resume \u2192 session ends (test fails because out[3]=16)",
+   "eval": "(async () => { document.querySelector('.dbg-tab-body:not([hidden]) button[title=\"Resume Program\"]').click(); return __w(() => { const s = document.querySelector('.dbg-tab-body:not([hidden]) .dbg-status').textContent; return s.startsWith('Process finished') && s; }, 60000); })()"
+  },
+  {
+   "label": "R5.5 highlight cleared",
+   "eval": "!document.querySelector('.cm-debug-line') && document.querySelectorAll('.cm-inline-value').length === 0"
+  },
+  {
+   "label": "console has test output",
+   "eval": "(() => { const c = document.querySelector('.dbg-tab-body:not([hidden]) .con-body').textContent; return c.slice(c.indexOf('worker_test'), c.indexOf('worker_test') + 80); })()"
+  },
+  {
+   "label": "dlv installed into Goi tools dir",
+   "eval": "window.go.rpc.DebugService.DlvStatus().then(s => s.path)"
+  },
+  {
+   "label": "R10.1 Alt-F12 opens terminal",
+   "eval": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'F12', code: 'F12', altKey: true, bubbles: true})); return __w(() => { const r = document.querySelector('.term-body:not([hidden]) .xterm-rows'); return r && r.textContent.trim().length > 0 && 'prompt: ' + r.textContent.trim().slice(0, 60); }, 30000); })()"
+  },
+  {
+   "label": "R10.3 shell integration: go completion function",
+   "eval": "(async () => { const ta = document.querySelector('.term-body:not([hidden]) .xterm-helper-textarea'); ta.focus(); return true; })()"
+  },
+  {
+   "wait": 1500
+  },
+  {
+   "type": "type _goi_go >/dev/null 2>&1 && echo GOI_COMPLETION_OK; echo goi_$((40+2)); pwd"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "label": "R10.1 output round trip",
+   "eval": "__w(() => { const t = document.querySelector('.term-body:not([hidden]) .xterm-rows').textContent; return t.includes('goi_42') && t.includes('GOI_COMPLETION_OK') && 'goi_42 + completion function present'; }, 20000)"
+  },
+  {
+   "label": "R10.1 starts in project root",
+   "eval": "document.querySelector('.term-body:not([hidden]) .xterm-rows').textContent.includes('m3sample')"
+  },
+  {
+   "label": "R10.1 Ctrl-R reaches the shell (not Run)",
+   "eval": "(async () => { const before = (await window.go.rpc.RunService.Runs()).length; const ta = document.querySelector('.term-body:not([hidden]) .xterm-helper-textarea'); ta.dispatchEvent(new KeyboardEvent('keydown', {key: 'r', code: 'KeyR', ctrlKey: true, bubbles: true})); await new Promise(r => setTimeout(r, 500)); ta.dispatchEvent(new KeyboardEvent('keydown', {key: 'g', code: 'KeyG', ctrlKey: true, bubbles: true})); const after = (await window.go.rpc.RunService.Runs()).length; return before === after ? 'no run started' : 'RUN STARTED'; })()"
+  },
+  {
+   "label": "R10.2 second tab",
+   "eval": "(async () => { document.querySelector('.term-add').click(); return __w(() => document.querySelectorAll('.term-tabs .run-tab').length === 2 && 2, 20000); })()"
+  },
+  {
+   "label": "R10.5 exit shows exit code",
+   "eval": "(async () => { const ta = document.querySelector('.term-body:not([hidden]) .xterm-helper-textarea'); ta.focus(); return true; })()"
+  },
+  {
+   "wait": 1500
+  },
+  {
+   "type": "exit 5"
+  },
+  {
+   "key": "Enter"
+  },
+  {
+   "label": "exit message",
+   "eval": "__w(() => { const t = document.querySelector('.term-body:not([hidden]) .xterm-rows').textContent; return t.includes('exited with code 5') && 'exited with code 5'; }, 20000)"
+  },
+  {
+   "shot": "m3-terminal.png"
+  }
+ ]
+}

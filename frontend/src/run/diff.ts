@@ -18,7 +18,9 @@ const TESTIFY_LINE = /^\s*\t([^\t]*)\t(.*)$/;
 function contentLines(output: string): string[] {
   return output.split('\n').map((l) => {
     const m = TESTIFY_LINE.exec(l);
-    return m ? m[2] : l.trim();
+    if (!m) return l.trim();
+    // Keep row labels ("Test:", "Messages:") so value blocks end there.
+    return m[1].trim() ? `${m[1].trim()} ${m[2]}`.trim() : m[2];
   });
 }
 

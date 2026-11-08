@@ -69,6 +69,15 @@ describe('breakpoint gutter', () => {
     expect(lineBreakpoints.peek()['/p/main.go'].map((b) => b.line)).toEqual([4]);
     view.destroy();
   });
+  it('toggles a breakpoint when a line number is clicked', async () => {
+    lineBreakpoints.set({});
+    const view = mount('a\nb\n');
+    await tick(0);
+    const num = view.dom.querySelector('.cm-lineNumbers .cm-gutterElement:not([style*="hidden"])') as HTMLElement;
+    num.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(lineBreakpoints.peek()['/p/main.go']?.length).toBe(1);
+    view.destroy();
+  });
   it('ignores non-Go buffers', () => {
     expect(breakpointsExtension({ path: '/p/README.md', binary: false } as unknown as Buffer)).toEqual([]);
   });

@@ -36,3 +36,8 @@
 .term-body .xterm-viewport {
   background: var(--goi-bg) !important;
 }
+.term-tabs .run-tab-label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

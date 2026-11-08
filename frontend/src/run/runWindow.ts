@@ -174,11 +174,16 @@ export function liveTab(): RunTab | undefined {
   return [...runTabs.peek()].reverse().find((t) => isLive(t.info));
 }
 
-export function renderRunWindow(container: HTMLElement): () => void {
+let root: HTMLElement | null = null;
+
+/** Builds the Run window and subscribes to run events. Called at install
+ * time so runs started before the panel was ever shown still get tabs; the
+ * panel attaches the element when it first renders. */
+export function installRunWindow(): void {
   const strip = h('div', { class: 'run-tabs', role: 'tablist' });
   const body = h('div', { class: 'run-bodies' });
   const empty = h('div', { class: 'results-empty' }, 'Run a configuration (Ctrl+R) or click ▶ in the gutter');
-  container.append(h('div', { class: 'run-window' }, strip, body, empty));
+  root = h('div', { class: 'run-window' }, strip, body, empty);
   const host = { strip, body };
 
   const byId = (id: string): RunTab | undefined => runTabs.peek().find((t) => t.id === id);
@@ -190,6 +195,11 @@ export function renderRunWindow(container: HTMLElement): () => void {
       t = createTab(info, host);
       runTabs.set([...runTabs.peek(), t]);
       activeRunId.set(info.id);
+      if (info.test) {
+        const p = workbench().panels;
+        const want = Math.round(Math.min(320, window.innerHeight * 0.6));
+        if (p.state.peek().bottom.size < want) p.patch('bottom', { size: want });
+      }
       workbench().panels.show('run');
     } else if (info.state === 'starting') {
       t.console.clear();
@@ -206,32 +216,42 @@ export function renderRunWindow(container: HTMLElement): () => void {
     updateTab(t);
   };
 
-  const offs = [
-    on<RunInfo>(Topics.runState, onState),
-    on<RunOutputEvent>(Topics.runOutput, (ev) => {
-      const t = byId(ev.id);
-      if (!t) return;
-      for (const c of ev.chunks) {
-        if (t.tests) t.tests.output(c);
-        else t.console.append(c.stream, c.text);
-      }
-    }),
-    on<RunTestEvent>(Topics.runTest, (ev) => {
-      const t = byId(ev.id);
-      if (!t) return;
-      if (t.tests) t.tests.events(ev.events);
-      else for (const e of ev.events) if (e.output) t.console.append('stdout', e.output);
-    }),
-  ];
-
-  // Restore runs that are still known to the backend (frontend reload).
-  void run.runs().then((list) => {
-    for (const info of list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) {
-      if (!byId(info.id) && !info.debug) onState(info);
+  on<RunInfo>(Topics.runState, onState);
+  on<RunOutputEvent>(Topics.runOutput, (ev) => {
+    const t = byId(ev.id);
+    if (!t) return;
+    for (const c of ev.chunks) {
+      if (t.tests) t.tests.output(c);
+      else t.console.append(c.stream, c.text);
     }
   });
+  on<RunTestEvent>(Topics.runTest, (ev) => {
+    const t = byId(ev.id);
+    if (!t) return;
+    if (t.tests) t.tests.events(ev.events);
+    else for (const e of ev.events) if (e.output) t.console.append('stdout', e.output);
+  });
 
-  const stop = effect(() => {
+  // Restore runs still known to the backend (frontend reload).
+  effect(() => {
+    if (!project()) {
+      for (const t of runTabs.peek()) {
+        t.tests?.dispose();
+        t.tab.remove();
+        t.el.remove();
+      }
+      runTabs.set([]);
+      activeRunId.set('');
+      return;
+    }
+    void run.runs().then((list) => {
+      for (const info of list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) {
+        if (!byId(info.id) && !info.debug) onState(info);
+      }
+    });
+  });
+
+  effect(() => {
     const active = activeRunId();
     const tabs = runTabs();
     empty.hidden = tabs.length > 0;
@@ -241,8 +261,8 @@ export function renderRunWindow(container: HTMLElement): () => void {
       t.el.hidden = t.id !== active;
     }
   });
-  return () => {
-    for (const off of offs) off();
-    stop();
-  };
+}
+
+export function renderRunWindow(container: HTMLElement): void {
+  if (root) container.append(root);
 }

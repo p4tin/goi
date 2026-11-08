@@ -183,13 +183,16 @@ export function breakpointsExtension(buf: Buffer): Extension {
         },
       },
     }),
-    // Clicking a line number also toggles (as in most IDEs).
-    EditorView.domEventHandlers({
-      mousedown(e, view) {
+    // Clicking a line number also toggles (as in most IDEs). Gutters sit
+    // outside the content DOM, so listen on the editor root.
+    ViewPlugin.define((view) => {
+      const onDown = (e: MouseEvent): void => {
         const t = e.target as HTMLElement;
-        if (!t.closest('.cm-lineNumbers .cm-gutterElement')) return false;
-        return onGutterClick(path, lineAtEvent(view, e), e);
-      },
+        if (!t.closest?.('.cm-lineNumbers .cm-gutterElement')) return;
+        if (onGutterClick(path, lineAtEvent(view, e), e)) e.preventDefault();
+      };
+      view.dom.addEventListener('mousedown', onDown);
+      return { destroy: () => view.dom.removeEventListener('mousedown', onDown) };
     }),
     ViewPlugin.define((view) => {
       queueMicrotask(() => view.dispatch({ effects: setMarkers.of(markersFor(view, path)) }));

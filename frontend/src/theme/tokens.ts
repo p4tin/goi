@@ -88,7 +88,7 @@ export const uiThemes: Record<UiThemeId, UiTokens> = {
     ansiBrightMagenta: '#ab47bc',
     ansiBrightCyan: '#00acc1',
     ansiBrightWhite: '#b6bcc6',
-    debugLine: '#d6e4ff',
+    debugLine: '#bcd4ff',
     breakpoint: '#d93025',
     inlineValue: '#6e7781',
   },

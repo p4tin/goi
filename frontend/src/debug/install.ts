@@ -11,7 +11,7 @@ import { commands } from '../lib/commands';
 import { effect } from '../lib/store';
 import { launch, runHooks } from '../run/launch';
 import { installBreakpoints } from './breakpoints';
-import { actions, addWatch, renderDebugWindow, targetTab, watches } from './debugWindow';
+import { actions, addWatch, installDebugWindow, renderDebugWindow, targetTab, watches } from './debugWindow';
 import { openEvaluate } from './evaluate';
 import { installDebugDecorations } from './inline';
 import './debug.css';
@@ -54,7 +54,8 @@ export function installDebug(wb: Workbench): void {
   const evaluate = (t = targetTab()): void => {
     if (t) void openEvaluate(t);
   };
-  wb.panels.register({ id: 'debug', title: 'Debug', dock: 'bottom', order: 6, render: (c) => renderDebugWindow(c, (t) => evaluate(t)) });
+  installDebugWindow((t) => evaluate(t));
+  wb.panels.register({ id: 'debug', title: 'Debug', dock: 'bottom', order: 6, render: (c) => renderDebugWindow(c) });
 
   runHooks.debugError = (cfg, err) => offerInstall(wb, cfg, err);
   runHooks.stopDebug = async () => {
