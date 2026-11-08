@@ -9,6 +9,8 @@ import type { GitState } from '../lib/api';
 import { commands } from '../lib/commands';
 import { effect } from '../lib/store';
 import { treeDecorators, treeDecorationsVersion } from '../views/projectTree';
+import { installBlame, toggleBlame } from './blame';
+import { installLog, showHistory } from './log';
 import { showBranches, showStashes, stashChanges } from './branches';
 import { focusCommit, installCommitPanel, openCommitDialog } from './commitPanel';
 import { installGitConsole, renderGitConsole, runGitOp } from './console';
@@ -91,6 +93,17 @@ export function installGit(wb: Workbench): void {
   commands.register({ id: 'git.branches', title: 'Branches…', category: 'Git', when: repo, run: () => showBranches() });
   commands.register({ id: 'git.stash', title: 'Stash Changes…', category: 'Git', when: repo, run: () => stashChanges() });
   commands.register({ id: 'git.stashes', title: 'Stashes…', category: 'Git', when: repo, run: () => showStashes() });
+  installLog();
+  installBlame();
+  commands.register({ id: 'git.log', title: 'Show Git Log', category: 'Git', when: repo, run: () => showHistory('') });
+  commands.register({
+    id: 'git.fileHistory',
+    title: 'Show History for Current File',
+    category: 'Git',
+    when: () => repo() && !!editors.activeBuffer(),
+    run: () => showHistory(editors.activeBuffer()?.path ?? ''),
+  });
+  commands.register({ id: 'git.annotate', title: 'Annotate with Git Blame', category: 'Git', when: () => repo() && !!editors.activeBuffer(), run: () => toggleBlame() });
   installCommitPanel();
   installDiffRefresh();
   installChangeGutter();
