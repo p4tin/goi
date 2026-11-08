@@ -12,6 +12,7 @@ import { treeDecorators, treeDecorationsVersion } from '../views/projectTree';
 import { focusCommit, installCommitPanel, openCommitDialog } from './commitPanel';
 import { installGitConsole, renderGitConsole, runGitOp } from './console';
 import { installDiffRefresh, openDiff } from './diffView';
+import { installChangeGutter } from './gutter';
 import { editors } from '../editor/install';
 import { branchLabel, byPath, changedDirs, emptyState, fileKind, gitError, gitState, KIND_LABEL, normalize, setGitWorkbench } from './state';
 import './git.css';
@@ -88,6 +89,7 @@ export function installGit(wb: Workbench): void {
 
   installCommitPanel();
   installDiffRefresh();
+  installChangeGutter();
   commands.register({ id: 'git.commit', title: 'Commit…', category: 'Git', when: repo, run: () => focusCommit() });
   commands.register({ id: 'git.commitModal', title: 'Commit (Modal)…', category: 'Git', when: repo, run: () => openCommitDialog() });
   commands.register({ id: 'view.commit', title: 'Show Commit Window', category: 'View', run: () => wb.panels.show('commit') });

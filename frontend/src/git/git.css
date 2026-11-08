@@ -254,3 +254,70 @@
 .diff-host-area .cm-merge-a .cm-changedLine {
   background: var(--goi-diff-removed-bg);
 }
+
+/* Change markers */
+.cm-vcs-gutter {
+  width: 4px;
+  cursor: pointer;
+}
+.cm-vcs-gutter .cm-gutterElement {
+  padding: 0;
+}
+.vcs-gutter {
+  display: block;
+  width: 3px;
+  height: 100%;
+}
+.vcs-gutter-added {
+  background: var(--goi-vcs-added);
+}
+.vcs-gutter-modified {
+  background: var(--goi-vcs-modified);
+}
+.vcs-gutter-deleted {
+  height: 0;
+  border-top: 3px solid var(--goi-vcs-deleted);
+  width: 6px;
+}
+.vcs-popup {
+  position: fixed;
+  z-index: 50;
+  max-width: min(720px, 80vw);
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--goi-panel-bg);
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 25%);
+  overflow: hidden;
+}
+.vcs-popup-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--goi-panel-border);
+  font-size: 12px;
+}
+.vcs-popup-bar > span {
+  margin-right: auto;
+  color: var(--goi-fg-muted);
+}
+.vcs-popup-bar .btn {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.vcs-popup-old {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  background: var(--goi-diff-removed-bg);
+  font-family: var(--goi-editor-font, ui-monospace, monospace);
+  font-size: 12px;
+}
+.vcs-popup-none {
+  padding: 6px 8px;
+  color: var(--goi-fg-muted);
+  font-size: 12px;
+}
