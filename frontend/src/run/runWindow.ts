@@ -6,7 +6,7 @@
 import { project, settings } from '../app/state';
 import { h } from '../lib/dom';
 import { on, run, Topics } from '../lib/api';
-import type { RunInfo, RunOutputEvent, RunTestEvent, TestEvent } from '../lib/api';
+import type { OutputChunk, RunInfo, RunOutputEvent, RunTestEvent, TestEvent } from '../lib/api';
 import { effect, signal } from '../lib/store';
 import { Console } from './console';
 import { iconButton, icon } from './icons';
@@ -19,6 +19,8 @@ export interface TestView {
   /** Extra toolbar buttons (rerun failed, filters). */
   tools: HTMLElement[];
   reset(info: RunInfo): void;
+  /** Console output (stderr, system) of the run. */
+  output(c: OutputChunk): void;
   events(evs: TestEvent[]): void;
   finished(info: RunInfo): void;
   dispose(): void;
@@ -209,7 +211,10 @@ export function renderRunWindow(container: HTMLElement): () => void {
     on<RunOutputEvent>(Topics.runOutput, (ev) => {
       const t = byId(ev.id);
       if (!t) return;
-      for (const c of ev.chunks) t.console.append(c.stream, c.text);
+      for (const c of ev.chunks) {
+        if (t.tests) t.tests.output(c);
+        else t.console.append(c.stream, c.text);
+      }
     }),
     on<RunTestEvent>(Topics.runTest, (ev) => {
       const t = byId(ev.id);

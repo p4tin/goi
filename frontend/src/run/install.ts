@@ -12,29 +12,11 @@ import { h } from '../lib/dom';
 import { effect } from '../lib/store';
 import { openConfigDialog } from './configDialog';
 import { icon, iconButton } from './icons';
-import { activeTab, liveTab, renderRunWindow, rerunTab, stopTab } from './runWindow';
-import { configs, findConfig, notifyError, selectedConfig, selectedName, setRunWorkbench, TYPE_LABEL } from './state';
+import { activeTab, liveTab, renderRunWindow, rerunTab, setTestViewFactory, stopTab } from './runWindow';
+import { createTestView } from './testView';
+import { configs, notifyError, selectedConfig, selectedName, setRunWorkbench, TYPE_LABEL } from './state';
+import { launch, runHooks } from './launch';
 import './run.css';
-
-/** Hooks other features (the debugger) use to take part in launches. */
-export const runHooks: {
-  /** Handles a debug launch failure (e.g. Delve missing); true if handled. */
-  debugError?: (cfg: RunConfig, err: unknown) => Promise<boolean>;
-  /** Stops the active debug session; true if there was one. */
-  stopDebug?: () => Promise<boolean>;
-} = {};
-
-/** Launches a saved configuration. */
-export async function launch(name: string, debug: boolean): Promise<void> {
-  const cfg = findConfig(name);
-  selectedName.set(name);
-  try {
-    await run.run(name, debug);
-  } catch (err) {
-    if (debug && cfg && runHooks.debugError && (await runHooks.debugError(cfg, err))) return;
-    notifyError('run', `Cannot ${debug ? 'debug' : 'run'} ${name}`, err);
-  }
-}
 
 /** Runs or debugs the selected configuration, asking to pick one first. */
 async function launchSelected(debug: boolean): Promise<void> {
@@ -107,6 +89,7 @@ function installWidget(wb: Workbench): void {
 
 export function installRun(wb: Workbench): void {
   setRunWorkbench(wb);
+  setTestViewFactory(createTestView);
   wb.panels.register({ id: 'run', title: 'Run', dock: 'bottom', order: 5, render: (c) => renderRunWindow(c) });
   installWidget(wb);
 
