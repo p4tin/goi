@@ -2,7 +2,7 @@
 // actions at the selection, applied as edits or server commands.
 
 import { lang } from '../lib/api';
-import type { CodeAction, Diagnostic, Range } from '../lib/api';
+import type { CodeAction, Diagnostic, FileEdit, Range } from '../lib/api';
 import { h } from '../lib/dom';
 import { activeTarget, fresh, info, warn } from './context';
 import { problems } from './diagnostics';
@@ -23,6 +23,13 @@ export function overlapping(diags: readonly Diagnostic[], sel: Range): Diagnosti
     return !before(d.range.end, sel.start) && !before(sel.end, d.range.start);
   });
 }
+
+/** Extra actions computed locally from diagnostics (e.g. golangci-lint
+ * fixes). They carry their edits and skip gopls. */
+export interface LocalAction extends CodeAction {
+  goiEdits: FileEdit[];
+}
+export const actionProviders: ((path: string, diags: readonly Diagnostic[]) => LocalAction[])[] = [];
 
 function rank(a: CodeAction): number {
   const k = a.kind ?? '';
@@ -51,6 +58,11 @@ export function kindBadge(a: CodeAction): string {
 }
 
 async function run(a: CodeAction): Promise<void> {
+  const local = (a as Partial<LocalAction>).goiEdits;
+  if (local) {
+    await applyFileEdits(local);
+    return;
+  }
   try {
     const edits = await lang.runCodeAction(a);
     if (edits.length) await applyFileEdits(edits);
@@ -66,12 +78,18 @@ export async function showContextActions(): Promise<void> {
   const range = toRange(t.view.state.doc, sel.from, sel.to);
   const diags = overlapping(problems.peek().get(t.buf.path) ?? [], range);
   const version = t.buf.version;
+  const locals = actionProviders.flatMap((p) => p(t.buf.path, diags));
   let actions: CodeAction[];
   try {
-    actions = sortActions(await lang.codeActions(t.buf.path, range, diags));
+    // gopls only knows its own diagnostics.
+    const goplsDiags = diags.filter((d) => !(d.source ?? '').startsWith('golangci-lint'));
+    actions = sortActions([...locals, ...(await lang.codeActions(t.buf.path, range, goplsDiags))]);
   } catch (err) {
-    warn('lang.codeAction', 'Cannot list context actions', String(err));
-    return;
+    if (!locals.length) {
+      warn('lang.codeAction', 'Cannot list context actions', String(err));
+      return;
+    }
+    actions = sortActions(locals);
   }
   if (!fresh(t.buf, version)) return;
   if (!actions.length) {

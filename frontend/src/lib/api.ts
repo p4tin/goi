@@ -7,6 +7,7 @@ import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as GitService from '../../wailsjs/go/rpc/GitService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
+import * as LintService from '../../wailsjs/go/rpc/LintService';
 import * as MenuService from '../../wailsjs/go/rpc/MenuService';
 import * as RecentService from '../../wailsjs/go/rpc/RecentService';
 import * as RunService from '../../wailsjs/go/rpc/RunService';
@@ -830,4 +831,31 @@ export const gitApi = {
   pull: (): Promise<string> => GitService.Pull(),
   push: (force = false): Promise<string> => GitService.Push(force),
   stopOp: (id: string): Promise<void> => GitService.StopOp(id),
+};
+
+// ---- golangci-lint (M4)
+
+export interface LintStatus {
+  found: boolean;
+  bin: string;
+  version: string;
+  installing: boolean;
+  running: number;
+  message: string;
+}
+export interface LintDiagnosticsEvent {
+  dirs: string[];
+  recursive: boolean;
+  files: Record<string, Diagnostic[]>;
+}
+export interface LintResult {
+  issues: number;
+  files: number;
+  error: string;
+}
+
+export const lintApi = {
+  status: (): Promise<LintStatus> => cast(LintService.Status()),
+  install: (): Promise<void> => LintService.Install(),
+  run: (scope: 'package' | 'project', path: string): Promise<LintResult> => cast(LintService.Run(scope, path)),
 };

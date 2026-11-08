@@ -1786,6 +1786,44 @@ export namespace rpc {
 	        this.enabled = source["enabled"];
 	    }
 	}
+	export class LintResult {
+	    issues: number;
+	    files: number;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LintResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.issues = source["issues"];
+	        this.files = source["files"];
+	        this.error = source["error"];
+	    }
+	}
+	export class LintStatus {
+	    found: boolean;
+	    bin: string;
+	    version: string;
+	    installing: boolean;
+	    running: number;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LintStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.found = source["found"];
+	        this.bin = source["bin"];
+	        this.version = source["version"];
+	        this.installing = source["installing"];
+	        this.running = source["running"];
+	        this.message = source["message"];
+	    }
+	}
 	export class MenuItemSpec {
 	    label: string;
 	    command: string;

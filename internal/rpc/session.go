@@ -31,6 +31,7 @@ type session struct {
 	debug   *debugManager
 	terms   *termSession
 	git     *gitSession
+	lint    *lintSession
 }
 
 // startLangHook starts gopls for a new session; tests set it to nil.
@@ -109,6 +110,7 @@ func (a *App) openProject(path string) error {
 	s.debug = newDebugManager(a)
 	s.terms = newTermSession(a)
 	s.git = startGit(a, abs, w)
+	s.lint = newLintSession()
 	if startLangHook != nil {
 		s.lang = startLangHook(a, abs, w)
 	}
@@ -154,6 +156,9 @@ func (a *App) setTitle(title string) {
 
 // close releases the session. clean=true removes the crash journal.
 func (s *session) close(clean bool) {
+	if s.lint != nil {
+		s.lint.close()
+	}
 	if s.git != nil {
 		s.git.close()
 	}
