@@ -15,6 +15,7 @@ import { installKeymaps } from './keymap/install';
 import { installPalette } from './palette/palette';
 import { installKeyHints } from './keymap/hints';
 import { installRunGutter } from './editor/runGutter';
+import { installRun } from './run/install';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
@@ -35,6 +36,7 @@ export const features: Feature[] = [
   installDiskSync,
   installCloseGuard,
   installLang,
+  installRun,
   installPalette,
   installKeymaps,
   installKeyHints,
