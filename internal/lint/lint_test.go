@@ -2,6 +2,7 @@ package lint
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,9 @@ func TestParseV2WithSuggestedFix(t *testing.T) {
 	out := `level=warning msg="noise"
 {"Issues":[{"FromLinter":"godot","Text":"Comment should end in a period","Severity":"","Pos":{"Filename":"lp.go","Offset":12,"Line":3,"Column":1},"SuggestedFixes":[{"Message":"","TextEdits":[{"Pos":12,"End":35,"NewText":"Ly8gQWRkIGFkZHMgdHdvIG51bWJlcnMu"}]}]},
 {"FromLinter":"ineffassign","Text":"ineffectual assignment to unusedVar","Severity":"warning","Pos":{"Filename":"lp.go","Line":6,"Column":13}}],"Report":{}}`
-	issues, err := parse([]byte(out), "/p", files(map[string]string{"/p/lp.go": src}))
+	base := t.TempDir() // OS-native absolute paths (Windows needs a drive)
+	lp := filepath.Join(base, "lp.go")
+	issues, err := parse([]byte(out), base, files(map[string]string{lp: src}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +35,7 @@ func TestParseV2WithSuggestedFix(t *testing.T) {
 		t.Fatalf("issues = %+v", issues)
 	}
 	a := issues[0]
-	if a.Path != "/p/lp.go" || a.Start != (Pos{2, 0}) || a.Linter != "godot" || len(a.Fix) != 1 {
+	if a.Path != lp || a.Start != (Pos{2, 0}) || a.Linter != "godot" || len(a.Fix) != 1 {
 		t.Fatalf("godot = %+v", a)
 	}
 	if f := a.Fix[0]; f.Start != (Pos{2, 0}) || f.End != (Pos{2, 23}) || f.NewText != "// Add adds two numbers." {
@@ -46,10 +49,13 @@ func TestParseV2WithSuggestedFix(t *testing.T) {
 }
 
 func TestParseV1Replacement(t *testing.T) {
-	out := `{"Issues":[{"FromLinter":"misspell","Text":"x","Pos":{"Filename":"/abs/lp.go","Line":3,"Column":4},"Replacement":{"Inline":{"StartCol":3,"Length":3,"NewString":"Sum"}}},
+	base := t.TempDir()
+	abs := filepath.Join(t.TempDir(), "lp.go")
+	absJSON, _ := json.Marshal(abs)
+	out := `{"Issues":[{"FromLinter":"misspell","Text":"x","Pos":{"Filename":` + string(absJSON) + `,"Line":3,"Column":4},"Replacement":{"Inline":{"StartCol":3,"Length":3,"NewString":"Sum"}}},
 {"FromLinter":"gofmt","Text":"y","Pos":{"Filename":"lp.go","Line":4,"Column":1},"LineRange":{"From":4,"To":4},"Replacement":{"NewLines":["func Add(a, b int) int {", "\treturn a + b", "}"]}},
 {"FromLinter":"whitespace","Text":"z","Pos":{"Filename":"lp.go","Line":2,"Column":1},"Replacement":{"NeedOnlyDelete":true}}]}`
-	issues, err := parse([]byte(out), "/p", files(map[string]string{"/abs/lp.go": src, "/p/lp.go": src}))
+	issues, err := parse([]byte(out), base, files(map[string]string{abs: src, filepath.Join(base, "lp.go"): src}))
 	if err != nil {
 		t.Fatal(err)
 	}
