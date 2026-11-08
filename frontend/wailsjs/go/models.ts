@@ -241,6 +241,272 @@ export namespace format {
 
 }
 
+export namespace git {
+	
+	export class BlameLine {
+	    line: number;
+	    hash: string;
+	    author: string;
+	    date: string;
+	    summary: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BlameLine(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.line = source["line"];
+	        this.hash = source["hash"];
+	        this.author = source["author"];
+	        this.date = source["date"];
+	        this.summary = source["summary"];
+	    }
+	}
+	export class Branch {
+	    name: string;
+	    remote: boolean;
+	    current: boolean;
+	    upstream: string;
+	    hash: string;
+	    subject: string;
+	    date: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Branch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.remote = source["remote"];
+	        this.current = source["current"];
+	        this.upstream = source["upstream"];
+	        this.hash = source["hash"];
+	        this.subject = source["subject"];
+	        this.date = source["date"];
+	    }
+	}
+	export class ChangedFile {
+	    path: string;
+	    rel: string;
+	    status: string;
+	    orig: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChangedFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.rel = source["rel"];
+	        this.status = source["status"];
+	        this.orig = source["orig"];
+	    }
+	}
+	export class Commit {
+	    hash: string;
+	    short: string;
+	    parents: string[];
+	    author: string;
+	    email: string;
+	    date: string;
+	    subject: string;
+	    body: string;
+	    refs: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Commit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.short = source["short"];
+	        this.parents = source["parents"];
+	        this.author = source["author"];
+	        this.email = source["email"];
+	        this.date = source["date"];
+	        this.subject = source["subject"];
+	        this.body = source["body"];
+	        this.refs = source["refs"];
+	    }
+	}
+	export class Hunk {
+	    oldStart: number;
+	    oldLines: number;
+	    newStart: number;
+	    newLines: number;
+	    header: string;
+	    lines: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Hunk(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.oldStart = source["oldStart"];
+	        this.oldLines = source["oldLines"];
+	        this.newStart = source["newStart"];
+	        this.newLines = source["newLines"];
+	        this.header = source["header"];
+	        this.lines = source["lines"];
+	    }
+	}
+	export class FileDiff {
+	    oldPath: string;
+	    newPath: string;
+	    header: string[];
+	    hunks: Hunk[];
+	    binary: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.oldPath = source["oldPath"];
+	        this.newPath = source["newPath"];
+	        this.header = source["header"];
+	        this.hunks = this.convertValues(source["hunks"], Hunk);
+	        this.binary = source["binary"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FileStatus {
+	    path: string;
+	    rel: string;
+	    orig: string;
+	    index: string;
+	    work: string;
+	    conflict: boolean;
+	    untracked: boolean;
+	    ignored: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.rel = source["rel"];
+	        this.orig = source["orig"];
+	        this.index = source["index"];
+	        this.work = source["work"];
+	        this.conflict = source["conflict"];
+	        this.untracked = source["untracked"];
+	        this.ignored = source["ignored"];
+	    }
+	}
+	
+	export class LogQuery {
+	    path: string;
+	    skip: number;
+	    max: number;
+	    grep: string;
+	    ref: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogQuery(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.skip = source["skip"];
+	        this.max = source["max"];
+	        this.grep = source["grep"];
+	        this.ref = source["ref"];
+	    }
+	}
+	export class Stash {
+	    index: number;
+	    message: string;
+	    date: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Stash(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.message = source["message"];
+	        this.date = source["date"];
+	    }
+	}
+	export class Status {
+	    root: string;
+	    branch: string;
+	    head: string;
+	    upstream: string;
+	    ahead: number;
+	    behind: number;
+	    detached: boolean;
+	    initial: boolean;
+	    op: string;
+	    files: FileStatus[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.root = source["root"];
+	        this.branch = source["branch"];
+	        this.head = source["head"];
+	        this.upstream = source["upstream"];
+	        this.ahead = source["ahead"];
+	        this.behind = source["behind"];
+	        this.detached = source["detached"];
+	        this.initial = source["initial"];
+	        this.op = source["op"];
+	        this.files = this.convertValues(source["files"], FileStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace gopls {
 	
 	export class FileEdit {
@@ -1162,6 +1428,8 @@ export namespace rpc {
 	export class AppInfo {
 	    name: string;
 	    version: string;
+	    build: string;
+	    goVersion: string;
 	    os: string;
 	    arch: string;
 	    projectPath: string;
@@ -1175,6 +1443,8 @@ export namespace rpc {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.version = source["version"];
+	        this.build = source["build"];
+	        this.goVersion = source["goVersion"];
 	        this.os = source["os"];
 	        this.arch = source["arch"];
 	        this.projectPath = source["projectPath"];
@@ -1401,6 +1671,38 @@ export namespace rpc {
 	        this.enabled = source["enabled"];
 	    }
 	}
+	export class GitState {
+	    repo: boolean;
+	    status: git.Status;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = source["repo"];
+	        this.status = this.convertValues(source["status"], git.Status);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class GoEnvSummary {
 	    goos: string;
 	    goarch: string;
@@ -1486,6 +1788,44 @@ export namespace rpc {
 	        this.hitCondition = source["hitCondition"];
 	        this.logMessage = source["logMessage"];
 	        this.enabled = source["enabled"];
+	    }
+	}
+	export class LintResult {
+	    issues: number;
+	    files: number;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LintResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.issues = source["issues"];
+	        this.files = source["files"];
+	        this.error = source["error"];
+	    }
+	}
+	export class LintStatus {
+	    found: boolean;
+	    bin: string;
+	    version: string;
+	    installing: boolean;
+	    running: number;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LintStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.found = source["found"];
+	        this.bin = source["bin"];
+	        this.version = source["version"];
+	        this.installing = source["installing"];
+	        this.running = source["running"];
+	        this.message = source["message"];
 	    }
 	}
 	export class MenuItemSpec {
@@ -1662,6 +2002,20 @@ export namespace rpc {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.user = source["user"];
 	        this.project = source["project"];
+	    }
+	}
+	export class ShowResult {
+	    text: string;
+	    found: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ShowResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.found = source["found"];
 	    }
 	}
 	export class TermInfo {
@@ -1852,6 +2206,22 @@ export namespace settings {
 	        this.maxOpenSizeKB = source["maxOpenSizeKB"];
 	    }
 	}
+	export class Git {
+	    path: string;
+	    pullRebase: boolean;
+	    autoFetchMinutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Git(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.pullRebase = source["pullRebase"];
+	        this.autoFetchMinutes = source["autoFetchMinutes"];
+	    }
+	}
 	export class Go {
 	    goroot: string;
 	    env: Record<string, string>;
@@ -1894,6 +2264,24 @@ export namespace settings {
 	        this.usePlaceholders = source["usePlaceholders"];
 	        this.staticcheck = source["staticcheck"];
 	        this.settings = source["settings"];
+	    }
+	}
+	export class Lint {
+	    enabled: boolean;
+	    onSave: boolean;
+	    golangciPath: string;
+	    args: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Lint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.onSave = source["onSave"];
+	        this.golangciPath = source["golangciPath"];
+	        this.args = source["args"];
 	    }
 	}
 	export class Project {
@@ -1990,6 +2378,8 @@ export namespace settings {
 	    run: Run;
 	    debug: Debug;
 	    terminal: Terminal;
+	    git: Git;
+	    lint: Lint;
 	    ui: UI;
 	    keys: Record<string, Array<string>>;
 	
@@ -2008,6 +2398,8 @@ export namespace settings {
 	        this.run = this.convertValues(source["run"], Run);
 	        this.debug = this.convertValues(source["debug"], Debug);
 	        this.terminal = this.convertValues(source["terminal"], Terminal);
+	        this.git = this.convertValues(source["git"], Git);
+	        this.lint = this.convertValues(source["lint"], Lint);
 	        this.ui = this.convertValues(source["ui"], UI);
 	        this.keys = source["keys"];
 	    }

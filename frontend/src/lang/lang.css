@@ -92,7 +92,7 @@
 /* List popup */
 .lp {
   position: fixed;
-  z-index: 60;
+  z-index: 360;
   min-width: 280px;
   max-width: 640px;
   max-height: 60vh;

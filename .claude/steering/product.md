@@ -19,7 +19,8 @@ macOS (arm64, amd64), Windows (amd64, arm64), Linux (amd64, arm64). All three ar
 **M1: Editor + Project model** — implemented (see `.claude/designs/m1-editor-project/acceptance.md`); Windows/Linux runs and native-window checks pending.
 **M2: Intelligence** — implemented (see `.claude/designs/m2-intelligence/acceptance.md`): gopls completion, navigation, usages, docs, diagnostics/Problems, quick-fixes, rename, palette symbols, Find/Replace in Path. Windows/Linux runs pending.
 **M3: Run/Test/Debug** — implemented (see `.claude/designs/m3-run-debug-test/acceptance.md`): run configurations (Go Build/Test/Remote, Shell, Makefile, before-launch tasks), Run window with ANSI console, test tree with rerun failed and benchmarks, Delve debugger (breakpoints, goroutines, variables, watches, inline values), integrated terminal. Windows/Linux runs pending.
-**Next: M4 — Git + Lint + Modules** (F-VCS-1/2, F-INS-1, F-MOD-1/2) → v0.1 release.
+**M4: Git + Lint + Modules → v0.1** — implemented (see `.claude/designs/m4-git-lint-modules/acceptance.md`): git status/gutter/commit/diff/partial staging/branches/stash/log/blame/3-way merge, push/pull/fetch, golangci-lint diagnostics and fixes, go.mod completion and module actions, installers (dmg, NSIS, deb/rpm/tar.gz) and a release workflow. Pending: the first release-workflow run on GitHub, signing certificates.
+**Next: M5 — v0.2** (generators/intentions, refactorings, coverage, fuzz, HTTP client, protobuf, inspection batch run, local history).
 
 ## Principles
 - Fast and calm: no UI freeze > 100 ms; heavy work stays off the UI thread.

@@ -3,6 +3,7 @@
 // Add one import and one list entry per feature.
 
 import type { Workbench } from './app/workbench';
+import { installAbout } from './app/about';
 import { installMenuBar } from './app/menuBar';
 import { installWindowCommands } from './app/windowCommands';
 import { installEditor } from './editor/install';
@@ -18,6 +19,9 @@ import { installRunGutter } from './editor/runGutter';
 import { installRun } from './run/install';
 import { installDebug } from './debug/install';
 import { installTerminal } from './terminal/terminal';
+import { installGit } from './git/install';
+import { installLint } from './lint/lint';
+import { installGoMod } from './mod/gomod';
 import { installSaveFlow } from './editor/saveFlow';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
@@ -41,12 +45,17 @@ export const features: Feature[] = [
   installRun,
   installDebug,
   installTerminal,
+  installLint,
+  installGoMod,
   installPalette,
   installKeymaps,
   installKeyHints,
   installProjectTree,
+  // After the project tree, so Project stays the left dock's default tab.
+  installGit,
   installGoStatus,
   installSettings,
   installThemeCommands,
+  installAbout,
   installMenuBar,
 ];

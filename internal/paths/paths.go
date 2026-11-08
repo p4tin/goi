@@ -14,6 +14,11 @@ import (
 // Version is the major.minor used to scope user data directories.
 const Version = "0.1"
 
+// BuildVersion is the full product version of a release build, set with
+// -ldflags "-X github.com/p4tin/goi/internal/paths.BuildVersion=0.1.0";
+// "dev" otherwise.
+var BuildVersion = "dev"
+
 // ConfigDir returns the user config directory, e.g.
 // ~/Library/Application Support/Goi/0.1 on macOS.
 func ConfigDir() (string, error) {

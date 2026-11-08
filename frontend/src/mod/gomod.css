@@ -1,0 +1,25 @@
+/* go.mod editing. Colors come only from theme tokens. */
+.cm-gomod-link {
+  text-decoration: underline dotted var(--goi-fg-muted);
+  text-underline-offset: 3px;
+}
+.gomod-bar {
+  display: flex;
+  gap: 6px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--goi-panel-border);
+  background: var(--goi-panel-bg);
+}
+.gomod-btn {
+  padding: 1px 8px;
+  border: 1px solid var(--goi-panel-border);
+  border-radius: 4px;
+  background: var(--goi-bg);
+  color: var(--goi-fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gomod-btn:hover {
+  background: var(--goi-hover);
+}

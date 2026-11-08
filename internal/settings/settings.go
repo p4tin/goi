@@ -98,6 +98,21 @@ type Terminal struct {
 	Scrollback       int    `toml:"scrollback" json:"scrollback"`
 }
 
+// Git configures version control.
+type Git struct {
+	Path             string `toml:"path" json:"path"`
+	PullRebase       bool   `toml:"pullRebase" json:"pullRebase"`
+	AutoFetchMinutes int    `toml:"autoFetchMinutes" json:"autoFetchMinutes"`
+}
+
+// Lint configures golangci-lint.
+type Lint struct {
+	Enabled      bool     `toml:"enabled" json:"enabled"`
+	OnSave       bool     `toml:"onSave" json:"onSave"`
+	GolangciPath string   `toml:"golangciPath" json:"golangciPath"`
+	Args         []string `toml:"args" json:"args"`
+}
+
 // UI holds theme and keymap selection.
 type UI struct {
 	Theme  string `toml:"theme" json:"theme"`
@@ -116,6 +131,8 @@ type Settings struct {
 	Run      Run                 `toml:"run" json:"run"`
 	Debug    Debug               `toml:"debug" json:"debug"`
 	Terminal Terminal            `toml:"terminal" json:"terminal"`
+	Git      Git                 `toml:"git" json:"git"`
+	Lint     Lint                `toml:"lint" json:"lint"`
 	UI       UI                  `toml:"ui" json:"ui"`
 	Keys     map[string][]string `toml:"keys" json:"keys"`
 }
@@ -149,6 +166,9 @@ func decode(doc map[string]any) (Settings, error) {
 	}
 	if s.Keys == nil {
 		s.Keys = map[string][]string{}
+	}
+	if s.Lint.Args == nil {
+		s.Lint.Args = []string{}
 	}
 	if s.Gopls.Settings == nil {
 		s.Gopls.Settings = map[string]any{}

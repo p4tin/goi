@@ -17,8 +17,70 @@ import { h } from '../lib/dom';
 import { effect, signal } from '../lib/store';
 import { toOffsets } from './positions';
 
-/** Diagnostics by path (files with none are absent). */
+/** Diagnostics by path, merged over all sources (files with none are
+ * absent). */
 export const problems = signal<ReadonlyMap<string, readonly Diagnostic[]>>(new Map());
+
+/** Per-source diagnostics (gopls, golangci-lint…): source → path → items. */
+const sources = new Map<string, Map<string, readonly Diagnostic[]>>();
+
+function merged(path: string): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  for (const m of sources.values()) out.push(...(m.get(path) ?? []));
+  return out;
+}
+
+function publish(paths: Iterable<string>): void {
+  const list = [...paths];
+  if (!list.length) return;
+  problems.update((m) => {
+    const next = new Map(m);
+    for (const p of list) {
+      const items = merged(p);
+      if (items.length) next.set(p, items);
+      else next.delete(p);
+    }
+    return next;
+  });
+  for (const p of list) {
+    const buf = editors.buffers.get(p);
+    if (buf) for (const v of buf.views) push(v, problems.peek().get(p) ?? []);
+  }
+}
+
+/** Replaces one source's diagnostics for a file. */
+export function setDiagnosticsSource(source: string, path: string, items: readonly Diagnostic[]): void {
+  let m = sources.get(source);
+  if (!m) {
+    m = new Map();
+    sources.set(source, m);
+  }
+  if (items.length) m.set(path, items);
+  else m.delete(path);
+  publish([path]);
+}
+
+/** Replaces a source's diagnostics for every file matching inScope with
+ * files (others in scope are cleared). */
+export function replaceDiagnosticsSource(source: string, inScope: (path: string) => boolean, files: Record<string, readonly Diagnostic[]>): void {
+  let m = sources.get(source);
+  if (!m) {
+    m = new Map();
+    sources.set(source, m);
+  }
+  const touched = new Set<string>();
+  for (const p of [...m.keys()]) {
+    if (inScope(p)) {
+      m.delete(p);
+      touched.add(p);
+    }
+  }
+  for (const [p, items] of Object.entries(files)) {
+    if (items.length) m.set(p, items);
+    touched.add(p);
+  }
+  publish(touched);
+}
 
 const CM_SEVERITY: Record<Severity, CmDiagnostic['severity']> = { 1: 'error', 2: 'warning', 3: 'info', 4: 'hint' };
 
@@ -100,20 +162,14 @@ export function relPath(path: string): string {
 }
 
 export function installDiagnostics(wb: Workbench): void {
-  on<DiagnosticsEvent>(Topics.langDiagnostics, (e) => {
-    problems.update((m) => {
-      const next = new Map(m);
-      if (e.items.length) next.set(e.path, e.items);
-      else next.delete(e.path);
-      return next;
-    });
-    const buf = editors.buffers.get(e.path);
-    if (buf) for (const v of buf.views) push(v, e.items);
-  });
+  on<DiagnosticsEvent>(Topics.langDiagnostics, (e) => setDiagnosticsSource('gopls', e.path, e.items));
 
   // Clear everything when the project closes.
   effect(() => {
-    if (!project()) problems.set(new Map());
+    if (!project()) {
+      sources.clear();
+      problems.set(new Map());
+    }
   });
 
   wb.panels.register({

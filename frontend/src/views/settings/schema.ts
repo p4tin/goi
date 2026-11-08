@@ -4,7 +4,7 @@
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
 export type WritableLayer = 'user' | 'project';
 
-export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
+export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Version Control', 'Linting', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
 export type Section = (typeof sections)[number];
 
 export interface SettingDescriptor {
@@ -94,6 +94,12 @@ export const schema: SettingDescriptor[] = [
   { key: 'terminal.shellIntegration', title: 'Shell Integration', section: 'Terminal', description: 'For zsh and bash: track the working directory and complete go commands.', type: 'bool', layers: userOnly },
   { key: 'terminal.fontSize', title: 'Font Size', section: 'Terminal', description: 'Terminal font size in pixels. 0 uses the editor font size.', type: 'int', min: 0, max: 40, layers: userOnly },
   { key: 'terminal.scrollback', title: 'Scrollback Lines', section: 'Terminal', description: 'Lines kept in each terminal tab.', type: 'int', min: 100, max: 1000000, layers: userOnly },
+  { key: 'git.path', title: 'Git Executable', section: 'Version Control', description: 'Path to git. Empty uses git on $PATH.', type: 'string', layers: userOnly },
+  { key: 'git.pullRebase', title: 'Pull with Rebase', section: 'Version Control', description: 'Pull rebases local commits instead of merging.', type: 'bool', layers: both },
+  { key: 'lint.enabled', title: 'Enable golangci-lint', section: 'Linting', description: 'Show golangci-lint issues in the editor and Problems.', type: 'bool', layers: both },
+  { key: 'lint.onSave', title: 'Lint on Save', section: 'Linting', description: "Lint the saved file's package.", type: 'bool', layers: both },
+  { key: 'lint.golangciPath', title: 'golangci-lint Path', section: 'Linting', description: "golangci-lint executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi's tools folder.", type: 'string', layers: userOnly },
+  { key: 'lint.args', title: 'Extra Arguments', section: 'Linting', description: 'Added to golangci-lint run (the project .golangci.yml is always used).', type: 'stringList', layers: both },
   { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
   { key: 'go.env', title: 'Environment Variables', section: 'Go', description: 'Extra environment for go commands (GOPROXY, GOPRIVATE, GOFLAGS…).', type: 'map', layers: both },
   { key: 'go.tags', title: 'Build Tags', section: 'Go', description: 'Build tags passed as -tags to go commands.', type: 'stringList', layers: both },

@@ -77,6 +77,12 @@ export const keymaps: Record<KeymapId, Keymap> = {
       'view.run': ['Mod-4'],
       'view.debug': ['Mod-5'],
       'terminal.toggle': ['Alt-F12'],
+      'git.commit': ['Mod-Alt-k'],
+      'git.push': ['Mod-Shift-k'],
+      'git.pull': ['Mod-t'],
+      'git.branches': ['Ctrl-Shift-Backquote'],
+      'view.commit': ['Mod-0'],
+      'git.log': ['Mod-9'],
     },
   },
   vscode: {
@@ -113,6 +119,7 @@ export const keymaps: Record<KeymapId, Keymap> = {
       'debug.toggleBreakpoint': ['F9'],
       'terminal.toggle': ['Ctrl-Backquote'],
       'terminal.new': ['Ctrl-Shift-Backquote'],
+      'view.commit': ['Ctrl-Shift-g'],
     },
   },
 };

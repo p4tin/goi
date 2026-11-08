@@ -12,7 +12,7 @@ import { app, files, on, Topics, workspaceApi } from '../lib/api';
 import type { FsBatch, Project } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
-import { effect } from '../lib/store';
+import { effect, signal } from '../lib/store';
 import {
   ancestorsWithin,
   applyFsEvents,
@@ -28,6 +28,11 @@ import {
 } from './treeModel';
 import type { Entry, Row, TreeRoot, TreeState } from './treeModel';
 import './projectTree.css';
+
+/** Features decorate rows here (e.g. git status): return extra classes and
+ * an optional title suffix, or null. Bump treeDecorationsVersion to repaint. */
+export const treeDecorators: ((row: { path: string; isDir: boolean }) => { cls: string; title?: string } | null)[] = [];
+export const treeDecorationsVersion = signal(0);
 
 /** Features add project tree context menu items here (shown first). */
 export const treeMenuContributors: ((row: { path: string; name: string; isDir: boolean }) => MenuItem[])[] = [];
@@ -111,6 +116,10 @@ class ProjectTree {
     this.scrollEl.append(this.sizer);
     this.scrollEl.addEventListener('keydown', (e) => this.onKey(e));
     effect(() => this.setProject(project()));
+    effect(() => {
+      treeDecorationsVersion();
+      this.paint();
+    });
     on<FsBatch>(Topics.fsChanged, (b) => this.onFs(b));
     wb.layout.register<SavedTree>('projectTree', {
       save: () => ({
@@ -286,16 +295,19 @@ class ProjectTree {
 
   private renderRow(row: Row, top: number): HTMLElement {
     const selected = row.path === this.state.selected;
+    const decos = row.loading ? [] : treeDecorators.map((d) => d({ path: row.path, isDir: row.isDir })).filter((d) => d !== null);
+    const decoCls = decos.map((d) => ` ${d!.cls}`).join('');
+    const decoTitle = decos.map((d) => d!.title).filter(Boolean).join(', ');
     const el = h(
       'div',
       {
-        class: `tree-row${selected ? ' selected' : ''}${row.loading ? ' loading' : ''}${row.root ? ' root' : ''}`,
+        class: `tree-row${selected ? ' selected' : ''}${row.loading ? ' loading' : ''}${row.root ? ' root' : ''}${decoCls}`,
         role: 'treeitem',
         'aria-level': String(row.depth + 1),
         'aria-selected': String(selected),
         'aria-expanded': row.isDir ? String(row.expanded) : undefined,
         style: `transform: translateY(${top}px); padding-left: ${6 + row.depth * 14}px`,
-        title: row.loading ? undefined : row.path,
+        title: row.loading ? undefined : decoTitle ? `${row.path} (${decoTitle})` : row.path,
         'data-path': row.loading ? undefined : row.path,
       },
       h(

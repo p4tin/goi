@@ -1,0 +1,32 @@
+# nfpm configuration for the Linux .deb and .rpm packages.
+#   GOI_VERSION=0.1.0 nfpm package -f build/package/linux/nfpm.yaml -p deb -t dist/
+name: goi
+arch: amd64
+platform: linux
+version: ${GOI_VERSION}
+section: devel
+priority: optional
+maintainer: Goi contributors <goi@example.com>
+description: |
+  Goi is a cross-platform Go IDE built on the official Go toolchain
+  (gopls, Delve, golangci-lint).
+homepage: https://github.com/p4tin/goi
+license: Proprietary
+contents:
+  - src: build/bin/goi
+    dst: /usr/bin/goi
+    file_info:
+      mode: 0755
+  - src: build/package/linux/goi.desktop
+    dst: /usr/share/applications/goi.desktop
+  - src: build/appicon.png
+    dst: /usr/share/pixmaps/goi.png
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0
+      - libwebkit2gtk-4.1-0
+  rpm:
+    depends:
+      - gtk3
+      - webkit2gtk4.1
