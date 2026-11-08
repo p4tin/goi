@@ -29,6 +29,9 @@ import {
 import type { Entry, Row, TreeRoot, TreeState } from './treeModel';
 import './projectTree.css';
 
+/** Features add project tree context menu items here (shown first). */
+export const treeMenuContributors: ((row: { path: string; name: string; isDir: boolean }) => MenuItem[])[] = [];
+
 const ROW_HEIGHT = 22;
 const FS_DEBOUNCE_MS = 50;
 
@@ -373,6 +376,7 @@ class ProjectTree {
   }
 
   private menuFor(row: Row): MenuItem[] {
+    const contributed = treeMenuContributors.flatMap((f) => f({ path: row.path, name: row.name, isDir: row.isDir }));
     const dir = row.isDir ? row.path : parentOf(row.path);
     const os = appInfo.peek()?.os ?? '';
     const revealLabel = os === 'darwin' ? 'Reveal in Finder' : os === 'windows' ? 'Show in Explorer' : 'Open in File Manager';
@@ -387,6 +391,7 @@ class ProjectTree {
       { label: 'Copy Path', run: () => void files.copyPath(row.path).catch((err) => this.error('Copy failed', err)) },
       { label: revealLabel, run: () => void files.reveal(row.path).catch((err) => this.error('Reveal failed', err)) },
     ];
+    if (contributed.length) items.unshift(...contributed, { separator: true });
     if (row.isDir && !row.root) {
       items.push({ separator: true }, { label: 'Exclude from Project', run: () => void this.exclude(row.path) });
     }

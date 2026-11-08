@@ -10,7 +10,10 @@ import type { RunConfig } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
 import { effect } from '../lib/store';
+import { treeMenuContributors } from '../views/projectTree';
+import type { ContextRequest } from '../lib/api';
 import { openConfigDialog } from './configDialog';
+import { runAtCursor, runContextRequest, runDirTests } from './context';
 import { icon, iconButton } from './icons';
 import { activeTab, liveTab, renderRunWindow, rerunTab, setTestViewFactory, stopTab } from './runWindow';
 import { createTestView } from './testView';
@@ -148,4 +151,56 @@ export function installRun(wb: Workbench): void {
     run: () => saveSelected(),
   });
   commands.register({ id: 'view.run', title: 'Show Run Window', category: 'View', run: () => wb.panels.show('run') });
+  commands.register({
+    id: 'run.runContext',
+    title: 'Run Context Configuration',
+    category: 'Run',
+    when: hasProject,
+    run: () => runAtCursor(false),
+  });
+  commands.register({
+    id: 'run.debugContext',
+    title: 'Debug Context Configuration',
+    category: 'Run',
+    when: hasProject,
+    run: () => runAtCursor(true),
+  });
+  // Gutter markers (editor/runGutter.ts) dispatch these with a target.
+  commands.register({
+    id: 'run.marker',
+    title: 'Run Marker',
+    category: 'Run',
+    when: hasProject,
+    run: (target, debug) => runContextRequest(target as ContextRequest, !!debug),
+  });
+  commands.register({
+    id: 'run.editMarker',
+    title: 'Modify Marker Run Configuration',
+    category: 'Run',
+    when: hasProject,
+    run: async (target) => {
+      try {
+        const cfg = await run.contextConfig(target as ContextRequest);
+        configs.set(await run.configs());
+        selectedName.set(cfg.name);
+        await openConfigDialog(cfg.name);
+      } catch (err) {
+        notifyError('run-context', 'Cannot create configuration', err);
+      }
+    },
+  });
+  treeMenuContributors.push((row) => {
+    if (!project.peek()) return [];
+    const name = row.name;
+    if (row.isDir) {
+      return [
+        { label: `Run Tests in '${name}'`, run: () => void runDirTests(row.path, false) },
+        { label: `Debug Tests in '${name}'`, run: () => void runContextRequest({ path: row.path, kind: 'dir', name: '' }, true) },
+      ];
+    }
+    if (row.path.endsWith('_test.go')) {
+      return [{ label: `Run Tests in '${name}'`, run: () => void runContextRequest({ path: row.path, kind: 'file', name: '' }, false) }];
+    }
+    return [];
+  });
 }
