@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -198,7 +199,11 @@ func TestPlanApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantBuild := []string{"build", "-o", filepath.Join("/tmp/goi", "goi_srv"), "-tags=integration,dev", "-mod=mod", "-ldflags=-s", "."}
+	exe := ""
+	if runtime.GOOS == "windows" {
+		exe = ".exe"
+	}
+	wantBuild := []string{"build", "-o", filepath.Join("/tmp/goi", "goi_srv"+exe), "-tags=integration,dev", "-mod=mod", "-ldflags=-s", "."}
 	if !reflect.DeepEqual(p.Build.Args, wantBuild) || p.Build.Dir != filepath.Join(ctx.Root, "cmd", "srv") {
 		t.Fatalf("build = %+v", p.Build)
 	}
