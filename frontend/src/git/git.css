@@ -492,3 +492,65 @@
 .git-blame.uncommitted {
   color: var(--goi-vcs-untracked);
 }
+
+/* 3-way merge */
+.dialog:has(.merge-dialog) {
+  width: 96vw;
+  max-width: none;
+}
+.merge-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 72vh;
+}
+.merge-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+.merge-bar .btn {
+  padding: 2px 10px;
+  font-size: 12px;
+}
+.merge-info {
+  margin: 0 8px;
+  font-size: 12px;
+  color: var(--goi-fg-muted);
+}
+.merge-heads {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--goi-fg-muted);
+}
+.merge-panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.merge-pane {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--goi-panel-border);
+}
+.merge-pane .cm-editor {
+  height: 100%;
+}
+.cm-conflict-marker {
+  background: var(--goi-hover);
+  color: var(--goi-fg-muted);
+}
+.cm-conflict-ours {
+  background: var(--goi-diff-added-bg);
+}
+.cm-conflict-theirs {
+  background: var(--goi-diff-removed-bg);
+}
+.cm-conflict-base {
+  background: var(--goi-panel-bg);
+}

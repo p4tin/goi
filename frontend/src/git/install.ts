@@ -52,6 +52,20 @@ export function installGit(wb: Workbench): void {
     treeDecorationsVersion.update((v) => v + 1);
   });
 
+  // Announce conflicts once when an operation stops on them (also when the
+  // merge was started outside Goi).
+  let lastOp = '';
+  effect(() => {
+    const st = gitState().status;
+    const conflicts = st.files.filter((f) => f.conflict).length;
+    const key = st.op && conflicts ? `${st.op}:${st.head}` : '';
+    if (key && key !== lastOp) {
+      wb.notifications.push({ id: 'git-conflicts', level: 'warn', title: `${st.op[0].toUpperCase()}${st.op.slice(1)} has ${conflicts} conflicted file${conflicts === 1 ? '' : 's'}`, body: 'Resolve them in the Commit window (Resolve…), then Continue.' });
+      wb.panels.show('commit');
+    }
+    lastOp = key;
+  });
+
   // Branch widget.
   const el = wb.status.add({ id: 'git', side: 'right', priority: 35, title: 'Git branch', onClick: () => {
     const id = gitState.peek().repo ? 'git.branches' : 'git.init';
