@@ -321,3 +321,33 @@
   color: var(--goi-fg-muted);
   font-size: 12px;
 }
+
+/* Branches popup and dialogs */
+.git-pop-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--goi-fg-muted);
+}
+.git-current-branch {
+  font-weight: 600;
+}
+.git-error-pre,
+.git-stash-patch {
+  max-height: 40vh;
+  overflow: auto;
+  padding: 6px 8px;
+  background: var(--goi-panel-bg);
+  border: 1px solid var(--goi-panel-border);
+  font-family: var(--goi-editor-font, ui-monospace, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.dialog:has(.git-compare) {
+  width: min(760px, 92vw);
+}
+.git-compare-list {
+  max-height: 40vh;
+  overflow: auto;
+  padding-left: 18px;
+  font-size: 12px;
+}

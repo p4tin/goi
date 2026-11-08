@@ -9,6 +9,7 @@ import type { GitState } from '../lib/api';
 import { commands } from '../lib/commands';
 import { effect } from '../lib/store';
 import { treeDecorators, treeDecorationsVersion } from '../views/projectTree';
+import { showBranches, showStashes, stashChanges } from './branches';
 import { focusCommit, installCommitPanel, openCommitDialog } from './commitPanel';
 import { installGitConsole, renderGitConsole, runGitOp } from './console';
 import { installDiffRefresh, openDiff } from './diffView';
@@ -87,6 +88,9 @@ export function installGit(wb: Workbench): void {
     },
   });
 
+  commands.register({ id: 'git.branches', title: 'Branches…', category: 'Git', when: repo, run: () => showBranches() });
+  commands.register({ id: 'git.stash', title: 'Stash Changes…', category: 'Git', when: repo, run: () => stashChanges() });
+  commands.register({ id: 'git.stashes', title: 'Stashes…', category: 'Git', when: repo, run: () => showStashes() });
   installCommitPanel();
   installDiffRefresh();
   installChangeGutter();
