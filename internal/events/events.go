@@ -19,6 +19,9 @@ const (
 	TopicRunState         = "run.state"
 	TopicRunOutput        = "run.output"
 	TopicRunTest          = "run.test"
+	TopicDebugState       = "debug.state"
+	TopicDebugBreakpoints = "debug.breakpoints"
+	TopicDebugInstall     = "debug.install"
 )
 
 // Bus publishes a payload under a topic. Implementations must be safe for

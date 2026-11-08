@@ -2,6 +2,7 @@
 // from here, never from wailsjs/ directly.
 
 import * as AppService from '../../wailsjs/go/rpc/AppService';
+import * as DebugService from '../../wailsjs/go/rpc/DebugService';
 import * as EditorService from '../../wailsjs/go/rpc/EditorService';
 import * as FileService from '../../wailsjs/go/rpc/FileService';
 import * as LangService from '../../wailsjs/go/rpc/LangService';
@@ -54,6 +55,9 @@ export const Topics = {
   runState: 'run.state',
   runOutput: 'run.output',
   runTest: 'run.test',
+  debugState: 'debug.state',
+  debugBreakpoints: 'debug.breakpoints',
+  debugInstall: 'debug.install',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -528,4 +532,125 @@ export const run = {
   active: (): Promise<number> => RunService.Active(),
   loadBench: (): Promise<string> => RunService.LoadBench(),
   saveBench: (data: string): Promise<void> => RunService.SaveBench(data),
+};
+
+// ---- Debugger (M3). Lines and columns are 1-based (DAP).
+
+export interface DapSource {
+  name?: string;
+  path?: string;
+  sourceReference?: number;
+}
+export interface DapBreakpoint {
+  id: number;
+  verified: boolean;
+  message: string;
+  source?: DapSource | null;
+  line: number;
+}
+export interface DapThread {
+  id: number;
+  name: string;
+}
+export interface DapStackFrame {
+  id: number;
+  name: string;
+  source?: DapSource | null;
+  line: number;
+  column: number;
+  presentationHint?: string;
+}
+export interface DapStackTrace {
+  stackFrames: DapStackFrame[];
+  totalFrames: number;
+}
+export interface DapScope {
+  name: string;
+  variablesReference: number;
+  expensive: boolean;
+}
+export interface DapVariable {
+  name: string;
+  value: string;
+  type: string;
+  evaluateName: string;
+  variablesReference: number;
+  namedVariables: number;
+  indexedVariables: number;
+}
+export interface DapEvaluate {
+  result: string;
+  type: string;
+  variablesReference: number;
+  namedVariables: number;
+  indexedVariables: number;
+}
+export interface DapExceptionInfo {
+  exceptionId: string;
+  description: string;
+  breakMode: string;
+  details?: { message: string; typeName: string; stackTrace: string } | null;
+}
+export interface LineBreakpoint {
+  line: number;
+  condition: string;
+  hitCondition: string;
+  logMessage: string;
+  enabled: boolean;
+}
+export interface FunctionBreakpoint {
+  name: string;
+  condition: string;
+  enabled: boolean;
+}
+export type DebugStateName = 'starting' | 'running' | 'stopped' | 'exited';
+export interface DebugStateEvent {
+  id: string;
+  state: DebugStateName;
+  threadId: number;
+  reason: string;
+  description: string;
+  text: string;
+  exitCode: number | null;
+  remote: boolean;
+  caps: { supportsSetVariable: boolean; supportsGotoTargets: boolean; supportsRestart: boolean };
+}
+export interface DebugBreakpointsEvent {
+  id: string;
+  path: string;
+  function: boolean;
+  breakpoints: DapBreakpoint[];
+}
+export interface DlvStatus {
+  path: string;
+  found: boolean;
+  installing: boolean;
+  message: string;
+}
+
+export const debug = {
+  dlvStatus: (): Promise<DlvStatus> => cast(DebugService.DlvStatus()),
+  installDlv: (): Promise<void> => DebugService.InstallDlv(),
+  setFileBreakpoints: (path: string, bps: LineBreakpoint[]): Promise<void> =>
+    DebugService.SetFileBreakpoints(path, bps as unknown as rpc.LineBreakpoint[]),
+  setFunctionBreakpoints: (fns: FunctionBreakpoint[], breakOnPanic: boolean): Promise<void> =>
+    DebugService.SetFunctionBreakpoints(fns as unknown as rpc.FunctionBreakpoint[], breakOnPanic),
+  threads: (id: string): Promise<DapThread[]> => cast(DebugService.Threads(id)),
+  stackTrace: (id: string, threadId: number, start = 0, levels = 0): Promise<DapStackTrace> =>
+    cast(DebugService.StackTrace(id, threadId, start, levels)),
+  scopes: (id: string, frameId: number): Promise<DapScope[]> => cast(DebugService.Scopes(id, frameId)),
+  variables: (id: string, ref: number): Promise<DapVariable[]> => cast(DebugService.Variables(id, ref)),
+  evaluate: (id: string, expr: string, frameId: number, context: 'watch' | 'repl' | 'hover' | 'clipboard'): Promise<DapEvaluate> =>
+    cast(DebugService.Evaluate(id, expr, frameId, context)),
+  setVariable: (id: string, ref: number, name: string, value: string): Promise<{ value: string; type: string; variablesReference: number }> =>
+    cast(DebugService.SetVariable(id, ref, name, value)),
+  exceptionInfo: (id: string, threadId: number): Promise<DapExceptionInfo> => cast(DebugService.ExceptionInfo(id, threadId)),
+  continue: (id: string, threadId: number): Promise<void> => DebugService.Continue(id, threadId),
+  next: (id: string, threadId: number): Promise<void> => DebugService.Next(id, threadId),
+  stepIn: (id: string, threadId: number): Promise<void> => DebugService.StepIn(id, threadId),
+  stepOut: (id: string, threadId: number): Promise<void> => DebugService.StepOut(id, threadId),
+  runToCursor: (id: string, threadId: number, path: string, line: number): Promise<void> => DebugService.RunToCursor(id, threadId, path, line),
+  pause: (id: string, threadId: number): Promise<void> => DebugService.Pause(id, threadId),
+  stop: (id: string): Promise<void> => DebugService.Stop(id),
+  sessions: (): Promise<string[]> => DebugService.Sessions(),
 };

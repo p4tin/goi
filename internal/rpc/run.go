@@ -236,6 +236,12 @@ func (m *runManager) launch(cfg runconfig.Config, debug bool, reuseID string) (s
 	if !debug && cfg.Type == runconfig.TypeRemote {
 		return "", errors.New("Go Remote configurations can only be debugged")
 	}
+	if debug && cfg.Type != runconfig.TypeRemote {
+		// Fail fast so the UI can offer to install Delve.
+		if _, err := m.app.resolveDlv(); err != nil {
+			return "", err
+		}
+	}
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()

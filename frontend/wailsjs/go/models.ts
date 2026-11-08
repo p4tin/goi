@@ -1,3 +1,225 @@
+export namespace dap {
+	
+	export class EvaluateResponse {
+	    result: string;
+	    type: string;
+	    variablesReference: number;
+	    namedVariables: number;
+	    indexedVariables: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EvaluateResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.result = source["result"];
+	        this.type = source["type"];
+	        this.variablesReference = source["variablesReference"];
+	        this.namedVariables = source["namedVariables"];
+	        this.indexedVariables = source["indexedVariables"];
+	    }
+	}
+	export class ExceptionInfoResponse {
+	    exceptionId: string;
+	    description: string;
+	    breakMode: string;
+	    // Go type: struct { Message string "json:\"message\""; TypeName string "json:\"typeName\""; StackTrace string "json:\"stackTrace\"" }
+	    details?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExceptionInfoResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.exceptionId = source["exceptionId"];
+	        this.description = source["description"];
+	        this.breakMode = source["breakMode"];
+	        this.details = this.convertValues(source["details"], Object);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Scope {
+	    name: string;
+	    variablesReference: number;
+	    expensive: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Scope(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.variablesReference = source["variablesReference"];
+	        this.expensive = source["expensive"];
+	    }
+	}
+	export class SetVariableResponse {
+	    value: string;
+	    type: string;
+	    variablesReference: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SetVariableResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.value = source["value"];
+	        this.type = source["type"];
+	        this.variablesReference = source["variablesReference"];
+	    }
+	}
+	export class Source {
+	    name?: string;
+	    path?: string;
+	    sourceReference?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Source(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.sourceReference = source["sourceReference"];
+	    }
+	}
+	export class StackFrame {
+	    id: number;
+	    name: string;
+	    source?: Source;
+	    line: number;
+	    column: number;
+	    presentationHint?: string;
+	    instructionPointerReference?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StackFrame(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.source = this.convertValues(source["source"], Source);
+	        this.line = source["line"];
+	        this.column = source["column"];
+	        this.presentationHint = source["presentationHint"];
+	        this.instructionPointerReference = source["instructionPointerReference"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class StackTraceResponse {
+	    stackFrames: StackFrame[];
+	    totalFrames: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StackTraceResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.stackFrames = this.convertValues(source["stackFrames"], StackFrame);
+	        this.totalFrames = source["totalFrames"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Thread {
+	    id: number;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Thread(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
+	export class Variable {
+	    name: string;
+	    value: string;
+	    type: string;
+	    evaluateName: string;
+	    variablesReference: number;
+	    namedVariables: number;
+	    indexedVariables: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Variable(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.value = source["value"];
+	        this.type = source["type"];
+	        this.evaluateName = source["evaluateName"];
+	        this.variablesReference = source["variablesReference"];
+	        this.namedVariables = source["namedVariables"];
+	        this.indexedVariables = source["indexedVariables"];
+	    }
+	}
+
+}
+
 export namespace format {
 	
 	export class SyntaxError {
@@ -989,6 +1211,24 @@ export namespace rpc {
 	        this.name = source["name"];
 	    }
 	}
+	export class DlvStatus {
+	    path: string;
+	    found: boolean;
+	    installing: boolean;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DlvStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.found = source["found"];
+	        this.installing = source["installing"];
+	        this.message = source["message"];
+	    }
+	}
 	export class IndexStatus {
 	    ready: boolean;
 	    count: number;
@@ -1145,6 +1385,22 @@ export namespace rpc {
 		    return a;
 		}
 	}
+	export class FunctionBreakpoint {
+	    name: string;
+	    condition: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FunctionBreakpoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.condition = source["condition"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class GoEnvSummary {
 	    goos: string;
 	    goarch: string;
@@ -1210,6 +1466,26 @@ export namespace rpc {
 	        this.state = source["state"];
 	        this.message = source["message"];
 	        this.bin = source["bin"];
+	    }
+	}
+	export class LineBreakpoint {
+	    line: number;
+	    condition: string;
+	    hitCondition: string;
+	    logMessage: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new LineBreakpoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.line = source["line"];
+	        this.condition = source["condition"];
+	        this.hitCondition = source["hitCondition"];
+	        this.logMessage = source["logMessage"];
+	        this.enabled = source["enabled"];
 	    }
 	}
 	export class MenuItemSpec {
