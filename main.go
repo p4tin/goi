@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 
 	"github.com/p4tin/goi/internal/rpc"
@@ -15,6 +16,12 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// icon is the Linux window icon (macOS and Windows take theirs from the
+// bundle's .icns and the exe's embedded icon.ico).
+//
+//go:embed build/appicon.png
+var icon []byte
 
 func main() {
 	opts, err := rpc.ParseArgs(os.Args[1:])
@@ -43,6 +50,12 @@ func main() {
 		Bind:             app.Services(),
 		Mac: &mac.Options{
 			OnFileOpen: app.OpenFile,
+		},
+		Linux: &linux.Options{
+			Icon: icon,
+			// Matches goi.desktop (StartupWMClass / Wayland app id), so
+			// docks group the window under the launcher's icon.
+			ProgramName: "goi",
 		},
 	})
 	if err != nil {
