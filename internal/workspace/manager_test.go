@@ -55,6 +55,15 @@ func open(t *testing.T, files map[string]string) *fixture {
 	return &fixture{root, bus, st, w, m}
 }
 
+// Open must not announce the project: its owner emits workspace.changed once
+// it can serve requests for it (the UI lists the tree on that event).
+func TestManagerOpenDoesNotAnnounce(t *testing.T) {
+	f := open(t, map[string]string{"go.mod": "module example.com/m\n\ngo 1.26\n"})
+	if n := len(f.bus.Events(events.TopicWorkspaceChanged)); n != 0 {
+		t.Fatalf("workspace.changed emitted %d times during Open, want 0", n)
+	}
+}
+
 func TestManagerOpenAndRedetectOnGoModChange(t *testing.T) {
 	f := open(t, map[string]string{"README.md": "x\n"})
 	if k := f.m.Project().Kind; k != KindFolder {
@@ -66,9 +75,8 @@ func TestManagerOpenAndRedetectOnGoModChange(t *testing.T) {
 	write(t, f.root, map[string]string{"go.mod": "module example.com/m\n\ngo 1.26\n"})
 	eventually(t, 2*time.Second, func() bool { return f.m.Project().Kind == KindModule })
 
-	n := len(f.bus.Events(events.TopicWorkspaceChanged))
-	if n < 2 {
-		t.Errorf("workspace.changed emitted %d times, want >= 2", n)
+	if n := len(f.bus.Events(events.TopicWorkspaceChanged)); n < 1 {
+		t.Errorf("workspace.changed emitted %d times after go.mod appeared, want >= 1", n)
 	}
 }
 

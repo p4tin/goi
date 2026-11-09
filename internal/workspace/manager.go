@@ -39,6 +39,10 @@ type Manager struct {
 	lastErrs []ParseError
 	timer    *time.Timer
 	closed   bool
+	// opened is set after Open's first detection. Until then no
+	// workspace.changed is emitted: the owner announces the project once it
+	// can serve requests for it.
+	opened bool
 
 	cancels []func()
 	subs    map[int]func(Project)
@@ -65,6 +69,9 @@ func Open(ctx context.Context, opts Options) (*Manager, error) {
 	if err := m.redetect(ctx); err != nil {
 		return nil, err
 	}
+	m.mu.Lock()
+	m.opened = true
+	m.mu.Unlock()
 	if opts.Watcher != nil {
 		m.cancels = append(m.cancels, opts.Watcher.Subscribe(m.onFS))
 	}
@@ -258,7 +265,12 @@ func (m *Manager) redetect(ctx context.Context) error {
 			})
 		}
 	}
-	m.opts.Bus.Emit(events.TopicWorkspaceChanged, p)
+	m.mu.RLock()
+	opened := m.opened
+	m.mu.RUnlock()
+	if opened {
+		m.opts.Bus.Emit(events.TopicWorkspaceChanged, p)
+	}
 	return nil
 }
 
