@@ -13,7 +13,7 @@
   "info": {
     "companyName": "Goi",
     "productName": "Goi",
-    "productVersion": "0.1.0",
+    "productVersion": "0.1.1",
     "copyright": "Copyright \u00a9 2026 Goi contributors",
     "comments": "A cross-platform Go IDE",
     "fileAssociations": [
