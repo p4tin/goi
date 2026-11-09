@@ -1,6 +1,7 @@
 // Welcome screen: open/new project actions and the recent projects list.
 
 import './welcome.css';
+import iconUrl from '../assets/goi-icon.svg';
 import { appInfo, project } from '../app/state';
 import type { Workbench } from '../app/workbench';
 import { app, on, recentApi, Topics } from '../lib/api';
@@ -103,7 +104,7 @@ export function installWelcome(wb: Workbench): void {
     h(
       'section',
       { class: 'welcome-actions' },
-      h('h1', { class: 'welcome-title' }, 'Goi'),
+      h('div', { class: 'welcome-brand' }, h('img', { class: 'welcome-icon', src: iconUrl, alt: '' }), h('h1', { class: 'welcome-title' }, 'Goi')),
       version,
       h('button', { class: 'btn btn-primary', onClick: () => void commands.run('project.openFolder') }, 'Open Folder…'),
       h('button', { class: 'btn', onClick: () => void commands.run('project.new') }, 'New Project…'),

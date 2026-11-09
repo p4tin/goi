@@ -1,3 +1,5 @@
+<img src="build/appicon.svg" width="96" alt="Goi icon">
+
 # Goi
 
 A cross-platform Go IDE built with Wails v2 and CodeMirror 6. Product spec: [SPEC.md](SPEC.md).

@@ -18,6 +18,7 @@ GOI_DLV=/path/to/dlv go test -race ./internal/debugger ./internal/rpc  # debugge
 GOI_GOLANGCI=/path/to/golangci-lint go test ./internal/lint ./internal/rpc  # lint integration tests
 node tools/e2e/cdp.mjs tools/e2e/m4.json      # M4 git/lint/go.mod E2E (sample: tools/e2e/m4-sample.sh <dir>; run Goi with GIT_CONFIG_GLOBAL=<dir>/gitconfig)
 scripts/version.sh [tag]                      # product version from wails.json (checks a release tag)
+scripts/icons.sh                              # regenerate build/appicon.png and build/windows/icon.ico from build/appicon.svg (macOS, needs Chrome)
 GOI_GOPLS_BENCH=1 go test -run CompletionLatency -v ./internal/gopls   # completion p95 on this repo
 ```
 
@@ -33,7 +34,7 @@ Debugging needs Delve. Goi resolves it like gopls: the `debug.dlvPath` setting, 
 
 golangci-lint is resolved the same way (`lint.golangciPath`, then the usual places, then `<config>/tools/bin`, where "Install golangci-lint" puts it). Git is the `git` CLI (`git.path`).
 
-Releases: set `info.productVersion` in `wails.json`, then tag `v<version>`. `.github/workflows/release.yml` builds the macOS universal dmg/zip, the Windows NSIS installer and zips, and Linux deb/rpm/tar.gz. It checks the tag against `wails.json` and creates a draft GitHub Release. Packaging files live in `build/package/` (`macos/make-dmg.sh`, `linux/nfpm.yaml`); `paths.BuildVersion` is stamped with `-ldflags`.
+Releases: set `info.productVersion` in `wails.json`, then tag `v<version>`. `.github/workflows/release.yml` builds the macOS universal dmg/zip, the Windows NSIS installer and zips, and Linux deb/rpm/tar.gz. It checks the tag against `wails.json` and creates a draft GitHub Release. Packaging files live in `build/package/` (`macos/make-dmg.sh`, `linux/nfpm.yaml`); `paths.BuildVersion` is stamped with `-ldflags`. The app icon's source is `build/appicon.svg`; after editing it, run `scripts/icons.sh` and copy it to `frontend/src/assets/goi-icon.svg` (Welcome and About show it). Wails builds the macOS `.icns` from `build/appicon.png`; Windows uses the committed `build/windows/icon.ico`.
 
 After merging to `main`, watch CI (`gh run watch`) before starting new work. Windows-only failures have slipped through before.
 

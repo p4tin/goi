@@ -1,5 +1,6 @@
 // Help → About Goi: product version, build, platform and log location.
 
+import iconUrl from '../assets/goi-icon.svg';
 import { app, openExternal } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
@@ -17,6 +18,7 @@ export async function showAbout(): Promise<void> {
   const body = h(
     'div',
     { class: 'about' },
+    h('img', { class: 'about-icon', src: iconUrl, alt: '' }),
     h('div', { class: 'about-title' }, 'Goi'),
     h('div', { class: 'about-sub' }, 'A cross-platform Go IDE'),
     row('Version', versionLabel(info.version, info.build)),

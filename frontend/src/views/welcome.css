@@ -16,6 +16,20 @@
   gap: 10px;
 }
 
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The icon's artwork has the macOS grid margin (100/1024); a negative
+   margin lines the rounded square up with the text. */
+.welcome-icon {
+  width: 64px;
+  height: 64px;
+  margin: -6px 0 -6px -6px;
+}
+
 .welcome-title {
   font-size: 32px;
   margin: 0;
