@@ -111,8 +111,11 @@ func withWindow(ctx context.Context, w *window) context.Context {
 
 var errNoWindow = errors.New("no window")
 
-// windowFor returns the window that made the call. A context without a window
-// (tests) falls back to the only window when exactly one exists.
+// windowFor returns the window that made the call. Without a Wails app
+// (tests), a context without a window falls back to the only window when
+// exactly one exists. With one, a call without a window fails: in server
+// mode a tab's first calls can arrive before its window exists, and must
+// not be answered for another window.
 func (a *App) windowFor(ctx context.Context) (*window, error) {
 	if ctx != nil {
 		if w, ok := ctx.Value(windowCtxKey{}).(*window); ok && w != nil {
@@ -121,6 +124,9 @@ func (a *App) windowFor(ctx context.Context) (*window, error) {
 		if w := a.callerWindow(ctx); w != nil {
 			return w, nil
 		}
+	}
+	if a.wapp != nil {
+		return nil, errNoWindow
 	}
 	ws := a.allWindows()
 	if len(ws) == 1 {
