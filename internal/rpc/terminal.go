@@ -33,14 +33,15 @@ type TermInfo struct {
 // termSession owns the project's terminals and batches their output.
 type termSession struct {
 	app *App
+	win *window
 	mgr *terminal.Manager
 
 	mu       sync.Mutex
 	batchers map[string]*outputBatcher
 }
 
-func newTermSession(a *App) *termSession {
-	ts := &termSession{app: a, batchers: map[string]*outputBatcher{}}
+func newTermSession(w *window) *termSession {
+	ts := &termSession{app: w.app, win: w, batchers: map[string]*outputBatcher{}}
 	ts.mgr = terminal.NewManager(ts.output, ts.exit)
 	return ts
 }
@@ -55,7 +56,7 @@ func (ts *termSession) batcher(id string) *outputBatcher {
 			for _, c := range chunks {
 				data += c.Text
 			}
-			ts.app.bus.Emit(events.TopicTermOutput, TermOutputEvent{ID: id, Data: data})
+			ts.win.bus.Emit(events.TopicTermOutput, TermOutputEvent{ID: id, Data: data})
 		})
 		ts.batchers[id] = b
 	}
@@ -71,7 +72,7 @@ func (ts *termSession) exit(id string, code int) {
 	ts.mu.Lock()
 	delete(ts.batchers, id)
 	ts.mu.Unlock()
-	ts.app.bus.Emit(events.TopicTermExit, TermExitEvent{ID: id, Code: code})
+	ts.win.bus.Emit(events.TopicTermExit, TermExitEvent{ID: id, Code: code})
 }
 
 func (ts *termSession) close() { ts.mgr.CloseAll() }
@@ -98,7 +99,7 @@ func (s *TerminalService) Open(cols, rows int) (TermInfo, error) {
 	if err != nil {
 		return TermInfo{}, err
 	}
-	cfg := s.app.settings.Effective().Terminal
+	cfg := s.app.mainWindow().settings.Effective().Terminal
 	shell := terminal.DefaultShell(cfg.Shell)
 	env := os.Environ()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

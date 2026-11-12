@@ -60,7 +60,7 @@ type SDKStatus struct {
 // SDKStatus resolves the configured SDK: go.goroot when set, otherwise the
 // only discovered SDK, otherwise the one on PATH.
 func (s *WorkspaceService) SDKStatus() SDKStatus {
-	sdk, err := s.app.resolveSDK(s.app.ctx)
+	sdk, err := s.app.mainWindow().resolveSDK(s.app.ctx)
 	if err != nil {
 		return SDKStatus{Problem: err.Error()}
 	}

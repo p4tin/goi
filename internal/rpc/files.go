@@ -46,7 +46,7 @@ func (s *FileService) List(dir string) ([]vfs.Entry, error) {
 
 // Read loads a text file using the editor size limits from settings.
 func (s *FileService) Read(path string) (OpenedFile, error) {
-	e := s.app.settings.Effective().Editor
+	e := s.app.mainWindow().settings.Effective().Editor
 	lim := vfs.Limits{HighlightBytes: int64(e.MaxHighlightSizeKB) * 1024, OpenBytes: int64(e.MaxOpenSizeKB) * 1024}
 	meta, content, err := vfs.ReadText(path, lim)
 	return OpenedFile{Meta: meta, Content: content}, err
@@ -120,7 +120,7 @@ func (s *FileService) isSettingsFile(path string) bool {
 	if err != nil {
 		return false
 	}
-	for _, p := range []string{s.app.settings.Path(settings.LayerUser), s.app.settings.Path(settings.LayerProject)} {
+	for _, p := range []string{s.app.mainWindow().settings.Path(settings.LayerUser), s.app.mainWindow().settings.Path(settings.LayerProject)} {
 		if p != "" && filepath.Clean(p) == abs {
 			return true
 		}

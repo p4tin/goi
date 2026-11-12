@@ -17,7 +17,7 @@ func TestLintRunEmitsDiagnostics(t *testing.T) {
 	root := runModule(t)
 	os.WriteFile(filepath.Join(root, "calc", "bad.go"), []byte("package calc\n\nimport \"os\"\n\nfunc Bad() {\n\tos.Remove(\"x\")\n}\n"), 0o644)
 	a, bus := started(t, root)
-	a.settings.Set(settings.LayerUser, "lint.golangciPath", bin)
+	a.mainWindow().settings.Set(settings.LayerUser, "lint.golangciPath", bin)
 	if st := a.lintSvc.Status(); !st.Found || st.Version == "" {
 		t.Fatalf("status = %+v", st)
 	}
@@ -35,7 +35,7 @@ func TestLintRunEmitsDiagnostics(t *testing.T) {
 		t.Fatalf("event = %+v", ev)
 	}
 	// Disabled in settings: no run.
-	a.settings.Set(settings.LayerUser, "lint.enabled", false)
+	a.mainWindow().settings.Set(settings.LayerUser, "lint.enabled", false)
 	if _, err := a.lintSvc.Run("project", root); err == nil {
 		t.Fatal("disabled lint must not run")
 	}
@@ -43,7 +43,7 @@ func TestLintRunEmitsDiagnostics(t *testing.T) {
 
 func TestLintMissingBinary(t *testing.T) {
 	a, _ := started(t, runModule(t))
-	a.settings.Set(settings.LayerUser, "lint.golangciPath", filepath.Join(t.TempDir(), "nope"))
+	a.mainWindow().settings.Set(settings.LayerUser, "lint.golangciPath", filepath.Join(t.TempDir(), "nope"))
 	if st := a.lintSvc.Status(); st.Found {
 		t.Fatalf("status = %+v", st)
 	}

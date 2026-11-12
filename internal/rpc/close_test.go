@@ -9,9 +9,9 @@ import (
 func TestBeforeCloseHandshake(t *testing.T) {
 	a, bus := started(t, "")
 	now := time.Unix(1000, 0)
-	a.closing.now = func() time.Time { return now }
+	a.mainWindow().closing.now = func() time.Time { return now }
 	quits := 0
-	a.closing.quitFn = func(context.Context) { quits++ }
+	a.mainWindow().closing.quitFn = func(context.Context) { quits++ }
 
 	if !a.BeforeClose(context.Background()) {
 		t.Fatal("first close request should be prevented")
@@ -32,7 +32,7 @@ func TestBeforeCloseHandshake(t *testing.T) {
 func TestBeforeCloseRepeatedRequestForcesClose(t *testing.T) {
 	a, bus := started(t, "")
 	now := time.Unix(1000, 0)
-	a.closing.now = func() time.Time { return now }
+	a.mainWindow().closing.now = func() time.Time { return now }
 
 	if !a.BeforeClose(context.Background()) {
 		t.Fatal("first request should be prevented")

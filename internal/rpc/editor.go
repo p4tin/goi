@@ -22,7 +22,7 @@ type FormatResult struct {
 
 // Format formats content using the save.format setting.
 func (s *EditorService) Format(path, content string) (FormatResult, error) {
-	return s.FormatWith(path, content, s.app.settings.Effective().Save.Format)
+	return s.FormatWith(path, content, s.app.mainWindow().settings.Effective().Save.Format)
 }
 
 // FormatWith formats content with an explicit mode (goimports|gofmt|none).

@@ -50,7 +50,7 @@ func started(t *testing.T, project string) (*App, *events.Recorder) {
 		t.Fatal(err)
 	}
 	bus := &events.Recorder{}
-	if err := a.start(context.Background(), bus); err != nil {
+	if err := a.start(context.Background(), bus, nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { a.Shutdown(context.Background()) })
@@ -107,14 +107,14 @@ func TestReopenLastProjectAndClose(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GOI_HOME", home)
 	a1, _ := NewApp(Options{ProjectPath: root})
-	a1.start(context.Background(), events.Nop{})
+	a1.start(context.Background(), events.Nop{}, nil)
 	a1.Shutdown(context.Background())
 
 	a2, err := NewApp(Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	a2.start(context.Background(), events.Nop{})
+	a2.start(context.Background(), events.Nop{}, nil)
 	defer a2.Shutdown(context.Background())
 	if p := a2.workspaceSvc.Project(); p == nil || p.Root != root {
 		t.Fatalf("reopened project = %+v", p)
@@ -268,22 +268,23 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a1.start(context.Background(), events.Nop{})
+	a1.start(context.Background(), events.Nop{}, nil)
 	file := filepath.Join(root, "go.mod")
 	if err := a1.appSvc.JournalPut(file, "module changed\n", time.Now().Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
 	// Simulate a crash: release the instance lock and pretend the journal's
 	// owner died by rewriting session.lock with a dead pid.
-	a1.mu.Lock()
-	sess := a1.session
-	a1.mu.Unlock()
+	w1 := a1.mainWindow()
+	w1.mu.Lock()
+	sess := w1.session
+	w1.mu.Unlock()
 	sess.lock.Release()
 	sess.watcher.Close()
 	sess.manager.Close()
 	// A dead process holds no files; Windows can't remove open ones.
-	if a1.cfgWatch != nil {
-		a1.cfgWatch.Close()
+	if w1.cfgWatch != nil {
+		w1.cfgWatch.Close()
 	}
 	a1.closer.Close()
 	dead := exec.Command(os.Args[0], "-test.run=^$")
@@ -297,7 +298,7 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a2.start(context.Background(), events.Nop{})
+	a2.start(context.Background(), events.Nop{}, nil)
 	defer a2.Shutdown(context.Background())
 	got, err := a2.appSvc.PendingRestore()
 	if err != nil || len(got) != 1 || got[0].Path != file || got[0].Content != "module changed\n" {
@@ -338,7 +339,7 @@ func TestOpenFileQueuedThenOpensProject(t *testing.T) {
 	file := filepath.Join(root, "pkg", "util", "util.go")
 	a.OpenFile(file) // before startup: queued
 	bus := &events.Recorder{}
-	a.start(context.Background(), bus)
+	a.start(context.Background(), bus, nil)
 	defer a.Shutdown(context.Background())
 	if p := a.workspaceSvc.Project(); p == nil || p.Root != root {
 		t.Fatalf("project = %+v", p)
@@ -358,5 +359,23 @@ func TestWriteUserSettingsFileOutsideProject(t *testing.T) {
 	}
 	if _, err := a.fileSvc.Write(filepath.Join(filepath.Dir(user), "other.toml"), "x", vfs.FileMeta{}); err == nil {
 		t.Error("other file outside project: want error")
+	}
+}
+
+// fakeHandle is a windowHandle for tests.
+type fakeHandle struct {
+	focus func()
+	title func(string)
+}
+
+func (h *fakeHandle) Focus() {
+	if h.focus != nil {
+		h.focus()
+	}
+}
+
+func (h *fakeHandle) SetTitle(s string) {
+	if h.title != nil {
+		h.title(s)
 	}
 }

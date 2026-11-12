@@ -76,11 +76,12 @@ func (s *LintService) session() (*session, *lintSession, error) {
 	return sess, sess.lint, nil
 }
 
-func (a *App) resolveGolangci() (string, error) {
+// resolveGolangci finds golangci-lint with the window's settings and SDK.
+func (w *window) resolveGolangci() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	opts := toolbin.Options{Setting: a.settings.Effective().Lint.GolangciPath, ToolsDir: a.toolsDir()}
-	if r, err := a.runner(ctx); err == nil {
+	opts := toolbin.Options{Setting: w.settings.Effective().Lint.GolangciPath, ToolsDir: w.app.toolsDir()}
+	if r, err := w.runner(ctx); err == nil {
 		if ge, err := r.GoEnv(ctx); err == nil {
 			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
 		}
@@ -113,7 +114,7 @@ func (s *LintService) status(ls *lintSession) LintStatus {
 	ls.mu.Lock()
 	st := LintStatus{Installing: ls.installing, Running: len(ls.running)}
 	ls.mu.Unlock()
-	bin, err := s.app.resolveGolangci()
+	bin, err := s.app.mainWindow().resolveGolangci()
 	if err != nil {
 		st.Message = err.Error()
 		return st
@@ -128,7 +129,7 @@ func (s *LintService) status(ls *lintSession) LintStatus {
 }
 
 func (s *LintService) emitStatus(ls *lintSession) {
-	s.app.bus.Emit(events.TopicLintStatus, s.status(ls))
+	s.app.mainWindow().bus.Emit(events.TopicLintStatus, s.status(ls))
 }
 
 // Status reports whether golangci-lint is available.
@@ -162,7 +163,7 @@ func (s *LintService) Install() error {
 		ls.mu.Unlock()
 		return err
 	}
-	s.app.bus.Emit(events.TopicLintStatus, LintStatus{Installing: true, Message: "Installing golangci-lint (go install " + lint.Module + ")…"})
+	s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Installing: true, Message: "Installing golangci-lint (go install " + lint.Module + ")…"})
 	go func() {
 		defer cancel()
 		_, err := toolbin.Install(ctx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), lint.Module, lint.Name)
@@ -172,7 +173,7 @@ func (s *LintService) Install() error {
 		ls.mu.Unlock()
 		if err != nil {
 			s.app.log.Warn("install golangci-lint", "err", err)
-			s.app.bus.Emit(events.TopicLintStatus, LintStatus{Message: err.Error()})
+			s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Message: err.Error()})
 			return
 		}
 		s.emitStatus(ls)
@@ -213,10 +214,10 @@ func (s *LintService) Run(scope, path string) (LintResult, error) {
 	if err != nil {
 		return LintResult{}, err
 	}
-	if !s.app.settings.Effective().Lint.Enabled {
+	if !s.app.mainWindow().settings.Effective().Lint.Enabled {
 		return LintResult{}, errors.New("golangci-lint is disabled in settings (lint.enabled)")
 	}
-	bin, err := s.app.resolveGolangci()
+	bin, err := s.app.mainWindow().resolveGolangci()
 	if err != nil {
 		return LintResult{}, err
 	}
@@ -280,7 +281,7 @@ func (s *LintService) Run(scope, path string) (LintResult, error) {
 	if r, err := s.app.runner(ctx); err == nil {
 		env = r.Environ()
 	}
-	extra := s.app.settings.Effective().Lint.Args
+	extra := s.app.mainWindow().settings.Effective().Lint.Args
 	ev := LintDiagnosticsEvent{Files: map[string][]lsp.Diagnostic{}, Recursive: scope == "project"}
 	res := LintResult{}
 	for _, j := range jobs {
@@ -307,7 +308,7 @@ func (s *LintService) Run(scope, path string) (LintResult, error) {
 		ev.Dirs = []string{}
 	}
 	res.Files = len(ev.Files)
-	s.app.bus.Emit(events.TopicLintDiagnostics, ev)
+	sess.win.bus.Emit(events.TopicLintDiagnostics, ev)
 	return res, nil
 }
 

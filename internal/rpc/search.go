@@ -20,6 +20,7 @@ import (
 // roots or excludes change.
 type searchIndex struct {
 	app *App
+	win *window
 
 	mu       sync.RWMutex
 	ix       *index.Index
@@ -37,8 +38,8 @@ type IndexStatus struct {
 	Count int  `json:"count"`
 }
 
-func startSearchIndex(a *App, m *workspace.Manager, w vfs.Watcher) *searchIndex {
-	s := &searchIndex{app: a}
+func startSearchIndex(win *window, m *workspace.Manager, w vfs.Watcher) *searchIndex {
+	s := &searchIndex{app: win.app, win: win}
 	s.rebuild(m.Project(), m.Matcher())
 	s.cancels = append(s.cancels,
 		w.Subscribe(s.apply),
@@ -83,7 +84,7 @@ func (s *searchIndex) rebuild(p workspace.Project, matcher vfs.Matcher) {
 		s.ix = ix
 		s.mu.Unlock()
 		s.app.log.Info("index ready", "files", ix.Len())
-		s.app.bus.Emit(events.TopicIndexReady, IndexStatus{Ready: true, Count: ix.Len()})
+		s.win.bus.Emit(events.TopicIndexReady, IndexStatus{Ready: true, Count: ix.Len()})
 	}()
 }
 
@@ -104,7 +105,7 @@ func (s *searchIndex) apply(evs []vfs.Event) {
 			ix.Remove(e.Path)
 		}
 	}
-	s.app.bus.Emit(events.TopicIndexUpdated, IndexStatus{Ready: true, Count: ix.Len()})
+	s.win.bus.Emit(events.TopicIndexUpdated, IndexStatus{Ready: true, Count: ix.Len()})
 }
 
 func (s *searchIndex) search(query string, limit int, recent []string) ([]index.Match, IndexStatus) {

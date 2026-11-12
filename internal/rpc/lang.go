@@ -49,6 +49,7 @@ var errLangNotRunning = errors.New("gopls is not running")
 // langSession owns the project's gopls server.
 type langSession struct {
 	app      *App
+	win      *window
 	root     string // as opened (may contain symlinks)
 	realRoot string // symlinks resolved, as gopls may report paths
 
@@ -61,15 +62,15 @@ type langSession struct {
 	cancels    []func()
 }
 
-func startLang(a *App, root string, w vfs.Watcher) *langSession {
+func startLang(win *window, root string, w vfs.Watcher) *langSession {
 	real, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		real = root
 	}
-	ls := &langSession{app: a, root: root, realRoot: real}
+	ls := &langSession{app: win.app, win: win, root: root, realRoot: real}
 	ls.cancels = append(ls.cancels,
 		w.Subscribe(ls.onFiles),
-		a.settings.Subscribe(func(settings.Settings) { ls.reconfigure() }),
+		win.settings.Subscribe(func(settings.Settings) { ls.reconfigure() }),
 	)
 	go ls.start()
 	return ls
@@ -79,7 +80,7 @@ func (ls *langSession) setStatus(st LangStatus) {
 	ls.mu.Lock()
 	ls.status = st
 	ls.mu.Unlock()
-	ls.app.bus.Emit(events.TopicLangStatus, st)
+	ls.win.bus.Emit(events.TopicLangStatus, st)
 }
 
 func (ls *langSession) currentStatus() LangStatus {
@@ -114,10 +115,10 @@ type langConfig struct {
 func (ls *langSession) resolveConfig() (langConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	s := ls.app.settings.Effective()
+	s := ls.win.settings.Effective()
 	opts := gopls.ResolveOptions{Setting: s.Gopls.Path, ToolsDir: ls.app.toolsDir()}
 	var env []string
-	if r, err := ls.app.runner(ctx); err == nil {
+	if r, err := ls.win.runner(ctx); err == nil {
 		env = r.Environ()
 		if ge, err := r.GoEnv(ctx); err == nil {
 			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
@@ -155,7 +156,7 @@ func (ls *langSession) resolveConfig() (langConfig, error) {
 }
 
 func (ls *langSession) start() {
-	s := ls.app.settings.Effective()
+	s := ls.win.settings.Effective()
 	ls.mu.Lock()
 	ls.cfgKey = configKey(s)
 	ls.mu.Unlock()
@@ -183,10 +184,10 @@ func (ls *langSession) start() {
 			ls.setStatus(LangStatus{State: string(st.State), Message: st.Message, Bin: cfg.bin})
 		},
 		OnDiagnostics: func(path string, d []lsp.Diagnostic) {
-			ls.app.bus.Emit(events.TopicLangDiagnostics, DiagnosticsEvent{Path: ls.toEditor(path), Items: d})
+			ls.win.bus.Emit(events.TopicLangDiagnostics, DiagnosticsEvent{Path: ls.toEditor(path), Items: d})
 		},
 		OnApplyEdit: func(label string, edits []gopls.FileEdit) bool {
-			ls.app.bus.Emit(events.TopicLangApplyEdit, ApplyEditEvent{Label: label, Edits: ls.mapEdits(edits)})
+			ls.win.bus.Emit(events.TopicLangApplyEdit, ApplyEditEvent{Label: label, Edits: ls.mapEdits(edits)})
 			return true
 		},
 	})
@@ -203,7 +204,7 @@ func (ls *langSession) start() {
 
 // reconfigure restarts gopls when relevant settings changed.
 func (ls *langSession) reconfigure() {
-	s := ls.app.settings.Effective()
+	s := ls.win.settings.Effective()
 	key := configKey(s)
 	ls.mu.Lock()
 	if key == ls.cfgKey {
@@ -255,7 +256,7 @@ func (ls *langSession) install() error {
 	ls.installing = true
 	ls.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	r, err := ls.app.runner(ctx)
+	r, err := ls.win.runner(ctx)
 	if err != nil {
 		cancel()
 		ls.mu.Lock()
@@ -273,11 +274,11 @@ func (ls *langSession) install() error {
 		if err != nil {
 			ls.app.log.Warn("gopls install", "err", err)
 			ls.setStatus(LangStatus{State: LangMissing, Message: err.Error()})
-			ls.app.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "error", Title: "Could not install gopls", Body: err.Error()})
+			ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "error", Title: "Could not install gopls", Body: err.Error()})
 			return
 		}
 		ls.app.log.Info("gopls installed", "bin", bin)
-		ls.app.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "info", Title: "gopls installed", Body: bin})
+		ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "info", Title: "gopls installed", Body: bin})
 		if srv := ls.server(); srv != nil {
 			srv.Close()
 		}

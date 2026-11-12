@@ -52,6 +52,7 @@ var errNoRepo = errors.New("the project is not in a git repository")
 // gitSession owns the project's repository handle and status cache.
 type gitSession struct {
 	app  *App
+	win  *window
 	root string
 
 	mu      sync.Mutex
@@ -64,14 +65,14 @@ type gitSession struct {
 	closed  bool
 }
 
-func startGit(a *App, root string, w vfs.Watcher) *gitSession {
-	gs := &gitSession{app: a, root: root, ops: map[string]*process.Process{}}
+func startGit(win *window, root string, w vfs.Watcher) *gitSession {
+	gs := &gitSession{app: win.app, win: win, root: root, ops: map[string]*process.Process{}}
 	gs.cancels = append(gs.cancels, w.Subscribe(func([]vfs.Event) { gs.schedule() }))
 	gs.open(w)
 	return gs
 }
 
-func (gs *gitSession) bin() string { return gs.app.settings.Effective().Git.Path }
+func (gs *gitSession) bin() string { return gs.win.settings.Effective().Git.Path }
 
 // open (re)discovers the repository and watches its index and refs.
 func (gs *gitSession) open(w vfs.Watcher) {
@@ -86,7 +87,7 @@ func (gs *gitSession) open(w vfs.Watcher) {
 		gs.repo = nil
 		gs.state = GitState{Status: git.Status{Files: []git.FileStatus{}}}
 		gs.mu.Unlock()
-		gs.app.bus.Emit(events.TopicGitStatus, gs.state)
+		gs.win.bus.Emit(events.TopicGitStatus, gs.state)
 		return
 	}
 	gs.mu.Lock()
@@ -138,7 +139,7 @@ func (gs *gitSession) refresh() {
 	}
 	gs.state = GitState{Repo: true, Status: st}
 	gs.mu.Unlock()
-	gs.app.bus.Emit(events.TopicGitStatus, gs.state)
+	gs.win.bus.Emit(events.TopicGitStatus, gs.state)
 }
 
 func (gs *gitSession) current() *git.Repo {
@@ -181,7 +182,7 @@ func (gs *gitSession) startOp(title string, args []string, after func(output str
 	var outMu sync.Mutex
 	var all strings.Builder
 	b := newOutputBatcher(func(chunks []OutputChunk) {
-		gs.app.bus.Emit(events.TopicGitOutput, GitOutputEvent{OpID: id, Chunks: chunks})
+		gs.win.bus.Emit(events.TopicGitOutput, GitOutputEvent{OpID: id, Chunks: chunks})
 	})
 	b.Write(streamSystem, []byte("git "+strings.Join(args, " ")+"\n"))
 	p, err := process.Start(process.Spec{Path: cmd.Path, Args: cmd.Args[1:], Env: cmd.Env, Dir: cmd.Dir, KillAfter: 3 * time.Second}, func(stream string, data []byte) {
@@ -196,7 +197,7 @@ func (gs *gitSession) startOp(title string, args []string, after func(output str
 	gs.mu.Lock()
 	gs.ops[id] = p
 	gs.mu.Unlock()
-	gs.app.bus.Emit(events.TopicGitOp, GitOpEvent{OpID: id, Title: title, State: GitOpRunning})
+	gs.win.bus.Emit(events.TopicGitOp, GitOpEvent{OpID: id, Title: title, State: GitOpRunning})
 	go func() {
 		info := p.Wait()
 		b.Close()
@@ -216,7 +217,7 @@ func (gs *gitSession) startOp(title string, args []string, after func(output str
 			after(output, info)
 		}
 		gs.refresh()
-		gs.app.bus.Emit(events.TopicGitOp, ev)
+		gs.win.bus.Emit(events.TopicGitOp, ev)
 	}()
 	return id, nil
 }
@@ -605,7 +606,7 @@ func (s *GitService) Pull() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return gs.startOp("Pull", git.PullArgs(s.app.settings.Effective().Git.PullRebase), nil)
+	return gs.startOp("Pull", git.PullArgs(s.app.mainWindow().settings.Effective().Git.PullRebase), nil)
 }
 
 // Push pushes the current branch in the background (sets the upstream when

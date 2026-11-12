@@ -90,6 +90,7 @@ type DlvStatus struct {
 // debugManager owns the project's breakpoints and debug sessions.
 type debugManager struct {
 	app *App
+	win *window
 
 	mu         sync.Mutex
 	lines      map[string][]LineBreakpoint
@@ -113,8 +114,8 @@ type debugSession struct {
 	stopping bool
 }
 
-func newDebugManager(a *App) *debugManager {
-	return &debugManager{app: a, lines: map[string][]LineBreakpoint{}, sessions: map[string]*debugSession{}}
+func newDebugManager(w *window) *debugManager {
+	return &debugManager{app: w.app, win: w, lines: map[string][]LineBreakpoint{}, sessions: map[string]*debugSession{}}
 }
 
 func (m *debugManager) close() {
@@ -129,12 +130,12 @@ func (m *debugManager) close() {
 	}
 }
 
-// resolveDlv finds Delve with the debug.dlvPath setting and the project SDK.
-func (a *App) resolveDlv() (string, error) {
+// resolveDlv finds Delve with the window's debug.dlvPath setting and SDK.
+func (w *window) resolveDlv() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	opts := toolbin.Options{Name: "dlv", Setting: a.settings.Effective().Debug.DlvPath, ToolsDir: a.toolsDir()}
-	if r, err := a.runner(ctx); err == nil {
+	opts := toolbin.Options{Name: "dlv", Setting: w.settings.Effective().Debug.DlvPath, ToolsDir: w.app.toolsDir()}
+	if r, err := w.runner(ctx); err == nil {
 		if ge, err := r.GoEnv(ctx); err == nil {
 			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
 		}
@@ -157,7 +158,7 @@ func (s *debugSession) emit(ev DebugStateEvent) {
 		ev.Caps = DebugCaps{SupportsSetVariable: c.SupportsSetVariable, SupportsGotoTargets: c.SupportsGotoTargetsRequest, SupportsRestart: true}
 	}
 	s.mu.Unlock()
-	s.m.app.bus.Emit(events.TopicDebugState, ev)
+	s.m.win.bus.Emit(events.TopicDebugState, ev)
 }
 
 func (s *debugSession) session() (*debugger.Session, error) {
@@ -217,7 +218,7 @@ func (s *debugSession) onEvent(ev debugger.Event) {
 	case "breakpoint":
 		var b dap.BreakpointEvent
 		if json.Unmarshal(ev.Body, &b) == nil && b.Breakpoint.Source != nil {
-			s.m.app.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Path: b.Breakpoint.Source.Path, Breakpoints: []dap.Breakpoint{b.Breakpoint}})
+			s.m.win.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Path: b.Breakpoint.Source.Path, Breakpoints: []dap.Breakpoint{b.Breakpoint}})
 		}
 	}
 }
@@ -292,7 +293,7 @@ func (m *debugManager) applyFile(ctx context.Context, s *debugSession, path stri
 		m.app.log.Debug("set breakpoints", "path", path, "err", err)
 		return
 	}
-	m.app.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Path: path, Breakpoints: res})
+	m.win.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Path: path, Breakpoints: res})
 }
 
 func (m *debugManager) applyFunctions(ctx context.Context, s *debugSession) {
@@ -305,7 +306,7 @@ func (m *debugManager) applyFunctions(ctx context.Context, s *debugSession) {
 		m.app.log.Debug("set function breakpoints", "err", err)
 		return
 	}
-	m.app.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Function: true, Breakpoints: res})
+	m.win.bus.Emit(events.TopicDebugBreakpoints, DebugBreakpointsEvent{ID: s.id, Function: true, Breakpoints: res})
 }
 
 func (m *debugManager) active() []*debugSession {
@@ -360,7 +361,7 @@ func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
 		dc.Addr = net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 		r.system("Connecting to " + dc.Addr + "\n")
 	} else {
-		dlv, err := a.resolveDlv()
+		dlv, err := r.m.win.resolveDlv()
 		if err != nil {
 			fail(err.Error())
 			return
@@ -494,7 +495,7 @@ func (s *DebugService) DlvStatus() DlvStatus {
 		installing = m.installing
 		m.mu.Unlock()
 	}
-	p, err := s.app.resolveDlv()
+	p, err := s.app.mainWindow().resolveDlv()
 	if err != nil {
 		return DlvStatus{Installing: installing, Message: err.Error()}
 	}
@@ -524,7 +525,7 @@ func (s *DebugService) InstallDlv() error {
 		m.mu.Unlock()
 		return err
 	}
-	s.app.bus.Emit(events.TopicDebugInstall, DlvStatus{Installing: true, Message: "Installing Delve (go install " + DlvModule + ")…"})
+	s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Installing: true, Message: "Installing Delve (go install " + DlvModule + ")…"})
 	go func() {
 		defer cancel()
 		p, err := toolbin.Install(ctx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), DlvModule, "dlv")
@@ -533,11 +534,11 @@ func (s *DebugService) InstallDlv() error {
 		m.mu.Unlock()
 		if err != nil {
 			s.app.log.Warn("install dlv", "err", err)
-			s.app.bus.Emit(events.TopicDebugInstall, DlvStatus{Message: err.Error()})
+			s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Message: err.Error()})
 			return
 		}
 		s.app.log.Info("dlv installed", "path", p)
-		s.app.bus.Emit(events.TopicDebugInstall, DlvStatus{Path: p, Found: true, Message: "Delve installed"})
+		s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Path: p, Found: true, Message: "Delve installed"})
 	}()
 	return nil
 }

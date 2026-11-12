@@ -48,7 +48,7 @@ var applyMenu = func(ctx context.Context, m *menu.Menu) {
 func (s *MenuService) SetMenu(menus []MenuSpec) {
 	a := s.app
 	applyMenu(a.ctx, buildMenu(menus, runtime.GOOS, func(cmd string) {
-		a.bus.Emit(TopicMenuCommand, MenuCommandEvent{Command: cmd})
+		a.mainWindow().bus.Emit(TopicMenuCommand, MenuCommandEvent{Command: cmd})
 	}))
 }
 

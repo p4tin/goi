@@ -79,7 +79,7 @@ func waitDebugState(t *testing.T, bus *events.Recorder, id, state string, since 
 
 func TestDebugRequiresDlv(t *testing.T) {
 	a, _ := started(t, runModule(t))
-	if err := a.settings.Set(settings.LayerUser, "debug.dlvPath", filepath.Join(t.TempDir(), "nope")); err != nil {
+	if err := a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatal(err)
 	}
 	a.runSvc.SaveConfig(runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
@@ -96,7 +96,7 @@ func TestDebugSessionBreakpointsAndInspection(t *testing.T) {
 	dlv := testDlv(t)
 	root := debugModule(t)
 	a, bus := started(t, root)
-	a.settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
+	a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
 	if st := a.debugSvc.DlvStatus(); !st.Found || st.Path != dlv {
 		t.Fatalf("DlvStatus = %+v", st)
 	}
@@ -163,7 +163,7 @@ func TestDebugStopTerminates(t *testing.T) {
 	dlv := testDlv(t)
 	root := debugModule(t)
 	a, bus := started(t, root)
-	a.settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
+	a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
 	a.debugSvc.SetFunctionBreakpoints([]FunctionBreakpoint{{Name: "main.work", Enabled: true}}, false)
 	a.runSvc.SaveConfig(runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
 	id, err := a.runSvc.Run("Work", true)

@@ -85,6 +85,7 @@ var errNoRun = errors.New("no such run")
 // runManager owns the project's run configurations and launched runs.
 type runManager struct {
 	app     *App
+	win     *window
 	root    string
 	store   *runconfig.Store
 	tempDir string
@@ -119,7 +120,8 @@ type runInstance struct {
 	stopHook func()
 }
 
-func startRuns(a *App, s *session, w vfs.Watcher) *runManager {
+func startRuns(win *window, s *session, w vfs.Watcher) *runManager {
+	a := win.app
 	hash := s.manager.Project().Hash
 	shared := filepath.Join(s.root, ".goi", "runConfigurations")
 	local := filepath.Join(a.configDir, "workspaces", hash, "runConfigurations")
@@ -133,6 +135,7 @@ func startRuns(a *App, s *session, w vfs.Watcher) *runManager {
 	}
 	m := &runManager{
 		app:     a,
+		win:     win,
 		root:    s.root,
 		store:   store,
 		tempDir: filepath.Join(a.cacheDir, "run", hash),
@@ -153,7 +156,7 @@ func startRuns(a *App, s *session, w vfs.Watcher) *runManager {
 }
 
 func (m *runManager) emitConfigs() {
-	m.app.bus.Emit(events.TopicRunConfigs, m.configs())
+	m.win.bus.Emit(events.TopicRunConfigs, m.configs())
 }
 
 func (m *runManager) configs() []runconfig.Config {
@@ -192,11 +195,11 @@ func (m *runManager) close() {
 func (m *runManager) planContext() (runconfig.Context, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	r, err := m.app.runner(ctx)
+	r, err := m.win.runner(ctx)
 	if err != nil {
 		return runconfig.Context{}, fmt.Errorf("Go SDK: %w", err)
 	}
-	g := m.app.settings.Effective().Go
+	g := m.win.settings.Effective().Go
 	mod := ""
 	switch g.Vendor {
 	case "on":
@@ -238,7 +241,7 @@ func (m *runManager) launch(cfg runconfig.Config, debug bool, reuseID string) (s
 	}
 	if debug && cfg.Type != runconfig.TypeRemote {
 		// Fail fast so the UI can offer to install Delve.
-		if _, err := m.app.resolveDlv(); err != nil {
+		if _, err := m.win.resolveDlv(); err != nil {
 			return "", err
 		}
 	}
@@ -267,10 +270,10 @@ func (m *runManager) launch(cfg runconfig.Config, debug bool, reuseID string) (s
 	inst.done = make(chan struct{})
 	id := inst.id
 	inst.out = newOutputBatcher(func(chunks []OutputChunk) {
-		m.app.bus.Emit(events.TopicRunOutput, RunOutputEvent{ID: id, Chunks: chunks})
+		m.win.bus.Emit(events.TopicRunOutput, RunOutputEvent{ID: id, Chunks: chunks})
 	})
 	inst.tests = newTestBatcher(func(evs []TestEvent) {
-		m.app.bus.Emit(events.TopicRunTest, RunTestEvent{ID: id, Events: evs})
+		m.win.bus.Emit(events.TopicRunTest, RunTestEvent{ID: id, Events: evs})
 	})
 	inst.mu.Unlock()
 	inst.emitState()
@@ -312,7 +315,7 @@ func (r *runInstance) info() RunInfo {
 }
 
 func (r *runInstance) emitState() {
-	r.m.app.bus.Emit(events.TopicRunState, r.info())
+	r.m.win.bus.Emit(events.TopicRunState, r.info())
 }
 
 func (r *runInstance) setState(state, message string) {

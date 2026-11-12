@@ -15,14 +15,14 @@ type SettingsService struct {
 
 // Effective returns the merged settings.
 func (s *SettingsService) Effective() settings.Settings {
-	return s.app.settings.Effective()
+	return s.app.mainWindow().settings.Effective()
 }
 
 // Origins maps each dotted key to the layer ("default", "user" or
 // "project") its value comes from.
 func (s *SettingsService) Origins() map[string]string {
 	out := map[string]string{}
-	for k, l := range s.app.settings.Origins() {
+	for k, l := range s.app.mainWindow().settings.Origins() {
 		out[k] = string(l)
 	}
 	return out
@@ -34,7 +34,7 @@ func (s *SettingsService) Set(layer string, key string, value any) error {
 	if l != settings.LayerUser && l != settings.LayerProject {
 		return fmt.Errorf("settings: cannot write layer %q", layer)
 	}
-	return s.app.settings.Set(l, key, value)
+	return s.app.mainWindow().settings.Set(l, key, value)
 }
 
 // SettingsPaths are the files behind each writable layer.
@@ -46,8 +46,8 @@ type SettingsPaths struct {
 // Paths returns the user and project settings files.
 func (s *SettingsService) Paths() SettingsPaths {
 	return SettingsPaths{
-		User:    s.app.settings.Path(settings.LayerUser),
-		Project: s.app.settings.Path(settings.LayerProject),
+		User:    s.app.mainWindow().settings.Path(settings.LayerUser),
+		Project: s.app.mainWindow().settings.Path(settings.LayerProject),
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *RecentService) Remove(path string) error {
 		return err
 	}
 	if list, err := s.app.recent.List(); err == nil {
-		s.app.bus.Emit(events.TopicRecentChanged, list)
+		s.app.appBus.Emit(events.TopicRecentChanged, list)
 	}
 	return nil
 }

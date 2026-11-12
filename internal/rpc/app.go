@@ -24,8 +24,6 @@ import (
 	"github.com/p4tin/goi/internal/paths"
 	"github.com/p4tin/goi/internal/recent"
 	"github.com/p4tin/goi/internal/runconfig"
-	"github.com/p4tin/goi/internal/settings"
-	"github.com/p4tin/goi/internal/vfs"
 )
 
 // Options are the parsed command-line options.
@@ -97,22 +95,14 @@ type App struct {
 	configDir    string
 	cacheDir     string
 
-	ctx      context.Context
-	bus      events.Bus
-	settings *settings.Store
-	recent   *recent.Store
-	cfgWatch vfs.Watcher // watches settings files; no content roots
+	ctx    context.Context
+	appBus events.Bus // app-wide topics, delivered to every window
+	recent *recent.Store
 
-	mu      sync.Mutex
-	session *session
+	winMu      sync.Mutex
+	windows    map[uint]*window
+	nextWindow uint
 
-	// focusFn brings this window forward when another process asks; set in
-	// Startup (tests override it).
-	focusFn func()
-	// titleFn sets the window title; set in Startup (tests override it).
-	titleFn func(string)
-
-	closing closeState
 	// quitAfterStart is set when the requested project is already open in
 	// another window, which was focused instead.
 	quitAfterStart bool
@@ -163,7 +153,8 @@ func NewApp(opts Options) (*App, error) {
 		configDir: configDir,
 		cacheDir:  cacheDir,
 		ctx:       context.Background(),
-		bus:       events.Nop{},
+		appBus:    events.Nop{},
+		windows:   map[uint]*window{},
 	}
 	a.appSvc = &AppService{app: a}
 	a.workspaceSvc = &WorkspaceService{app: a}
@@ -195,12 +186,7 @@ func (a *App) Services() []any {
 
 // Startup is the Wails OnStartup hook.
 func (a *App) Startup(ctx context.Context) {
-	a.focusFn = func() {
-		wruntime.WindowUnminimise(ctx)
-		wruntime.WindowShow(ctx)
-	}
-	a.titleFn = func(title string) { wruntime.WindowSetTitle(ctx, title) }
-	if err := a.start(ctx, wailsBus{ctx: ctx}); err != nil {
+	if err := a.start(ctx, wailsBus{ctx: ctx}, v2Window{ctx: ctx}); err != nil {
 		a.log.Error("startup", "err", err)
 	}
 	if a.quitAfterStart {
@@ -209,24 +195,22 @@ func (a *App) Startup(ctx context.Context) {
 	}
 }
 
-// start performs startup with an explicit bus (tests use a Recorder).
-func (a *App) start(ctx context.Context, bus events.Bus) error {
-	a.ctx, a.bus = ctx, bus
+// start performs startup with an explicit bus (tests use a Recorder) and
+// creates the first window. Under Wails v2 the app has exactly one window, so
+// the app bus and the window bus are the same.
+func (a *App) start(ctx context.Context, bus events.Bus, handle windowHandle) error {
+	a.ctx, a.appBus = ctx, bus
 	a.log.Info("startup", "version", paths.Version, "build", paths.BuildVersion, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
 
-	st, err := settings.Load(filepath.Join(a.configDir, "settings.toml"), "", bus)
-	if err != nil {
-		return fmt.Errorf("settings: %w", err)
-	}
-	a.settings = st
+	var err error
 	if a.recent, err = recent.Load(filepath.Join(a.configDir, "recent.json")); err != nil {
 		return fmt.Errorf("recent: %w", err)
 	}
-	if a.cfgWatch, err = vfs.NewWatcher(nil, vfs.MatchNone, events.Nop{}); err != nil {
-		a.log.Warn("config watcher", "err", err)
-	} else if _, err := st.Watch(a.cfgWatch); err != nil {
-		a.log.Warn("watch settings", "err", err)
+	w, err := a.addWindow(handle, bus)
+	if err != nil {
+		return err
 	}
+	st := w.settings
 
 	target := a.opts.ProjectPath
 	if target == "" && len(a.opts.Files) > 0 {
@@ -238,11 +222,11 @@ func (a *App) start(ctx context.Context, bus events.Bus) error {
 		}
 	}
 	if target != "" {
-		if err := a.openProject(target); errors.Is(err, ErrOpenElsewhere) {
+		if err := w.openProject(target); errors.Is(err, ErrOpenElsewhere) {
 			a.quitAfterStart = a.opts.ProjectPath != ""
 		} else if err != nil {
 			a.log.Warn("open project at startup", "path", target, "err", err)
-			a.notify("error", "Cannot open project", err.Error())
+			w.notify("error", "Cannot open project", err.Error())
 		}
 	}
 	a.startedUp.Store(true)
@@ -254,35 +238,31 @@ func (a *App) start(ctx context.Context, bus events.Bus) error {
 
 // Shutdown is the Wails OnShutdown hook.
 func (a *App) Shutdown(context.Context) {
-	a.mu.Lock()
-	s := a.session
-	a.session = nil
-	a.mu.Unlock()
-	if s != nil {
-		s.close(true)
-	}
-	if a.cfgWatch != nil {
-		a.cfgWatch.Close()
+	for _, w := range a.allWindows() {
+		a.removeWindow(w)
 	}
 	a.log.Info("shutdown")
 	a.closer.Close()
 }
 
-// current returns the open session or an error when none is open.
+// current returns the main window's session.
+//
+// Transitional (Wails v2 has one window): replaced by sessionFor(ctx).
 func (a *App) current() (*session, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.session == nil {
+	w := a.mainWindow()
+	if w == nil {
 		return nil, errNoProject
 	}
-	return a.session, nil
+	return w.current()
 }
+
+// openProject opens path in the main window. Transitional, like current.
+func (a *App) openProject(path string) error { return a.mainWindow().openProject(path) }
+
+// closeProject closes the main window's project. Transitional, like current.
+func (a *App) closeProject() error { return a.mainWindow().closeProject() }
 
 var errNoProject = errors.New("no project is open")
-
-func (a *App) notify(level, title, body string) {
-	a.bus.Emit(events.TopicNotify, events.Notification{ID: title, Level: level, Title: title, Body: body})
-}
 
 // AppInfo describes the running application.
 type AppInfo struct {
@@ -336,7 +316,7 @@ func (s *AppService) OpenFolderDialog() (string, error) {
 func (s *AppService) OpenProject(path string, newWindow bool) error {
 	_, err := s.app.current()
 	if newWindow || err == nil {
-		return s.app.openInOtherWindow(path)
+		return s.app.mainWindow().openInOtherWindow(path)
 	}
 	return s.app.openProject(path)
 }

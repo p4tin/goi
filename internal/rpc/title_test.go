@@ -8,7 +8,7 @@ import (
 func TestWindowTitleFollowsProject(t *testing.T) {
 	a, _ := started(t, "")
 	var titles []string
-	a.titleFn = func(s string) { titles = append(titles, s) }
+	a.mainWindow().handle = &fakeHandle{title: func(s string) { titles = append(titles, s) }}
 	root := module(t)
 
 	if err := a.openProject(root); err != nil {

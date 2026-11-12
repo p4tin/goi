@@ -62,7 +62,7 @@ func (a *App) OpenFile(path string) {
 	if err != nil {
 		if err := a.openProject(ProjectRootFor(abs)); err != nil {
 			a.log.Warn("open file", "path", abs, "err", err)
-			a.notify("error", "Cannot open file", err.Error())
+			a.mainWindow().notify("error", "Cannot open file", err.Error())
 			return
 		}
 		sess, _ = a.current()
@@ -71,7 +71,7 @@ func (a *App) OpenFile(path string) {
 		return
 	}
 	if _, ok := sess.contains(abs); ok {
-		a.bus.Emit(TopicOpenFile, OpenFileEvent{Path: abs})
+		a.mainWindow().bus.Emit(TopicOpenFile, OpenFileEvent{Path: abs})
 		return
 	}
 	root := ProjectRootFor(abs)

@@ -44,7 +44,7 @@ func waitLangStatus(t *testing.T, bus *events.Recorder, state string) LangStatus
 func TestLangMissingBinary(t *testing.T) {
 	withLang(t)
 	a, bus := started(t, "")
-	if err := a.settings.Set(settings.LayerUser, "gopls.path", filepath.Join(t.TempDir(), "nope")); err != nil {
+	if err := a.mainWindow().settings.Set(settings.LayerUser, "gopls.path", filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatal(err)
 	}
 	if err := a.openProject(module(t)); err != nil {
@@ -65,7 +65,7 @@ func TestLangMissingBinary(t *testing.T) {
 func TestLangDisabled(t *testing.T) {
 	withLang(t)
 	a, bus := started(t, "")
-	if err := a.settings.Set(settings.LayerUser, "gopls.enabled", false); err != nil {
+	if err := a.mainWindow().settings.Set(settings.LayerUser, "gopls.enabled", false); err != nil {
 		t.Fatal(err)
 	}
 	if err := a.openProject(module(t)); err != nil {

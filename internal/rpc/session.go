@@ -11,12 +11,11 @@ import (
 	"github.com/p4tin/goi/internal/instance"
 	"github.com/p4tin/goi/internal/journal"
 	"github.com/p4tin/goi/internal/recent"
-	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
 	"github.com/p4tin/goi/internal/workspace"
 )
 
-// session is the state of the project open in this window.
+// session is the state of the project open in a window.
 type session struct {
 	root    string
 	manager *workspace.Manager
@@ -25,6 +24,7 @@ type session struct {
 	lock    *instance.Lock
 	crashed bool
 	app     *App
+	win     *window // the window that owns the project; its bus carries the project's events
 	search  *searchIndex
 	lang    *langSession
 	runs    *runManager
@@ -38,7 +38,8 @@ type session struct {
 // startLangHook starts gopls for a new session; tests set it to nil.
 var startLangHook = startLang
 
-func (a *App) openProject(path string) error {
+func (w *window) openProject(path string) error {
+	a := w.app
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("open project: %w", err)
@@ -47,9 +48,9 @@ func (a *App) openProject(path string) error {
 		return fmt.Errorf("open project: %s is not a folder", abs)
 	}
 
-	a.mu.Lock()
-	open := a.session
-	a.mu.Unlock()
+	w.mu.Lock()
+	open := w.session
+	w.mu.Unlock()
 	if open != nil {
 		if open.root == abs {
 			return nil
@@ -57,7 +58,7 @@ func (a *App) openProject(path string) error {
 		return fmt.Errorf("open project: %s is already open in this window", open.root)
 	}
 
-	lock, err := a.acquireInstance(abs)
+	lock, err := w.acquireInstance(abs)
 	if err != nil {
 		return err
 	}
@@ -68,92 +69,85 @@ func (a *App) openProject(path string) error {
 		}
 	}()
 
-	if err := a.settings.SetProjectPath(workspace.SettingsPath(abs)); err != nil {
+	if err := w.settings.SetProjectPath(workspace.SettingsPath(abs)); err != nil {
 		a.log.Warn("project settings", "err", err)
 	}
-	excludes := a.settings.Effective().Project.Excludes
+	excludes := w.settings.Effective().Project.Excludes
 	matcher, err := vfs.NewMatcher(excludes)
 	if err != nil {
 		matcher = vfs.MatchNone
 	}
-	w, err := vfs.NewWatcher([]string{abs}, matcher, a.bus)
+	fw, err := vfs.NewWatcher([]string{abs}, matcher, w.bus)
 	if err != nil {
 		return fmt.Errorf("open project: watcher: %w", err)
 	}
 	m, err := workspace.Open(a.ctx, workspace.Options{
 		Root:     abs,
 		GOPATH:   filepath.SplitList(os.Getenv("GOPATH")),
-		Settings: a.settings,
-		Watcher:  w,
-		Bus:      a.bus,
+		Settings: w.settings,
+		Watcher:  fw,
+		Bus:      w.bus,
 		Log:      a.log,
 	})
 	if err != nil {
-		w.Close()
-		a.settings.SetProjectPath("")
+		fw.Close()
+		w.settings.SetProjectPath("")
 		return fmt.Errorf("open project: %w", err)
 	}
 	p := m.Project()
 	j, crashed, err := journal.Open(a.cacheDir, p.Hash)
 	if errors.Is(err, journal.ErrInUse) {
 		m.Close()
-		w.Close()
-		a.settings.SetProjectPath("")
+		fw.Close()
+		w.settings.SetProjectPath("")
 		return fmt.Errorf("open project: %s is already open in another Goi window", abs)
 	}
 	if err != nil {
 		a.log.Warn("journal", "err", err)
 	}
 
-	s := &session{root: abs, manager: m, watcher: w, journal: j, lock: lock, crashed: crashed, app: a}
-	s.search = startSearchIndex(a, m, w)
-	s.runs = startRuns(a, s, w)
-	s.debug = newDebugManager(a)
-	s.terms = newTermSession(a)
-	s.git = startGit(a, abs, w)
+	s := &session{root: abs, manager: m, watcher: fw, journal: j, lock: lock, crashed: crashed, app: a, win: w}
+	s.search = startSearchIndex(w, m, fw)
+	s.runs = startRuns(w, s, fw)
+	s.debug = newDebugManager(w)
+	s.terms = newTermSession(w)
+	s.git = startGit(w, abs, fw)
 	s.lint = newLintSession()
 	s.mod = &modSession{}
 	if startLangHook != nil {
-		s.lang = startLangHook(a, abs, w)
+		s.lang = startLangHook(w, abs, fw)
 	}
 	opened = true
-	a.mu.Lock()
-	a.session = s
-	a.mu.Unlock()
+	w.mu.Lock()
+	w.session = s
+	w.mu.Unlock()
 
 	if err := a.recent.Touch(recent.Entry{Path: abs, Name: p.Name, Kind: string(p.Kind)}); err != nil {
 		a.log.Warn("recent", "err", err)
 	} else if list, err := a.recent.List(); err == nil {
-		a.bus.Emit(events.TopicRecentChanged, list)
+		a.appBus.Emit(events.TopicRecentChanged, list)
 	}
 	a.log.Info("project opened", "root", abs, "kind", p.Kind, "crashed", crashed)
-	a.setTitle("Goi - " + p.Name)
-	a.bus.Emit(events.TopicWorkspaceChanged, p)
+	w.setTitle("Goi - " + p.Name)
+	w.bus.Emit(events.TopicWorkspaceChanged, p)
 	return nil
 }
 
-func (a *App) closeProject() error {
-	a.mu.Lock()
-	s := a.session
-	a.session = nil
-	a.mu.Unlock()
+func (w *window) closeProject() error {
+	w.mu.Lock()
+	s := w.session
+	w.session = nil
+	w.mu.Unlock()
 	if s == nil {
 		return errNoProject
 	}
 	s.close(true)
-	if err := a.settings.SetProjectPath(""); err != nil {
-		a.log.Warn("clear project settings", "err", err)
+	if err := w.settings.SetProjectPath(""); err != nil {
+		w.app.log.Warn("clear project settings", "err", err)
 	}
-	a.setTitle("Goi")
-	a.bus.Emit(events.TopicWorkspaceChanged, nil)
+	w.setTitle("Goi")
+	w.bus.Emit(events.TopicWorkspaceChanged, nil)
 	return nil
-}
-
-// setTitle sets the window title, if there is a window.
-func (a *App) setTitle(title string) {
-	if a.titleFn != nil {
-		a.titleFn(title)
-	}
 }
 
 // close releases the session. clean=true removes the crash journal.
@@ -235,13 +229,4 @@ func readFileOrEmpty(path string) (string, error) {
 		return "", nil
 	}
 	return string(b), err
-}
-
-// settingsLayerForProject picks the project layer when a project is open,
-// else the user layer.
-func (a *App) settingsLayerForProject() settings.Layer {
-	if _, err := a.current(); err == nil {
-		return settings.LayerProject
-	}
-	return settings.LayerUser
 }

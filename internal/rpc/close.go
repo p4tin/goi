@@ -33,7 +33,11 @@ type closeState struct {
 // the frontend to confirm, unless the close was already confirmed or this is
 // a repeated request within forceCloseWindow.
 func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
-	c := &a.closing
+	w := a.mainWindow()
+	if w == nil {
+		return false
+	}
+	c := &w.closing
 	if c.allow.Load() {
 		return false
 	}
@@ -47,7 +51,7 @@ func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
 		c.allow.Store(true)
 		return false
 	}
-	a.bus.Emit(TopicBeforeClose, nil)
+	w.bus.Emit(TopicBeforeClose, nil)
 	return true
 }
 
@@ -61,7 +65,7 @@ func (c *closeState) clock() time.Time {
 // ConfirmClose is called by the frontend once unsaved work is resolved; it
 // allows the pending close and quits.
 func (s *AppService) ConfirmClose() {
-	c := &s.app.closing
+	c := &s.app.mainWindow().closing
 	c.allow.Store(true)
 	if c.quitFn != nil {
 		c.quitFn(s.app.ctx)

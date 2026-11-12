@@ -342,7 +342,7 @@ func TestTerminalServiceRoundTrip(t *testing.T) {
 		t.Skip("uses /bin/sh")
 	}
 	a, bus := started(t, runModule(t))
-	a.settings.Set(settings.LayerUser, "terminal.shell", "/bin/sh")
+	a.mainWindow().settings.Set(settings.LayerUser, "terminal.shell", "/bin/sh")
 	info, err := a.termSvc.Open(100, 30)
 	if err != nil {
 		t.Fatal(err)

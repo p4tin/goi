@@ -36,7 +36,7 @@ func TestOpenInOtherWindowFocusesSelfForSameProject(t *testing.T) {
 	root := module(t)
 	a, _ := started(t, root)
 	var focused atomic.Int32
-	a.focusFn = func() { focused.Add(1) }
+	a.mainWindow().handle = &fakeHandle{focus: func() { focused.Add(1) }}
 	if err := a.appSvc.OpenProject(root, true); err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestStartupWithHeldProjectQuits(t *testing.T) {
 	var focused atomic.Int32
 	stop := holdLockAsOtherProcess(t, a.cacheDir, root, func() { focused.Add(1) })
 	defer stop()
-	if err := a.start(t.Context(), events.Nop{}); err != nil {
+	if err := a.start(t.Context(), events.Nop{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	defer a.Shutdown(t.Context())

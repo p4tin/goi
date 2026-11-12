@@ -38,13 +38,13 @@ func (s *SDKService) Select(goroot string) error {
 	if goroot == "" {
 		v = nil
 	}
-	return s.app.settings.Set(s.app.settingsLayerForProject(), "go.goroot", v)
+	return s.app.mainWindow().settings.Set(s.app.mainWindow().settingsLayerForProject(), "go.goroot", v)
 }
 
 var errNoSDK = errors.New("no Go SDK found; install Go or choose an SDK in settings")
 
-func (a *App) resolveSDK(ctx context.Context) (gosdk.SDK, error) {
-	if root := a.settings.Effective().Go.GOROOT; root != "" {
+func (w *window) resolveSDK(ctx context.Context) (gosdk.SDK, error) {
+	if root := w.settings.Effective().Go.GOROOT; root != "" {
 		return gosdk.Validate(root)
 	}
 	sdks := gosdk.Discover(ctx)
@@ -55,17 +55,23 @@ func (a *App) resolveSDK(ctx context.Context) (gosdk.SDK, error) {
 	return sdks[0], nil
 }
 
-func (a *App) runner(ctx context.Context) (gosdk.Runner, error) {
-	sdk, err := a.resolveSDK(ctx)
+// runner is the go command runner for the main window. Transitional, like
+// App.current.
+func (a *App) runner(ctx context.Context) (gosdk.Runner, error) { return a.mainWindow().runner(ctx) }
+
+// runner returns the go command runner for the window's SDK, go settings and
+// project.
+func (w *window) runner(ctx context.Context) (gosdk.Runner, error) {
+	sdk, err := w.resolveSDK(ctx)
 	if err != nil {
 		return gosdk.Runner{}, err
 	}
-	g := a.settings.Effective().Go
+	g := w.settings.Effective().Go
 	r := gosdk.Runner{
 		SDK: sdk,
 		Env: gosdk.Env{Vars: g.Env, Tags: g.Tags, GOOS: g.GOOS, GOARCH: g.GOARCH, CGO: g.CGO, Vendor: g.Vendor},
 	}
-	if sess, err := a.current(); err == nil {
+	if sess, err := w.current(); err == nil {
 		r.Dir = sess.root
 	}
 	return r, nil
