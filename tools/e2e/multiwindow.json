@@ -1,0 +1,23 @@
+{
+  "_comment": "Two windows in one Goi process (Wails v3 server build; each tab is a window). Build: go build -tags server -o bin/goi-server . ; sample: tools/e2e/multiwindow-sample.sh /tmp/goi-mw ; edit the paths below if you use another dir.",
+  "server": {
+    "cmd": ["bin/goi-server", "--project", "/tmp/goi-mw/a"],
+    "env": { "GOI_HOME": "/tmp/goi-mw/home" }
+  },
+  "url": "{{server}}/",
+  "out": "/tmp/goi-e2e-mw",
+  "initialWait": 4000,
+  "steps": [
+    { "label": "A: tree shows only_a.go", "eval": "[...document.querySelectorAll('.tree-row')].map(e=>e.textContent.trim()).filter(t=>t.endsWith('.go'))" },
+    { "newTab": "{{server}}/", "initialWait": 4000 },
+    { "label": "second window starts on Welcome", "eval": "!!document.querySelector('.recent-list') && getComputedStyle(document.querySelector('.welcome, [class*=welcome]')).display !== 'none'" },
+    { "label": "open b from the recent list", "eval": "(() => { const r=[...document.querySelectorAll('.recent-row')].find(e=>e.querySelector('.recent-name')?.textContent==='b'); r?.click(); return !!r; })()" },
+    { "wait": 2500 },
+    { "label": "B: tree shows only_b.go", "eval": "[...document.querySelectorAll('.tree-row')].map(e=>e.textContent.trim()).filter(t=>t.endsWith('.go'))" },
+    { "shot": "b.png" },
+    { "tab": 0 },
+    { "wait": 1000 },
+    { "label": "A unchanged: still only_a.go", "eval": "[...document.querySelectorAll('.tree-row')].map(e=>e.textContent.trim()).filter(t=>t.endsWith('.go'))" },
+    { "shot": "a.png" }
+  ]
+}
