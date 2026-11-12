@@ -1,0 +1,17 @@
+{
+	"fixed": {
+		"file_version": "0.1.2",
+		"product_version": "0.1.2"
+	},
+	"info": {
+		"0409": {
+			"FileVersion": "0.1.2",
+			"ProductVersion": "0.1.2",
+			"CompanyName": "Goi",
+			"FileDescription": "A cross-platform Go IDE",
+			"LegalCopyright": "Copyright © 2026 Goi contributors",
+			"ProductName": "Goi",
+			"Comments": "A cross-platform Go IDE"
+		}
+	}
+}
