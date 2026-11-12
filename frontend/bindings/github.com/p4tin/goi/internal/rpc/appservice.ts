@@ -75,7 +75,8 @@ export function LoadLayout(): $CancellablePromise<string> {
 /**
  * NewProject creates parentDir/name with a go.mod for modulePath and a
  * main.go, and returns the new directory. It uses `go mod init` when a Go SDK
- * is available and writes a minimal go.mod otherwise.
+ * is available and writes a minimal go.mod otherwise. The SDK and go settings
+ * are the calling window's.
  */
 export function NewProject(parentDir: string, name: string, modulePath: string): $CancellablePromise<string> {
     return $Call.ByID(46599628, parentDir, name, modulePath);
@@ -90,7 +91,7 @@ export function NewWindow(): $CancellablePromise<void> {
 
 /**
  * OpenFolderDialog shows the native folder picker and returns the chosen
- * path, or "" if cancelled.
+ * path, or "" if cancelled. The dialog is attached to the calling window.
  */
 export function OpenFolderDialog(): $CancellablePromise<string> {
     return $Call.ByID(4001280275);

@@ -19,7 +19,7 @@ import * as settings$0 from "../settings/models.js";
 import * as $models from "./models.js";
 
 /**
- * Effective returns the merged settings.
+ * Effective returns the calling window's merged settings.
  */
 export function Effective(): $CancellablePromise<settings$0.Settings> {
     return $Call.ByID(1503104628);
@@ -34,14 +34,15 @@ export function Origins(): $CancellablePromise<{ [_ in string]?: string } | null
 }
 
 /**
- * Paths returns the user and project settings files.
+ * Paths returns the calling window's user and project settings files.
  */
 export function Paths(): $CancellablePromise<$models.SettingsPaths> {
     return $Call.ByID(3268854605);
 }
 
 /**
- * Set writes key in layer ("user" or "project"). A null value removes it.
+ * Set writes key in layer ("user" or "project") of the calling window's
+ * settings. A null value removes it.
  */
 export function Set(layer: string, key: string, value: any): $CancellablePromise<void> {
     return $Call.ByID(3455775977, layer, key, value);

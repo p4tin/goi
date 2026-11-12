@@ -19,7 +19,7 @@ import * as gosyntax$0 from "../gosyntax/models.js";
 import * as $models from "./models.js";
 
 /**
- * Format formats content using the save.format setting.
+ * Format formats content using the calling window's save.format setting.
  */
 export function Format(path: string, content: string): $CancellablePromise<$models.FormatResult> {
     return $Call.ByID(1416133164, path, content);

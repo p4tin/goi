@@ -50,7 +50,8 @@ export function List(dir: string): $CancellablePromise<vfs$0.Entry[] | null> {
 }
 
 /**
- * Read loads a text file using the editor size limits from settings.
+ * Read loads a text file using the editor size limits from the calling
+ * window's settings.
  */
 export function Read(path: string): $CancellablePromise<$models.OpenedFile> {
     return $Call.ByID(745970616, path);

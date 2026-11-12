@@ -59,10 +59,6 @@ func (w *window) resolveSDK(ctx context.Context) (gosdk.SDK, error) {
 	return sdks[0], nil
 }
 
-// runner is the go command runner for the main window. Transitional, like
-// App.current.
-func (a *App) runner(ctx context.Context) (gosdk.Runner, error) { return a.mainWindow().runner(ctx) }
-
 // runner returns the go command runner for the window's SDK, go settings and
 // project.
 func (w *window) runner(ctx context.Context) (gosdk.Runner, error) {

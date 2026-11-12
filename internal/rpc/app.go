@@ -236,23 +236,6 @@ func (a *App) Shutdown(context.Context) {
 	a.closer.Close()
 }
 
-// current returns the main window's session.
-//
-// Transitional (Wails v2 has one window): replaced by sessionFor(ctx).
-func (a *App) current() (*session, error) {
-	w := a.mainWindow()
-	if w == nil {
-		return nil, errNoProject
-	}
-	return w.current()
-}
-
-// openProject opens path in the main window. Transitional, like current.
-func (a *App) openProject(path string) error { return a.mainWindow().openProject(path) }
-
-// closeProject closes the main window's project. Transitional, like current.
-func (a *App) closeProject() error { return a.mainWindow().closeProject() }
-
 var errNoProject = errors.New("no project is open")
 
 // AppInfo describes the running application.

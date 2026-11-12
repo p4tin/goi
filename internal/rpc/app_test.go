@@ -382,3 +382,15 @@ func (h *fakeHandle) SetTitle(s string) {
 }
 
 func (h *fakeHandle) Close() {}
+
+// mainWindow returns the first window, the one started() creates.
+func (a *App) mainWindow() *window { return a.allWindows()[0] }
+
+// current returns the first window's session.
+func (a *App) current() (*session, error) { return a.mainWindow().current() }
+
+// openProject opens path in the first window.
+func (a *App) openProject(path string) error { return a.mainWindow().openProject(path) }
+
+// closeProject closes the first window's project.
+func (a *App) closeProject() error { return a.mainWindow().closeProject() }

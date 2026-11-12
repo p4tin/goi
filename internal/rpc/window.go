@@ -102,12 +102,6 @@ func (a *App) allWindows() []*window {
 	return out
 }
 
-// mainWindow returns the window bound calls act on until they take a
-// context: the focused window.
-//
-// Transitional: replaced by windowFor(ctx).
-func (a *App) mainWindow() *window { return a.focusedWindow() }
-
 type windowCtxKey struct{}
 
 // withWindow returns a context whose bound calls act on w.
