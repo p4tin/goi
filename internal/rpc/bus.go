@@ -1,28 +1,22 @@
+//go:build !server
+
 package rpc
 
 import (
-	"context"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/p4tin/goi/internal/events"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// wailsBus publishes core events to the frontend through Wails events.
-type wailsBus struct {
-	ctx context.Context
+// windowBus delivers a window's events to that window only.
+type windowBus struct {
+	w application.Window
 }
 
-func (b wailsBus) Emit(topic string, payload any) {
-	runtime.EventsEmit(b.ctx, topic, payload)
+func newWindowBus(w application.Window) events.Bus { return windowBus{w: w} }
+
+func (b windowBus) Emit(topic string, payload any) {
+	b.w.DispatchWailsEvent(&application.CustomEvent{Name: topic, Data: payload})
 }
 
-// v2Window is the single Wails v2 window.
-type v2Window struct {
-	ctx context.Context
-}
-
-func (h v2Window) Focus() {
-	runtime.WindowUnminimise(h.ctx)
-	runtime.WindowShow(h.ctx)
-}
-
-func (h v2Window) SetTitle(title string) { runtime.WindowSetTitle(h.ctx, title) }
+// lazyWindow registers windows Goi didn't create; only server mode has them.
+func lazyWindow(*App, application.Window) *window { return nil }

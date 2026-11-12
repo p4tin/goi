@@ -89,15 +89,12 @@ func TestStartupOpensProjectAndRecordsRecent(t *testing.T) {
 		t.Error("no workspace.changed event")
 	}
 	// A second project goes to a new window, never this one.
-	var launched string
-	orig := launchNewWindow
-	launchNewWindow = func(p string) error { launched = p; return nil }
-	defer func() { launchNewWindow = orig }()
+	recs := withWindows(a)
 	other := t.TempDir()
-	if err := a.appSvc.OpenProject(other, false); err != nil || launched != other {
-		t.Errorf("second project: err=%v launched=%q", err, launched)
+	if err := a.appSvc.OpenProject(other, false); err != nil || len(*recs) != 1 || a.windowWithProject(other) == a.allWindows()[0] {
+		t.Errorf("second project: err=%v new windows=%d", err, len(*recs))
 	}
-	if err := a.openProject(other); err == nil {
+	if err := a.allWindows()[0].openProject(other); err == nil {
 		t.Error("openProject with a project already open: want error")
 	}
 }
@@ -273,13 +270,12 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	if err := a1.appSvc.JournalPut(file, "module changed\n", time.Now().Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
-	// Simulate a crash: release the instance lock and pretend the journal's
-	// owner died by rewriting session.lock with a dead pid.
+	// Simulate a crash: pretend the journal's owner died by rewriting
+	// session.lock with a dead pid.
 	w1 := a1.mainWindow()
 	w1.mu.Lock()
 	sess := w1.session
 	w1.mu.Unlock()
-	sess.lock.Release()
 	sess.watcher.Close()
 	sess.manager.Close()
 	// A dead process holds no files; Windows can't remove open ones.
@@ -379,3 +375,5 @@ func (h *fakeHandle) SetTitle(s string) {
 		h.title(s)
 	}
 }
+
+func (h *fakeHandle) Close() {}

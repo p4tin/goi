@@ -1,44 +1,65 @@
 // Typed wrappers over the generated Wails bindings. Application code imports
-// from here, never from wailsjs/ directly.
+// from here, never from bindings/ directly.
 
-import * as AppService from '../../wailsjs/go/rpc/AppService';
-import * as DebugService from '../../wailsjs/go/rpc/DebugService';
-import * as EditorService from '../../wailsjs/go/rpc/EditorService';
-import * as FileService from '../../wailsjs/go/rpc/FileService';
-import * as GitService from '../../wailsjs/go/rpc/GitService';
-import * as LangService from '../../wailsjs/go/rpc/LangService';
-import * as LintService from '../../wailsjs/go/rpc/LintService';
-import * as MenuService from '../../wailsjs/go/rpc/MenuService';
-import * as ModService from '../../wailsjs/go/rpc/ModService';
-import * as RecentService from '../../wailsjs/go/rpc/RecentService';
-import * as RunService from '../../wailsjs/go/rpc/RunService';
-import * as SDKService from '../../wailsjs/go/rpc/SDKService';
-import * as SearchService from '../../wailsjs/go/rpc/SearchService';
-import * as SettingsService from '../../wailsjs/go/rpc/SettingsService';
-import * as TerminalService from '../../wailsjs/go/rpc/TerminalService';
-import * as WorkspaceService from '../../wailsjs/go/rpc/WorkspaceService';
-import { BrowserOpenURL, EventsOn } from '../../wailsjs/runtime/runtime';
-import type { gopls, gosdk, index, journal, lsp, recent, rpc, runconfig, settings, vfs, workspace } from '../../wailsjs/go/models';
+import { Browser, Events } from '@wailsio/runtime';
+import {
+  AppService,
+  DebugService,
+  EditorService,
+  FileService,
+  GitService,
+  LangService,
+  LintService,
+  MenuService,
+  ModService,
+  RecentService,
+  RunService,
+  SDKService,
+  SearchService,
+  SettingsService,
+  TerminalService,
+  WorkspaceService,
+} from '../../bindings/github.com/p4tin/goi/internal/rpc';
+import type * as gopls from '../../bindings/github.com/p4tin/goi/internal/gopls/models';
+import type * as gosdk from '../../bindings/github.com/p4tin/goi/internal/gosdk/models';
+import type * as index from '../../bindings/github.com/p4tin/goi/internal/index/models';
+import type * as journal from '../../bindings/github.com/p4tin/goi/internal/journal/models';
+import type * as lsp from '../../bindings/github.com/p4tin/goi/internal/lsp/models';
+import type * as recent from '../../bindings/github.com/p4tin/goi/internal/recent/models';
+import type * as rpc from '../../bindings/github.com/p4tin/goi/internal/rpc/models';
+import type * as runconfig from '../../bindings/github.com/p4tin/goi/internal/runconfig/models';
+import type * as settings from '../../bindings/github.com/p4tin/goi/internal/settings/models';
+import type * as vfs from '../../bindings/github.com/p4tin/goi/internal/vfs/models';
+import type * as workspace from '../../bindings/github.com/p4tin/goi/internal/workspace/models';
+
+// The generated types allow null for every Go slice and map. Bound methods
+// never return nil ones (see CLAUDE.md), so the wrappers expose them as
+// non-null.
+type NonNullFields<T> = { [K in keyof T]: Exclude<T[K], null> };
+const list = <T>(p: Promise<T[] | null>): Promise<T[]> => p.then((v) => v ?? []);
+const dict = <T>(p: Promise<{ [k: string]: T | undefined } | null>): Promise<Record<string, T>> =>
+  p.then((v) => (v ?? {}) as Record<string, T>);
 
 export type AppInfo = rpc.AppInfo;
-export type Project = workspace.Project;
+export type Project = NonNullFields<workspace.Project>;
 export type ProjectKind = 'workspace' | 'module' | 'multi-module' | 'gopath' | 'folder';
 export type Module = workspace.Module;
 export type ParseError = workspace.ParseError;
 export type FileEntry = vfs.Entry;
-export type FileMeta = vfs.FileMeta;
-export type OpenedFile = rpc.OpenedFile;
+// Go string enums are generated as TS enums; the frontend uses their values.
+export type FileMeta = Omit<vfs.FileMeta, 'mode'> & { mode: `${vfs.OpenMode}` };
+export type OpenedFile = Omit<rpc.OpenedFile, 'meta'> & { meta: FileMeta };
 export type RecentEntry = recent.Entry;
 export type JournalEntry = journal.Entry;
 export type SDK = gosdk.SDK;
 export type SDKStatus = rpc.SDKStatus;
 export type GoEnvSummary = rpc.GoEnvSummary;
-export type Settings = settings.Settings;
+export type Settings = Omit<settings.Settings, 'keys'> & { keys: Record<string, string[]> };
 export type SettingsLayer = 'default' | 'user' | 'project';
 export type SettingsPaths = rpc.SettingsPaths;
 export type FileMatch = index.Match;
 export type IndexStatus = rpc.IndexStatus;
-export type FileSearchResult = rpc.FileSearchResult;
+export type FileSearchResult = NonNullFields<rpc.FileSearchResult>;
 
 export const Topics = {
   fsChanged: 'fs.changed',
@@ -99,12 +120,51 @@ export interface SettingsChanged {
 
 /** Opens an http(s) URL in the system browser; other schemes are ignored. */
 export function openExternal(url: string): void {
-  if (/^https?:\/\//i.test(url)) BrowserOpenURL(url);
+  if (/^https?:\/\//i.test(url)) void Browser.OpenURL(url);
+}
+
+// This window's backend id (0 until waitForWindow resolves).
+let windowId = 0;
+
+/**
+ * Waits until the backend has registered this window and opened its startup
+ * project, and returns the window's id. Call before anything else at boot.
+ */
+export async function waitForWindow(timeoutMs = 5000): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const id = await AppService.WindowID();
+    if (id) return (windowId = id);
+    if (Date.now() > deadline) throw new Error('backend did not register this window');
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+interface Envelope {
+  _w: number;
+  d: unknown;
+}
+
+function isEnvelope(v: unknown): v is Envelope {
+  return typeof v === 'object' && v !== null && '_w' in v && 'd' in v;
+}
+
+/**
+ * Extracts an event's payload. Server builds (E2E) broadcast every event to
+ * all windows wrapped in an envelope naming the window; returns undefined
+ * with skip set for another window's event.
+ */
+export function eventPayload(data: unknown, myWindow = windowId): { skip: boolean; payload: unknown } {
+  if (!isEnvelope(data)) return { skip: false, payload: data };
+  return { skip: myWindow !== 0 && data._w !== myWindow, payload: data.d };
 }
 
 /** Subscribes to a backend topic; returns an unsubscribe function. */
 export function on<T = unknown>(topic: Topic, fn: (payload: T) => void): () => void {
-  return EventsOn(topic, (payload: T) => fn(payload));
+  return Events.On(topic, (ev) => {
+    const { skip, payload } = eventPayload(ev.data);
+    if (!skip) fn(payload as T);
+  });
 }
 
 export const app = {
@@ -112,7 +172,7 @@ export const app = {
   openFolderDialog: (): Promise<string> => AppService.OpenFolderDialog(),
   openProject: (path: string, newWindow = false): Promise<void> => AppService.OpenProject(path, newWindow),
   closeProject: (): Promise<void> => AppService.CloseProject(),
-  pendingRestore: (): Promise<JournalEntry[]> => AppService.PendingRestore(),
+  pendingRestore: (): Promise<JournalEntry[]> => list(AppService.PendingRestore()),
   journalPut: (path: string, content: string, baseModTime: string): Promise<void> =>
     AppService.JournalPut(path, content, baseModTime),
   journalDrop: (path: string): Promise<void> => AppService.JournalDrop(path),
@@ -130,6 +190,8 @@ export const app = {
   setAppearance: (theme: string): Promise<void> => AppService.SetAppearance(theme),
   /** Allows a close the backend prevented (after unsaved work is resolved). */
   confirmClose: (): Promise<void> => AppService.ConfirmClose(),
+  cancelClose: (): Promise<void> => AppService.CancelClose(),
+  newWindow: (): Promise<void> => AppService.NewWindow(),
   /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */
   newProject: (parentDir: string, name: string, modulePath: string): Promise<string> =>
     AppService.NewProject(parentDir, name, modulePath),
@@ -157,19 +219,20 @@ export const menuApi = {
 
 export const workspaceApi = {
   /** The open project, or null on the Welcome screen. */
-  project: async (): Promise<Project | null> => (await WorkspaceService.Project()) ?? null,
+  project: async (): Promise<Project | null> => ((await WorkspaceService.Project()) as Project | null) ?? null,
   addContentRoot: (path: string): Promise<void> => WorkspaceService.AddContentRoot(path),
   removeContentRoot: (path: string): Promise<void> => WorkspaceService.RemoveContentRoot(path),
   setExcludes: (globs: string[]): Promise<void> => WorkspaceService.SetExcludes(globs),
   sdkStatus: (): Promise<SDKStatus> => WorkspaceService.SDKStatus(),
-  goEnv: (): Promise<Record<string, string>> => WorkspaceService.GoEnv(),
+  goEnv: (): Promise<Record<string, string>> => dict(WorkspaceService.GoEnv()),
   goEnvSummary: (): Promise<GoEnvSummary> => WorkspaceService.GoEnvSummary(),
 };
 
 export const files = {
-  list: (dir: string): Promise<FileEntry[]> => FileService.List(dir),
-  read: (path: string): Promise<OpenedFile> => FileService.Read(path),
-  write: (path: string, content: string, meta: FileMeta): Promise<FileMeta> => FileService.Write(path, content, meta),
+  list: (dir: string): Promise<FileEntry[]> => list(FileService.List(dir)),
+  read: (path: string): Promise<OpenedFile> => FileService.Read(path) as Promise<OpenedFile>,
+  write: (path: string, content: string, meta: FileMeta): Promise<FileMeta> =>
+    FileService.Write(path, content, meta as vfs.FileMeta) as Promise<FileMeta>,
   create: (path: string, isDir: boolean, content = ''): Promise<void> => FileService.Create(path, isDir, content),
   createGoFile: (dir: string, name: string): Promise<string> => FileService.CreateGoFile(dir, name),
   rename: (from: string, to: string): Promise<void> => FileService.Rename(from, to),
@@ -179,13 +242,13 @@ export const files = {
 };
 
 export const sdk = {
-  discover: (): Promise<SDK[]> => SDKService.Discover(),
+  discover: (): Promise<SDK[]> => list(SDKService.Discover()),
   validate: (goroot: string): Promise<SDK> => SDKService.Validate(goroot),
   select: (goroot: string): Promise<void> => SDKService.Select(goroot),
 };
 
 export const settingsApi = {
-  effective: (): Promise<Settings> => SettingsService.Effective(),
+  effective: (): Promise<Settings> => SettingsService.Effective() as Promise<Settings>,
   origins: (): Promise<Record<string, SettingsLayer>> =>
     SettingsService.Origins() as Promise<Record<string, SettingsLayer>>,
   set: (layer: 'user' | 'project', key: string, value: unknown): Promise<void> =>
@@ -194,7 +257,7 @@ export const settingsApi = {
 };
 
 export const recentApi = {
-  list: (): Promise<RecentEntry[]> => RecentService.List(),
+  list: (): Promise<RecentEntry[]> => list(RecentService.List()),
   remove: (path: string): Promise<void> => RecentService.Remove(path),
 };
 
@@ -230,7 +293,7 @@ export interface FindResult {
 export const search = {
   /** Fuzzy file search; recent = absolute paths, most recent first. */
   files: (query: string, limit = 50, recent: string[] = []): Promise<FileSearchResult> =>
-    SearchService.Files(query, limit, recent),
+    SearchService.Files(query, limit, recent) as Promise<FileSearchResult>,
   findInPath: (q: FindQuery): Promise<FindResult> =>
     SearchService.FindInPath(q as unknown as rpc.FindQuery) as unknown as Promise<FindResult>,
   /** Replaces in files that are not open; returns the replacement count. */
@@ -531,7 +594,7 @@ export const run = {
   configs: (): Promise<RunConfig[]> => cast(RunService.Configs()),
   saveConfig: (c: RunConfig, oldName: string): Promise<RunConfig> => cast(RunService.SaveConfig(toGoConfig(c), oldName)),
   deleteConfig: (name: string): Promise<void> => RunService.DeleteConfig(name),
-  validate: (c: RunConfig): Promise<string[]> => RunService.Validate(toGoConfig(c)),
+  validate: (c: RunConfig): Promise<string[]> => list(RunService.Validate(toGoConfig(c))),
   contextConfig: (req: ContextRequest): Promise<RunConfig> => cast(RunService.ContextConfig(req as rpc.ContextRequest)),
   addTemporary: (c: RunConfig): Promise<RunConfig> => cast(RunService.AddTemporary(toGoConfig(c))),
   run: (name: string, debug: boolean): Promise<string> => RunService.Run(name, debug),
@@ -664,7 +727,7 @@ export const debug = {
   runToCursor: (id: string, threadId: number, path: string, line: number): Promise<void> => DebugService.RunToCursor(id, threadId, path, line),
   pause: (id: string, threadId: number): Promise<void> => DebugService.Pause(id, threadId),
   stop: (id: string): Promise<void> => DebugService.Stop(id),
-  sessions: (): Promise<string[]> => DebugService.Sessions(),
+  sessions: (): Promise<string[]> => list(DebugService.Sessions()),
 };
 
 // ---- Terminal (M3)
@@ -827,7 +890,7 @@ export const gitApi = {
   commitFiles: (hash: string): Promise<GitChangedFile[]> => cast(GitService.CommitFiles(hash)),
   blame: (path: string, contents: string): Promise<GitBlameLine[]> => cast(GitService.Blame(path, contents)),
   addToGitignore: (paths: string[]): Promise<void> => GitService.AddToGitignore(paths),
-  remotes: (): Promise<string[]> => GitService.Remotes(),
+  remotes: (): Promise<string[]> => list(GitService.Remotes()),
   fetch: (): Promise<string> => GitService.Fetch(),
   pull: (): Promise<string> => GitService.Pull(),
   push: (force = false): Promise<string> => GitService.Push(force),
@@ -864,6 +927,6 @@ export const lintApi = {
 // ---- go.mod support (M4)
 
 export const modApi = {
-  versions: (module: string): Promise<string[]> => ModService.Versions(module),
-  modules: (prefix: string): Promise<string[]> => ModService.Modules(prefix),
+  versions: (module: string): Promise<string[]> => list(ModService.Versions(module)),
+  modules: (prefix: string): Promise<string[]> => list(ModService.Modules(prefix)),
 };

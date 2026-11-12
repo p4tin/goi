@@ -6,3 +6,9 @@ frontend/dist
 .claude/worktrees/
 .idea/
 .goi-home/
+bin/
+build/linux/goi.desktop
+build/linux/appimage/build/
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+wails_windows_*.syso
+frontend/package.json.md5

@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -8,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
@@ -110,7 +109,10 @@ func (s *FileService) Reveal(path string) error {
 
 // CopyPath puts path on the clipboard.
 func (s *FileService) CopyPath(path string) error {
-	return wruntime.ClipboardSetText(s.app.ctx, path)
+	if s.app.wapp == nil || !s.app.wapp.Clipboard.SetText(path) {
+		return errors.New("could not set the clipboard")
+	}
+	return nil
 }
 
 // isSettingsFile reports whether path is the user or project settings file,

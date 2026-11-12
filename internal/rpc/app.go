@@ -14,8 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/wailsapp/wails/v2/pkg/logger"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/p4tin/goi/internal/appearance"
 	"github.com/p4tin/goi/internal/applog"
@@ -37,6 +36,18 @@ type Options struct {
 // ParseArgs parses Goi's command-line arguments. Unknown flags (for example
 // ones injected by the OS launcher) are ignored rather than fatal.
 func ParseArgs(args []string) (Options, error) {
+	cwd, _ := os.Getwd()
+	return parseArgsIn(args, cwd)
+}
+
+// parseArgsIn parses args with relative paths resolved against cwd.
+func parseArgsIn(args []string, cwd string) (Options, error) {
+	abs := func(p string) (string, error) {
+		if !filepath.IsAbs(p) && cwd != "" {
+			p = filepath.Join(cwd, p)
+		}
+		return filepath.Abs(p)
+	}
 	fs := flag.NewFlagSet("goi", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	project := fs.String("project", "", "project folder to open")
@@ -60,14 +71,14 @@ func ParseArgs(args []string) (Options, error) {
 	}
 	opts := Options{}
 	if *project != "" {
-		abs, err := filepath.Abs(*project)
+		abs, err := abs(*project)
 		if err != nil {
 			return Options{}, fmt.Errorf("project path: %w", err)
 		}
 		opts.ProjectPath = abs
 	}
 	for _, p := range positional {
-		abs, err := filepath.Abs(p)
+		abs, err := abs(p)
 		if err != nil {
 			continue
 		}
@@ -101,11 +112,23 @@ type App struct {
 
 	winMu      sync.Mutex
 	windows    map[uint]*window
+	byNative   map[uint]*window // Wails window ID → window
 	nextWindow uint
 
-	// quitAfterStart is set when the requested project is already open in
-	// another window, which was focused instead.
-	quitAfterStart bool
+	// wapp is the Wails application (nil in tests); icon is the Linux
+	// window icon.
+	wapp *application.App
+	icon []byte
+	// makeWindow creates a native window and its bus; tests replace it.
+	makeWindow func() (windowHandle, events.Bus)
+	// quitFn quits the application; tests replace it.
+	quitFn func()
+
+	menuMu sync.Mutex
+	menu   []menuTop // the menu bar, for windows opened later
+
+	quitRequested atomic.Bool // a quit is closing the windows one by one
+	quitting      atomic.Bool // every window closed; let the quit through
 
 	appSvc       *AppService
 	workspaceSvc *WorkspaceService
@@ -155,6 +178,12 @@ func NewApp(opts Options) (*App, error) {
 		ctx:       context.Background(),
 		appBus:    events.Nop{},
 		windows:   map[uint]*window{},
+		byNative:  map[uint]*window{},
+	}
+	a.quitFn = func() {
+		if a.wapp != nil {
+			a.wapp.Quit()
+		}
 	}
 	a.appSvc = &AppService{app: a}
 	a.workspaceSvc = &WorkspaceService{app: a}
@@ -176,67 +205,29 @@ func NewApp(opts Options) (*App, error) {
 	return a, nil
 }
 
-// Logger returns the Wails logger adapter.
-func (a *App) Logger() logger.Logger { return wailsLogger{log: a.log} }
-
-// Services returns the structs to bind to the frontend.
-func (a *App) Services() []any {
-	return []any{a.appSvc, a.workspaceSvc, a.fileSvc, a.sdkSvc, a.settingsSvc, a.recentSvc, a.searchSvc, a.editorSvc, a.menuSvc, a.langSvc, a.runSvc, a.debugSvc, a.termSvc, a.gitSvc, a.lintSvc, a.modSvc}
+// services returns the services to bind to the frontend.
+func (a *App) services() []application.Service {
+	return []application.Service{
+		application.NewService(a.appSvc),
+		application.NewService(a.workspaceSvc),
+		application.NewService(a.fileSvc),
+		application.NewService(a.sdkSvc),
+		application.NewService(a.settingsSvc),
+		application.NewService(a.recentSvc),
+		application.NewService(a.searchSvc),
+		application.NewService(a.editorSvc),
+		application.NewService(a.menuSvc),
+		application.NewService(a.langSvc),
+		application.NewService(a.runSvc),
+		application.NewService(a.debugSvc),
+		application.NewService(a.termSvc),
+		application.NewService(a.gitSvc),
+		application.NewService(a.lintSvc),
+		application.NewService(a.modSvc),
+	}
 }
 
-// Startup is the Wails OnStartup hook.
-func (a *App) Startup(ctx context.Context) {
-	if err := a.start(ctx, wailsBus{ctx: ctx}, v2Window{ctx: ctx}); err != nil {
-		a.log.Error("startup", "err", err)
-	}
-	if a.quitAfterStart {
-		a.log.Info("project already open in another window; focused it and quitting")
-		wruntime.Quit(ctx)
-	}
-}
-
-// start performs startup with an explicit bus (tests use a Recorder) and
-// creates the first window. Under Wails v2 the app has exactly one window, so
-// the app bus and the window bus are the same.
-func (a *App) start(ctx context.Context, bus events.Bus, handle windowHandle) error {
-	a.ctx, a.appBus = ctx, bus
-	a.log.Info("startup", "version", paths.Version, "build", paths.BuildVersion, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
-
-	var err error
-	if a.recent, err = recent.Load(filepath.Join(a.configDir, "recent.json")); err != nil {
-		return fmt.Errorf("recent: %w", err)
-	}
-	w, err := a.addWindow(handle, bus)
-	if err != nil {
-		return err
-	}
-	st := w.settings
-
-	target := a.opts.ProjectPath
-	if target == "" && len(a.opts.Files) > 0 {
-		target = ProjectRootFor(a.opts.Files[0])
-	}
-	if target == "" && st.Effective().Startup.ReopenLastProject {
-		if list, err := a.recent.List(); err == nil && len(list) > 0 && list[0].Exists {
-			target = list[0].Path
-		}
-	}
-	if target != "" {
-		if err := w.openProject(target); errors.Is(err, ErrOpenElsewhere) {
-			a.quitAfterStart = a.opts.ProjectPath != ""
-		} else if err != nil {
-			a.log.Warn("open project at startup", "path", target, "err", err)
-			w.notify("error", "Cannot open project", err.Error())
-		}
-	}
-	a.startedUp.Store(true)
-	for _, f := range append(a.opts.Files, a.drainPendingFiles()...) {
-		a.OpenFile(f)
-	}
-	return nil
-}
-
-// Shutdown is the Wails OnShutdown hook.
+// Shutdown releases every window; it runs when the application exits.
 func (a *App) Shutdown(context.Context) {
 	for _, w := range a.allWindows() {
 		a.removeWindow(w)
@@ -304,21 +295,31 @@ func (s *AppService) Info() AppInfo {
 // OpenFolderDialog shows the native folder picker and returns the chosen
 // path, or "" if cancelled.
 func (s *AppService) OpenFolderDialog() (string, error) {
-	return wruntime.OpenDirectoryDialog(s.app.ctx, wruntime.OpenDialogOptions{
-		Title:                "Open Folder",
-		CanCreateDirectories: true,
-	})
+	if s.app.wapp == nil {
+		return "", errNoWindow
+	}
+	d := s.app.wapp.Dialog.OpenFile().
+		SetTitle("Open Folder").
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
+		CanCreateDirectories(true)
+	if w := s.app.mainWindow(); w != nil {
+		if h, ok := w.handle.(*nativeHandle); ok {
+			d = d.AttachToWindow(h.w)
+		}
+	}
+	return d.PromptForSingleSelection()
 }
 
 // OpenProject opens path. With newWindow, or when this window already has a
 // project, it focuses the window that has path open or launches a new one.
 // Otherwise it opens path in this window.
 func (s *AppService) OpenProject(path string, newWindow bool) error {
-	_, err := s.app.current()
-	if newWindow || err == nil {
-		return s.app.mainWindow().openInOtherWindow(path)
+	w := s.app.mainWindow()
+	if newWindow {
+		return s.app.openProjectWindow(path, nil)
 	}
-	return s.app.openProject(path)
+	return s.app.openProjectWindow(path, w)
 }
 
 // CloseProject closes the project in this window and returns to Welcome.
@@ -358,9 +359,27 @@ func (s *AppService) LoadLayout() (string, error) {
 	return readFileOrEmpty(s.app.layoutPath(sess))
 }
 
-// Quit closes the application.
+// Quit closes every window (each through its close flow) and quits.
 func (s *AppService) Quit() {
-	wruntime.Quit(s.app.ctx)
+	if s.app.wapp != nil {
+		s.app.wapp.Quit()
+		return
+	}
+	s.app.shouldQuit()
+}
+
+// NewWindow opens a Welcome window.
+func (s *AppService) NewWindow() error { return s.app.openWindow("") }
+
+// WindowID returns the calling window's id once its startup project is open,
+// or 0 while it is not ready (the frontend waits for a non-zero id before it
+// boots).
+func (s *AppService) WindowID(ctx context.Context) uint {
+	w, err := s.app.windowFor(ctx)
+	if err != nil || !w.ready.Load() {
+		return 0
+	}
+	return w.id
 }
 
 // setAppearance applies the native window appearance; tests replace it.

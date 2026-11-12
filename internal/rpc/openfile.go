@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/p4tin/goi/internal/instance"
-	"github.com/p4tin/goi/internal/workspace"
 )
 
 // TopicOpenFile asks the frontend to open a file in the editor.
@@ -43,10 +41,10 @@ func isFile(p string) bool {
 	return err == nil && !st.IsDir()
 }
 
-// OpenFile handles an OS request to open a file (macOS file association or
-// dock drop). Before startup it is queued. With no project open, the file's
-// project is opened here; a file outside this window's project opens its
-// project in another window.
+// OpenFile handles an OS request to open a file (file association, Dock
+// drop, a later launch with a file argument). Before startup it is queued.
+// The file opens in the window whose project contains it; otherwise its
+// project opens (in a Welcome window if there is one, else a new window).
 func (a *App) OpenFile(path string) {
 	if !a.startedUp.Load() {
 		a.pendingMu.Lock()
@@ -58,29 +56,34 @@ func (a *App) OpenFile(path string) {
 	if err != nil {
 		return
 	}
-	sess, err := a.current()
-	if err != nil {
-		if err := a.openProject(ProjectRootFor(abs)); err != nil {
+	w := a.windowContaining(abs)
+	if w == nil {
+		root := ProjectRootFor(abs)
+		if err := a.openProjectWindow(root, a.welcomeWindow()); err != nil {
 			a.log.Warn("open file", "path", abs, "err", err)
-			a.mainWindow().notify("error", "Cannot open file", err.Error())
+			if fw := a.focusedWindow(); fw != nil {
+				fw.notify("error", "Cannot open file", err.Error())
+			}
 			return
 		}
-		sess, _ = a.current()
+		if w = a.windowContaining(abs); w == nil {
+			return
+		}
 	}
-	if sess == nil {
-		return
+	w.focus()
+	w.bus.Emit(TopicOpenFile, OpenFileEvent{Path: abs})
+}
+
+// windowContaining returns the window whose project contains path.
+func (a *App) windowContaining(path string) *window {
+	for _, w := range a.allWindows() {
+		if s, err := w.current(); err == nil {
+			if _, ok := s.contains(path); ok {
+				return w
+			}
+		}
 	}
-	if _, ok := sess.contains(abs); ok {
-		a.mainWindow().bus.Emit(TopicOpenFile, OpenFileEvent{Path: abs})
-		return
-	}
-	root := ProjectRootFor(abs)
-	if err := instance.Focus(a.cacheDir, workspace.Hash(root)); err == nil {
-		return
-	}
-	if err := instance.LaunchNewWindow(root); err != nil {
-		a.log.Warn("open file in new window", "path", abs, "err", err)
-	}
+	return nil
 }
 
 func (a *App) drainPendingFiles() []string {

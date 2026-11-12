@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/instance"
 	"github.com/p4tin/goi/internal/journal"
 	"github.com/p4tin/goi/internal/recent"
 	"github.com/p4tin/goi/internal/vfs"
@@ -21,7 +20,6 @@ type session struct {
 	manager *workspace.Manager
 	watcher vfs.Watcher
 	journal *journal.Journal
-	lock    *instance.Lock
 	crashed bool
 	app     *App
 	win     *window // the window that owns the project; its bus carries the project's events
@@ -40,12 +38,13 @@ var startLangHook = startLang
 
 func (w *window) openProject(path string) error {
 	a := w.app
-	abs, err := filepath.Abs(path)
+	abs, err := normalizeProject(path)
 	if err != nil {
-		return fmt.Errorf("open project: %w", err)
+		return err
 	}
-	if st, err := os.Stat(abs); err != nil || !st.IsDir() {
-		return fmt.Errorf("open project: %s is not a folder", abs)
+	if other := a.windowWithProject(abs); other != nil && other != w {
+		other.focus()
+		return fmt.Errorf("open project %s: %w", abs, ErrOpenElsewhere)
 	}
 
 	w.mu.Lock()
@@ -57,17 +56,6 @@ func (w *window) openProject(path string) error {
 		}
 		return fmt.Errorf("open project: %s is already open in this window", open.root)
 	}
-
-	lock, err := w.acquireInstance(abs)
-	if err != nil {
-		return err
-	}
-	opened := false
-	defer func() {
-		if !opened {
-			lock.Release()
-		}
-	}()
 
 	if err := w.settings.SetProjectPath(workspace.SettingsPath(abs)); err != nil {
 		a.log.Warn("project settings", "err", err)
@@ -106,7 +94,7 @@ func (w *window) openProject(path string) error {
 		a.log.Warn("journal", "err", err)
 	}
 
-	s := &session{root: abs, manager: m, watcher: fw, journal: j, lock: lock, crashed: crashed, app: a, win: w}
+	s := &session{root: abs, manager: m, watcher: fw, journal: j, crashed: crashed, app: a, win: w}
 	s.search = startSearchIndex(w, m, fw)
 	s.runs = startRuns(w, s, fw)
 	s.debug = newDebugManager(w)
@@ -117,7 +105,6 @@ func (w *window) openProject(path string) error {
 	if startLangHook != nil {
 		s.lang = startLangHook(w, abs, fw)
 	}
-	opened = true
 	w.mu.Lock()
 	w.session = s
 	w.mu.Unlock()
@@ -130,8 +117,13 @@ func (w *window) openProject(path string) error {
 	a.log.Info("project opened", "root", abs, "kind", p.Kind, "crashed", crashed)
 	w.setTitle("Goi - " + p.Name)
 	w.bus.Emit(events.TopicWorkspaceChanged, p)
+	a.refreshDock()
 	return nil
 }
+
+// ErrOpenElsewhere means the project is open in another Goi window, which
+// has been brought to the front.
+var ErrOpenElsewhere = errors.New("project is already open in another Goi window")
 
 func (w *window) closeProject() error {
 	w.mu.Lock()
@@ -147,6 +139,7 @@ func (w *window) closeProject() error {
 	}
 	w.setTitle("Goi")
 	w.bus.Emit(events.TopicWorkspaceChanged, nil)
+	w.app.refreshDock()
 	return nil
 }
 
@@ -180,7 +173,6 @@ func (s *session) close(clean bool) {
 			s.app.log.Warn("journal close", "err", err)
 		}
 	}
-	s.lock.Release()
 }
 
 // contains reports whether path lies inside one of the session's content

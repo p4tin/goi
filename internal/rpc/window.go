@@ -4,16 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/instance"
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
-	"github.com/p4tin/goi/internal/workspace"
 )
 
 // windowHandle is the native window behind a window; tests use a fake.
@@ -21,6 +19,8 @@ type windowHandle interface {
 	// Focus unminimises, shows and focuses the window.
 	Focus()
 	SetTitle(title string)
+	// Close closes the native window through its close hook.
+	Close()
 }
 
 // window is the per-window state: its event bus, settings (user layer plus
@@ -36,6 +36,10 @@ type window struct {
 
 	mu      sync.Mutex
 	session *session
+
+	// ready is set once the startup project (if any) is open, so the
+	// frontend boots into it (AppService.WindowID).
+	ready atomic.Bool
 
 	closing closeState
 }
@@ -58,6 +62,9 @@ func (a *App) addWindow(handle windowHandle, bus events.Bus) (*window, error) {
 	w.id = a.nextWindow
 	a.windows[w.id] = w
 	a.winMu.Unlock()
+	if nh, ok := handle.(*nativeHandle); ok {
+		a.bindNative(w, nh)
+	}
 	return w, nil
 }
 
@@ -65,6 +72,11 @@ func (a *App) addWindow(handle windowHandle, bus events.Bus) (*window, error) {
 func (a *App) removeWindow(w *window) {
 	a.winMu.Lock()
 	delete(a.windows, w.id)
+	for id, x := range a.byNative {
+		if x == w {
+			delete(a.byNative, id)
+		}
+	}
 	a.winMu.Unlock()
 	w.mu.Lock()
 	s := w.session
@@ -90,17 +102,11 @@ func (a *App) allWindows() []*window {
 	return out
 }
 
-// mainWindow returns the first registered window, or nil.
+// mainWindow returns the window bound calls act on until they take a
+// context: the focused window.
 //
-// Transitional: bound methods use it until they take a context and resolve
-// the calling window with windowFor (Wails v3).
-func (a *App) mainWindow() *window {
-	ws := a.allWindows()
-	if len(ws) == 0 {
-		return nil
-	}
-	return ws[0]
-}
+// Transitional: replaced by windowFor(ctx).
+func (a *App) mainWindow() *window { return a.focusedWindow() }
 
 type windowCtxKey struct{}
 
@@ -116,6 +122,9 @@ var errNoWindow = errors.New("no window")
 func (a *App) windowFor(ctx context.Context) (*window, error) {
 	if ctx != nil {
 		if w, ok := ctx.Value(windowCtxKey{}).(*window); ok && w != nil {
+			return w, nil
+		}
+		if w := a.callerWindow(ctx); w != nil {
 			return w, nil
 		}
 	}
@@ -158,6 +167,15 @@ func (w *window) setTitle(title string) {
 	}
 }
 
+// requestClose starts the window's close flow, as if the user closed it.
+func (w *window) requestClose() {
+	if w.handle != nil {
+		w.handle.Close()
+		return
+	}
+	w.beforeClose()
+}
+
 func (w *window) notify(level, title, body string) {
 	w.bus.Emit(events.TopicNotify, events.Notification{ID: title, Level: level, Title: title, Body: body})
 }
@@ -169,53 +187,4 @@ func (w *window) settingsLayerForProject() settings.Layer {
 		return settings.LayerProject
 	}
 	return settings.LayerUser
-}
-
-// ErrOpenElsewhere means the project is open in another Goi window, which
-// has been asked to come to the front.
-var ErrOpenElsewhere = errors.New("project is already open in another Goi window")
-
-// launchNewWindow starts a new Goi process; tests replace it.
-var launchNewWindow = instance.LaunchNewWindow
-
-// acquireInstance takes the per-project instance lock. If another live
-// window holds it, that window is focused and ErrOpenElsewhere is returned.
-func (w *window) acquireInstance(root string) (*instance.Lock, error) {
-	a := w.app
-	hash := workspace.Hash(root)
-	lock, err := instance.Acquire(a.cacheDir, hash, w.focus)
-	var held *instance.ErrHeld
-	if errors.As(err, &held) {
-		if ferr := instance.Focus(a.cacheDir, hash); ferr != nil {
-			a.log.Warn("focus other window", "err", ferr)
-		}
-		return nil, fmt.Errorf("open project %s: %w", root, ErrOpenElsewhere)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("open project: %w", err)
-	}
-	return lock, nil
-}
-
-// openInOtherWindow focuses the window that already has path open, or
-// launches a new Goi window for it.
-func (w *window) openInOtherWindow(path string) error {
-	a := w.app
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("open project: %w", err)
-	}
-	if st, err := os.Stat(abs); err != nil || !st.IsDir() {
-		return fmt.Errorf("open project: %s is not a folder", abs)
-	}
-	if sess, err := w.current(); err == nil && sess.root == abs {
-		w.focus()
-		return nil
-	}
-	hash := workspace.Hash(abs)
-	if instance.Held(a.cacheDir, hash) {
-		return instance.Focus(a.cacheDir, hash)
-	}
-	a.log.Info("launch new window", "project", abs)
-	return launchNewWindow(abs)
 }

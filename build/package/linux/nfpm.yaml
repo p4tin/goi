@@ -1,7 +1,10 @@
-# nfpm configuration for the Linux .deb and .rpm packages.
-#   GOI_VERSION=0.1.0 nfpm package -f build/package/linux/nfpm.yaml -p deb -t dist/
+# nfpm configuration for the Linux .deb and .rpm packages (Wails v3 build).
+# Goi's own file: `wails3 update build-assets` regenerates build/linux/nfpm/nfpm.yaml,
+# so the packaging tasks use this one instead.
+#   GOI_VERSION=0.1.2 GOARCH=amd64 wails3 tool package -name goi -format deb -config build/package/linux/nfpm.yaml -out bin
+# The linux:create:deb / linux:create:rpm tasks set GOI_VERSION from scripts/version.sh.
 name: goi
-arch: amd64
+arch: ${GOARCH}
 platform: linux
 version: ${GOI_VERSION}
 section: devel
@@ -13,19 +16,23 @@ description: |
 homepage: https://github.com/p4tin/goi
 license: Proprietary
 contents:
-  - src: build/bin/goi
+  - src: ./bin/goi
     dst: /usr/bin/goi
     file_info:
       mode: 0755
-  - src: build/package/linux/goi.desktop
+  - src: ./build/package/linux/goi.desktop
     dst: /usr/share/applications/goi.desktop
-  - src: build/appicon.png
+  - src: ./build/appicon.png
     dst: /usr/share/pixmaps/goi.png
+scripts:
+  postinstall: ./build/linux/nfpm/scripts/postinstall.sh
+# Goi builds Linux with `-tags gtk3` (GTK3 + WebKitGTK 4.1) so the packages
+# keep working on Ubuntu 22.04 and Debian 12. Wails v3's default GTK4 build
+# would need libgtk-4-1 / libwebkitgtk-6.0-4 (rpm: gtk4 / webkitgtk6.0).
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
 overrides:
-  deb:
-    depends:
-      - libgtk-3-0
-      - libwebkit2gtk-4.1-0
   rpm:
     depends:
       - gtk3

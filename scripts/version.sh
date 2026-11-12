@@ -1,7 +1,6 @@
 #!/bin/sh
-# Prints the product version: info.version from the Wails v3 build config
-# (build/config.yml, or build-v3/config.yml while the v3 scaffold is staged),
-# falling back to wails.json's info.productVersion (Wails v2).
+# Prints the product version: info.version from the Wails build config
+# (build/config.yml).
 # With a tag argument (v1.2.3 or refs/tags/v1.2.3) it fails unless they match.
 set -e
 cd "$(dirname "$0")/.."
@@ -21,16 +20,10 @@ yaml_version() {
 }
 
 v=""
-for cfg in build/config.yml build-v3/config.yml; do
-  if [ -f "$cfg" ]; then
-    v=$(yaml_version "$cfg")
-    src="$cfg info.version"
-    [ -n "$v" ] && break
-  fi
-done
-if [ -z "$v" ]; then
-  v=$(node -p "require('./wails.json').info.productVersion")
-  src="wails.json productVersion"
+cfg=build/config.yml
+if [ -f "$cfg" ]; then
+  v=$(yaml_version "$cfg")
+  src="$cfg info.version"
 fi
 if [ -z "$v" ]; then
   echo "no product version found" >&2

@@ -13,8 +13,11 @@ type Choice = 'save' | 'discard' | 'cancel';
 export function installCloseGuard(wb: Workbench): void {
   let asking = false;
 
+  // The user kept the window open; a quit in progress stops.
+  const cancel = (): void => void app.cancelClose().catch(() => {});
+
   const confirm = async (): Promise<void> => {
-    if (!(await runCloseChecks())) return;
+    if (!(await runCloseChecks())) return cancel();
     try {
       await wb.layout.flush();
     } catch (err) {
@@ -45,8 +48,8 @@ export function installCloseGuard(wb: Workbench): void {
             { label: 'Save All', value: 'save', primary: true },
           ],
         });
-        if (choice === 'cancel') return;
-        if (choice === 'save' && !(await editors.saveAll())) return;
+        if (choice === 'cancel') return cancel();
+        if (choice === 'save' && !(await editors.saveAll())) return cancel();
         await confirm();
       } finally {
         asking = false;
