@@ -40,6 +40,29 @@ const list = <T>(p: Promise<T[] | null>): Promise<T[]> => p.then((v) => v ?? [])
 const dict = <T>(p: Promise<{ [k: string]: T | undefined } | null>): Promise<Record<string, T>> =>
   p.then((v) => (v ?? {}) as Record<string, T>);
 
+// Wails v2 exposed the bindings as window.go.rpc.<Service>.<Method>; the E2E
+// specs and devtools sessions still call them that way.
+(globalThis as { go?: unknown }).go = {
+  rpc: {
+    AppService,
+    DebugService,
+    EditorService,
+    FileService,
+    GitService,
+    LangService,
+    LintService,
+    MenuService,
+    ModService,
+    RecentService,
+    RunService,
+    SDKService,
+    SearchService,
+    SettingsService,
+    TerminalService,
+    WorkspaceService,
+  },
+};
+
 export type AppInfo = rpc.AppInfo;
 export type Project = NonNullFields<workspace.Project>;
 export type ProjectKind = 'workspace' | 'module' | 'multi-module' | 'gopath' | 'folder';
