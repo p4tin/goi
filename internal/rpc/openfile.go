@@ -3,7 +3,6 @@ package rpc
 import (
 	"os"
 	"path/filepath"
-
 )
 
 // TopicOpenFile asks the frontend to open a file in the editor.
