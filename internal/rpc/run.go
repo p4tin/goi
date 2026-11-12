@@ -701,8 +701,8 @@ type RunService struct {
 	app *App
 }
 
-func (s *RunService) manager() (*runManager, error) {
-	sess, err := s.app.current()
+func (s *RunService) manager(ctx context.Context) (*runManager, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -713,8 +713,8 @@ func (s *RunService) manager() (*runManager, error) {
 }
 
 // Configs lists the project's run configurations.
-func (s *RunService) Configs() []runconfig.Config {
-	m, err := s.manager()
+func (s *RunService) Configs(ctx context.Context) []runconfig.Config {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return []runconfig.Config{}
 	}
@@ -722,8 +722,8 @@ func (s *RunService) Configs() []runconfig.Config {
 }
 
 // SaveConfig creates or updates a configuration (oldName "" creates).
-func (s *RunService) SaveConfig(c runconfig.Config, oldName string) (runconfig.Config, error) {
-	m, err := s.manager()
+func (s *RunService) SaveConfig(ctx context.Context, c runconfig.Config, oldName string) (runconfig.Config, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return runconfig.Config{}, err
 	}
@@ -736,8 +736,8 @@ func (s *RunService) SaveConfig(c runconfig.Config, oldName string) (runconfig.C
 }
 
 // DeleteConfig removes a configuration.
-func (s *RunService) DeleteConfig(name string) error {
-	m, err := s.manager()
+func (s *RunService) DeleteConfig(ctx context.Context, name string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -749,8 +749,8 @@ func (s *RunService) DeleteConfig(name string) error {
 }
 
 // Validate returns the configuration's problems (empty when runnable).
-func (s *RunService) Validate(c runconfig.Config) []string {
-	m, err := s.manager()
+func (s *RunService) Validate(ctx context.Context, c runconfig.Config) []string {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return []string{err.Error()}
 	}
@@ -763,8 +763,8 @@ func (s *RunService) Validate(c runconfig.Config) []string {
 
 // ContextConfig creates (or refreshes) the temporary configuration for a
 // gutter marker or context target and returns it.
-func (s *RunService) ContextConfig(req ContextRequest) (runconfig.Config, error) {
-	m, err := s.manager()
+func (s *RunService) ContextConfig(ctx context.Context, req ContextRequest) (runconfig.Config, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return runconfig.Config{}, err
 	}
@@ -777,8 +777,8 @@ func (s *RunService) ContextConfig(req ContextRequest) (runconfig.Config, error)
 }
 
 // AddTemporary stores c as a temporary configuration.
-func (s *RunService) AddTemporary(c runconfig.Config) (runconfig.Config, error) {
-	m, err := s.manager()
+func (s *RunService) AddTemporary(ctx context.Context, c runconfig.Config) (runconfig.Config, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return runconfig.Config{}, err
 	}
@@ -791,8 +791,8 @@ func (s *RunService) AddTemporary(c runconfig.Config) (runconfig.Config, error) 
 }
 
 // Run launches the named configuration and returns the run id.
-func (s *RunService) Run(name string, debug bool) (string, error) {
-	m, err := s.manager()
+func (s *RunService) Run(ctx context.Context, name string, debug bool) (string, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -805,8 +805,8 @@ func (s *RunService) Run(name string, debug bool) (string, error) {
 
 // RunConfig launches an unsaved configuration (test reruns), reusing the
 // run reuseID when given.
-func (s *RunService) RunConfig(c runconfig.Config, reuseID string, debug bool) (string, error) {
-	m, err := s.manager()
+func (s *RunService) RunConfig(ctx context.Context, c runconfig.Config, reuseID string, debug bool) (string, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -814,8 +814,8 @@ func (s *RunService) RunConfig(c runconfig.Config, reuseID string, debug bool) (
 }
 
 // Rerun launches the run's configuration again in the same run.
-func (s *RunService) Rerun(id string) error {
-	m, err := s.manager()
+func (s *RunService) Rerun(ctx context.Context, id string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -834,8 +834,8 @@ func (s *RunService) Rerun(id string) error {
 }
 
 // Stop stops a run: interrupt first, kill on a second call.
-func (s *RunService) Stop(id string) error {
-	m, err := s.manager()
+func (s *RunService) Stop(ctx context.Context, id string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -848,8 +848,8 @@ func (s *RunService) Stop(id string) error {
 }
 
 // Close stops a run and forgets it (its tab was closed).
-func (s *RunService) Close(id string) error {
-	m, err := s.manager()
+func (s *RunService) Close(ctx context.Context, id string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -865,8 +865,8 @@ func (s *RunService) Close(id string) error {
 }
 
 // Input writes text to the run's stdin.
-func (s *RunService) Input(id, text string) error {
-	m, err := s.manager()
+func (s *RunService) Input(ctx context.Context, id, text string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -884,8 +884,8 @@ func (s *RunService) Input(id, text string) error {
 }
 
 // Runs lists the runs (running and finished) of this window.
-func (s *RunService) Runs() []RunInfo {
-	m, err := s.manager()
+func (s *RunService) Runs(ctx context.Context) []RunInfo {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return []RunInfo{}
 	}
@@ -903,9 +903,9 @@ func (s *RunService) Runs() []RunInfo {
 }
 
 // Active counts runs that are still starting, building or running.
-func (s *RunService) Active() int {
+func (s *RunService) Active(ctx context.Context) int {
 	n := 0
-	for _, r := range s.Runs() {
+	for _, r := range s.Runs(ctx) {
 		if r.State != RunExited && r.State != RunFailed {
 			n++
 		}
@@ -914,8 +914,8 @@ func (s *RunService) Active() int {
 }
 
 // LoadBench returns the saved benchmark history JSON ("" if none).
-func (s *RunService) LoadBench() (string, error) {
-	m, err := s.manager()
+func (s *RunService) LoadBench(ctx context.Context) (string, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -923,8 +923,8 @@ func (s *RunService) LoadBench() (string, error) {
 }
 
 // SaveBench stores the benchmark history JSON.
-func (s *RunService) SaveBench(data string) error {
-	m, err := s.manager()
+func (s *RunService) SaveBench(ctx context.Context, data string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}

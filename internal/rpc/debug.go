@@ -322,7 +322,7 @@ func (m *debugManager) active() []*debugSession {
 // startDebug runs a debug session for a run whose before-launch tasks are
 // done. It returns when the session ends, finishing the run.
 func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
-	sess, err := a.current()
+	sess, err := r.m.win.current()
 	if err != nil || sess.debug == nil {
 		r.finish(RunFailed, "no project", nil)
 		return
@@ -456,8 +456,8 @@ type DebugService struct {
 	app *App
 }
 
-func (s *DebugService) manager() (*debugManager, error) {
-	sess, err := s.app.current()
+func (s *DebugService) manager(ctx context.Context) (*debugManager, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -467,8 +467,8 @@ func (s *DebugService) manager() (*debugManager, error) {
 	return sess.debug, nil
 }
 
-func (s *DebugService) get(id string) (*debugSession, *debugger.Session, error) {
-	m, err := s.manager()
+func (s *DebugService) get(ctx context.Context, id string) (*debugSession, *debugger.Session, error) {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -487,15 +487,22 @@ func debugCtx() (context.Context, context.CancelFunc) {
 }
 
 // DlvStatus reports whether Delve is available.
-func (s *DebugService) DlvStatus() DlvStatus {
-	m, _ := s.manager()
+func (s *DebugService) DlvStatus(ctx context.Context) DlvStatus {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return DlvStatus{Message: err.Error()}
+	}
+	var m *debugManager
+	if sess, err := w.current(); err == nil {
+		m = sess.debug
+	}
 	installing := false
 	if m != nil {
 		m.mu.Lock()
 		installing = m.installing
 		m.mu.Unlock()
 	}
-	p, err := s.app.mainWindow().resolveDlv()
+	p, err := w.resolveDlv()
 	if err != nil {
 		return DlvStatus{Installing: installing, Message: err.Error()}
 	}
@@ -504,10 +511,18 @@ func (s *DebugService) DlvStatus() DlvStatus {
 
 // InstallDlv installs Delve into Goi's tools dir (go install …@latest) in
 // the background; progress arrives as debug.install events.
-func (s *DebugService) InstallDlv() error {
-	m, err := s.manager()
+func (s *DebugService) InstallDlv(ctx context.Context) error {
+	w, err := s.app.windowFor(ctx)
 	if err != nil {
 		return err
+	}
+	sess, err := w.current()
+	if err != nil {
+		return err
+	}
+	m := sess.debug
+	if m == nil {
+		return errNoProject
 	}
 	m.mu.Lock()
 	if m.installing {
@@ -516,8 +531,8 @@ func (s *DebugService) InstallDlv() error {
 	}
 	m.installing = true
 	m.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	r, err := s.app.runner(ctx)
+	ictx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	r, err := w.runner(ictx)
 	if err != nil {
 		cancel()
 		m.mu.Lock()
@@ -528,7 +543,7 @@ func (s *DebugService) InstallDlv() error {
 	s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Installing: true, Message: "Installing Delve (go install " + DlvModule + ")…"})
 	go func() {
 		defer cancel()
-		p, err := toolbin.Install(ctx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), DlvModule, "dlv")
+		p, err := toolbin.Install(ictx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), DlvModule, "dlv")
 		m.mu.Lock()
 		m.installing = false
 		m.mu.Unlock()
@@ -545,8 +560,8 @@ func (s *DebugService) InstallDlv() error {
 
 // SetFileBreakpoints replaces a file's breakpoints (all of them, enabled or
 // not) and applies them to running sessions.
-func (s *DebugService) SetFileBreakpoints(path string, bps []LineBreakpoint) error {
-	m, err := s.manager()
+func (s *DebugService) SetFileBreakpoints(ctx context.Context, path string, bps []LineBreakpoint) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -559,9 +574,9 @@ func (s *DebugService) SetFileBreakpoints(path string, bps []LineBreakpoint) err
 	m.mu.Unlock()
 	for _, ds := range m.active() {
 		go func(ds *debugSession) {
-			ctx, cancel := debugCtx()
+			dctx, cancel := debugCtx()
 			defer cancel()
-			m.applyFile(ctx, ds, path, bps)
+			m.applyFile(dctx, ds, path, bps)
 		}(ds)
 	}
 	return nil
@@ -569,8 +584,8 @@ func (s *DebugService) SetFileBreakpoints(path string, bps []LineBreakpoint) err
 
 // SetFunctionBreakpoints replaces function breakpoints and the
 // break-on-panic flag, applying them to running sessions.
-func (s *DebugService) SetFunctionBreakpoints(fns []FunctionBreakpoint, breakOnPanic bool) error {
-	m, err := s.manager()
+func (s *DebugService) SetFunctionBreakpoints(ctx context.Context, fns []FunctionBreakpoint, breakOnPanic bool) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -580,102 +595,102 @@ func (s *DebugService) SetFunctionBreakpoints(fns []FunctionBreakpoint, breakOnP
 	m.mu.Unlock()
 	for _, ds := range m.active() {
 		go func(ds *debugSession) {
-			ctx, cancel := debugCtx()
+			dctx, cancel := debugCtx()
 			defer cancel()
-			m.applyFunctions(ctx, ds)
+			m.applyFunctions(dctx, ds)
 		}(ds)
 	}
 	return nil
 }
 
 // Threads lists the goroutines of a stopped session.
-func (s *DebugService) Threads(id string) ([]dap.Thread, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) Threads(ctx context.Context, id string) ([]dap.Thread, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return []dap.Thread{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.Threads(ctx)
+	return sess.Threads(dctx)
 }
 
 // StackTrace returns frames of a goroutine (levels 0 = all).
-func (s *DebugService) StackTrace(id string, threadID, start, levels int) (dap.StackTraceResponse, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) StackTrace(ctx context.Context, id string, threadID, start, levels int) (dap.StackTraceResponse, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return dap.StackTraceResponse{StackFrames: []dap.StackFrame{}}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.StackTrace(ctx, threadID, start, levels)
+	return sess.StackTrace(dctx, threadID, start, levels)
 }
 
 // Scopes returns the scopes of a frame.
-func (s *DebugService) Scopes(id string, frameID int) ([]dap.Scope, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) Scopes(ctx context.Context, id string, frameID int) ([]dap.Scope, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return []dap.Scope{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.Scopes(ctx, frameID)
+	return sess.Scopes(dctx, frameID)
 }
 
 // Variables returns the children of a variables reference.
-func (s *DebugService) Variables(id string, ref int) ([]dap.Variable, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) Variables(ctx context.Context, id string, ref int) ([]dap.Variable, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return []dap.Variable{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.Variables(ctx, ref)
+	return sess.Variables(dctx, ref)
 }
 
 // Evaluate evaluates an expression in a frame (context: watch, repl,
 // hover, clipboard).
-func (s *DebugService) Evaluate(id, expr string, frameID int, evalContext string) (dap.EvaluateResponse, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) Evaluate(ctx context.Context, id, expr string, frameID int, evalContext string) (dap.EvaluateResponse, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return dap.EvaluateResponse{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.Evaluate(ctx, expr, frameID, evalContext)
+	return sess.Evaluate(dctx, expr, frameID, evalContext)
 }
 
 // SetVariable changes a variable in the container ref.
-func (s *DebugService) SetVariable(id string, ref int, name, value string) (dap.SetVariableResponse, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) SetVariable(ctx context.Context, id string, ref int, name, value string) (dap.SetVariableResponse, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return dap.SetVariableResponse{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.SetVariable(ctx, ref, name, value)
+	return sess.SetVariable(dctx, ref, name, value)
 }
 
 // ExceptionInfo describes the panic a goroutine stopped on.
-func (s *DebugService) ExceptionInfo(id string, threadID int) (dap.ExceptionInfoResponse, error) {
-	_, sess, err := s.get(id)
+func (s *DebugService) ExceptionInfo(ctx context.Context, id string, threadID int) (dap.ExceptionInfoResponse, error) {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return dap.ExceptionInfoResponse{}, err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.ExceptionInfo(ctx, threadID)
+	return sess.ExceptionInfo(dctx, threadID)
 }
 
 // step runs a stepping request and marks the session running.
-func (s *DebugService) step(id string, fn func(ctx context.Context, sess *debugger.Session) error) error {
-	ds, sess, err := s.get(id)
+func (s *DebugService) step(ctx context.Context, id string, fn func(ctx context.Context, sess *debugger.Session) error) error {
+	ds, sess, err := s.get(ctx, id)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
 	ds.emit(DebugStateEvent{State: DebugRunning})
-	if err := fn(ctx, sess); err != nil {
+	if err := fn(dctx, sess); err != nil {
 		ds.mu.Lock()
 		tid := ds.threadID
 		ds.mu.Unlock()
@@ -686,44 +701,44 @@ func (s *DebugService) step(id string, fn func(ctx context.Context, sess *debugg
 }
 
 // Continue resumes the program.
-func (s *DebugService) Continue(id string, threadID int) error {
-	return s.step(id, func(ctx context.Context, d *debugger.Session) error { return d.Continue(ctx, threadID) })
+func (s *DebugService) Continue(ctx context.Context, id string, threadID int) error {
+	return s.step(ctx, id, func(ctx context.Context, d *debugger.Session) error { return d.Continue(ctx, threadID) })
 }
 
 // Next steps over.
-func (s *DebugService) Next(id string, threadID int) error {
-	return s.step(id, func(ctx context.Context, d *debugger.Session) error { return d.Next(ctx, threadID) })
+func (s *DebugService) Next(ctx context.Context, id string, threadID int) error {
+	return s.step(ctx, id, func(ctx context.Context, d *debugger.Session) error { return d.Next(ctx, threadID) })
 }
 
 // StepIn steps into.
-func (s *DebugService) StepIn(id string, threadID int) error {
-	return s.step(id, func(ctx context.Context, d *debugger.Session) error { return d.StepIn(ctx, threadID) })
+func (s *DebugService) StepIn(ctx context.Context, id string, threadID int) error {
+	return s.step(ctx, id, func(ctx context.Context, d *debugger.Session) error { return d.StepIn(ctx, threadID) })
 }
 
 // StepOut steps out.
-func (s *DebugService) StepOut(id string, threadID int) error {
-	return s.step(id, func(ctx context.Context, d *debugger.Session) error { return d.StepOut(ctx, threadID) })
+func (s *DebugService) StepOut(ctx context.Context, id string, threadID int) error {
+	return s.step(ctx, id, func(ctx context.Context, d *debugger.Session) error { return d.StepOut(ctx, threadID) })
 }
 
 // RunToCursor continues to path:line.
-func (s *DebugService) RunToCursor(id string, threadID int, path string, line int) error {
-	return s.step(id, func(ctx context.Context, d *debugger.Session) error { return d.RunToCursor(ctx, threadID, path, line) })
+func (s *DebugService) RunToCursor(ctx context.Context, id string, threadID int, path string, line int) error {
+	return s.step(ctx, id, func(ctx context.Context, d *debugger.Session) error { return d.RunToCursor(ctx, threadID, path, line) })
 }
 
 // Pause pauses the program.
-func (s *DebugService) Pause(id string, threadID int) error {
-	_, sess, err := s.get(id)
+func (s *DebugService) Pause(ctx context.Context, id string, threadID int) error {
+	_, sess, err := s.get(ctx, id)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := debugCtx()
+	dctx, cancel := debugCtx()
 	defer cancel()
-	return sess.Pause(ctx, threadID)
+	return sess.Pause(dctx, threadID)
 }
 
 // Stop ends a session (a second call kills dlv).
-func (s *DebugService) Stop(id string) error {
-	m, err := s.manager()
+func (s *DebugService) Stop(ctx context.Context, id string) error {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return err
 	}
@@ -731,15 +746,15 @@ func (s *DebugService) Stop(id string) error {
 	ds := m.sessions[id]
 	m.mu.Unlock()
 	if ds == nil {
-		return s.app.runSvc.Stop(id)
+		return s.app.runSvc.Stop(ctx, id)
 	}
 	ds.run.stop()
 	return nil
 }
 
 // Sessions lists active debug session ids.
-func (s *DebugService) Sessions() []string {
-	m, err := s.manager()
+func (s *DebugService) Sessions(ctx context.Context) []string {
+	m, err := s.manager(ctx)
 	if err != nil {
 		return []string{}
 	}

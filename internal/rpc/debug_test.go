@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bufio"
+	"context"
 	"net"
 	"os"
 	"os/exec"
@@ -79,15 +80,15 @@ func waitDebugState(t *testing.T, bus *events.Recorder, id, state string, since 
 
 func TestDebugRequiresDlv(t *testing.T) {
 	a, _ := started(t, runModule(t))
-	if err := a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", filepath.Join(t.TempDir(), "nope")); err != nil {
+	if err := a.allWindows()[0].settings.Set(settings.LayerUser, "debug.dlvPath", filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatal(err)
 	}
-	a.runSvc.SaveConfig(runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
-	_, err := a.runSvc.Run("App", true)
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
+	_, err := a.runSvc.Run(context.Background(), "App", true)
 	if err == nil || !strings.Contains(err.Error(), "dlv not found") {
 		t.Fatalf("debug without dlv = %v", err)
 	}
-	if st := a.debugSvc.DlvStatus(); st.Found {
+	if st := a.debugSvc.DlvStatus(context.Background()); st.Found {
 		t.Fatalf("DlvStatus = %+v", st)
 	}
 }
@@ -96,17 +97,17 @@ func TestDebugSessionBreakpointsAndInspection(t *testing.T) {
 	dlv := testDlv(t)
 	root := debugModule(t)
 	a, bus := started(t, root)
-	a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
-	if st := a.debugSvc.DlvStatus(); !st.Found || st.Path != dlv {
+	a.allWindows()[0].settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
+	if st := a.debugSvc.DlvStatus(context.Background()); !st.Found || st.Path != dlv {
 		t.Fatalf("DlvStatus = %+v", st)
 	}
 	src := filepath.Join(root, "cmd", "work", "main.go")
 	// Conditional breakpoint, plus a disabled one that must not hit.
-	if err := a.debugSvc.SetFileBreakpoints(src, []LineBreakpoint{{Line: 10, Condition: "i == 1", Enabled: true}, {Line: 22, Enabled: false}}); err != nil {
+	if err := a.debugSvc.SetFileBreakpoints(context.Background(), src, []LineBreakpoint{{Line: 10, Condition: "i == 1", Enabled: true}, {Line: 22, Enabled: false}}); err != nil {
 		t.Fatal(err)
 	}
-	a.runSvc.SaveConfig(runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
-	id, err := a.runSvc.Run("Work", true)
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
+	id, err := a.runSvc.Run(context.Background(), "Work", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,28 +119,28 @@ func TestDebugSessionBreakpointsAndInspection(t *testing.T) {
 	if len(bps) == 0 {
 		t.Fatal("no breakpoint verification event")
 	}
-	threads, err := a.debugSvc.Threads(id)
+	threads, err := a.debugSvc.Threads(context.Background(), id)
 	if err != nil || len(threads) < 2 {
 		t.Fatalf("threads = %+v %v", threads, err)
 	}
-	frames, err := a.debugSvc.StackTrace(id, st.ThreadID, 0, 10)
+	frames, err := a.debugSvc.StackTrace(context.Background(), id, st.ThreadID, 0, 10)
 	if err != nil || frames.StackFrames[0].Source == nil || frames.StackFrames[0].Source.Path != src || frames.StackFrames[0].Line != 10 {
 		t.Fatalf("frames = %+v %v", frames, err)
 	}
-	r, err := a.debugSvc.Evaluate(id, "i", frames.StackFrames[0].ID, "watch")
+	r, err := a.debugSvc.Evaluate(context.Background(), id, "i", frames.StackFrames[0].ID, "watch")
 	if err != nil || r.Result != "1" {
 		t.Fatalf("i = %+v %v", r, err)
 	}
 	// Step over, then continue to the end.
-	if err := a.debugSvc.Next(id, st.ThreadID); err != nil {
+	if err := a.debugSvc.Next(context.Background(), id, st.ThreadID); err != nil {
 		t.Fatal(err)
 	}
 	st, next = waitDebugState(t, bus, id, DebugStopped, next)
-	frames, _ = a.debugSvc.StackTrace(id, st.ThreadID, 0, 1)
+	frames, _ = a.debugSvc.StackTrace(context.Background(), id, st.ThreadID, 0, 1)
 	if frames.StackFrames[0].Line != 11 {
 		t.Fatalf("after step line = %d", frames.StackFrames[0].Line)
 	}
-	if err := a.debugSvc.Continue(id, st.ThreadID); err != nil {
+	if err := a.debugSvc.Continue(context.Background(), id, st.ThreadID); err != nil {
 		t.Fatal(err)
 	}
 	waitDebugState(t, bus, id, DebugExited, next)
@@ -163,19 +164,19 @@ func TestDebugStopTerminates(t *testing.T) {
 	dlv := testDlv(t)
 	root := debugModule(t)
 	a, bus := started(t, root)
-	a.mainWindow().settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
-	a.debugSvc.SetFunctionBreakpoints([]FunctionBreakpoint{{Name: "main.work", Enabled: true}}, false)
-	a.runSvc.SaveConfig(runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
-	id, err := a.runSvc.Run("Work", true)
+	a.allWindows()[0].settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
+	a.debugSvc.SetFunctionBreakpoints(context.Background(), []FunctionBreakpoint{{Name: "main.work", Enabled: true}}, false)
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
+	id, err := a.runSvc.Run(context.Background(), "Work", true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	waitDebugState(t, bus, id, DebugStopped, 0)
-	if err := a.debugSvc.Stop(id); err != nil {
+	if err := a.debugSvc.Stop(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
 	waitRun(t, bus, id, 0, RunExited)
-	if len(a.debugSvc.Sessions()) != 0 {
+	if len(a.debugSvc.Sessions(context.Background())) != 0 {
 		t.Fatal("session still active after stop")
 	}
 }
@@ -218,12 +219,12 @@ func TestDebugRemoteAttach(t *testing.T) {
 
 	a, bus := started(t, root)
 	src := filepath.Join(root, "cmd", "work", "main.go")
-	a.debugSvc.SetFileBreakpoints(src, []LineBreakpoint{{Line: 22, Enabled: true}})
-	a.runSvc.SaveConfig(runconfig.Config{Name: "Remote", Type: runconfig.TypeRemote, Host: "127.0.0.1", Port: port}, "")
-	if _, err := a.runSvc.Run("Remote", false); err == nil {
+	a.debugSvc.SetFileBreakpoints(context.Background(), src, []LineBreakpoint{{Line: 22, Enabled: true}})
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Remote", Type: runconfig.TypeRemote, Host: "127.0.0.1", Port: port}, "")
+	if _, err := a.runSvc.Run(context.Background(), "Remote", false); err == nil {
 		t.Fatal("remote configurations can't be run")
 	}
-	id, err := a.runSvc.Run("Remote", true)
+	id, err := a.runSvc.Run(context.Background(), "Remote", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,10 +232,10 @@ func TestDebugRemoteAttach(t *testing.T) {
 	if !st.Remote {
 		t.Fatalf("stopped = %+v", st)
 	}
-	frames, _ := a.debugSvc.StackTrace(id, st.ThreadID, 0, 1)
+	frames, _ := a.debugSvc.StackTrace(context.Background(), id, st.ThreadID, 0, 1)
 	if frames.StackFrames[0].Line != 22 {
 		t.Fatalf("remote stop line = %d", frames.StackFrames[0].Line)
 	}
-	a.debugSvc.Stop(id)
+	a.debugSvc.Stop(context.Background(), id)
 	waitRun(t, bus, id, 0, RunExited)
 }

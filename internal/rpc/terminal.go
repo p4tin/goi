@@ -82,8 +82,8 @@ type TerminalService struct {
 	app *App
 }
 
-func (s *TerminalService) session() (*termSession, string, error) {
-	sess, err := s.app.current()
+func (s *TerminalService) session(ctx context.Context) (*termSession, string, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -94,16 +94,20 @@ func (s *TerminalService) session() (*termSession, string, error) {
 }
 
 // Open starts a shell in the project root with the project environment.
-func (s *TerminalService) Open(cols, rows int) (TermInfo, error) {
-	ts, root, err := s.session()
+func (s *TerminalService) Open(ctx context.Context, cols, rows int) (TermInfo, error) {
+	w, err := s.app.windowFor(ctx)
 	if err != nil {
 		return TermInfo{}, err
 	}
-	cfg := s.app.mainWindow().settings.Effective().Terminal
+	ts, root, err := s.session(ctx)
+	if err != nil {
+		return TermInfo{}, err
+	}
+	cfg := w.settings.Effective().Terminal
 	shell := terminal.DefaultShell(cfg.Shell)
 	env := os.Environ()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if r, err := s.app.runner(ctx); err == nil {
+	ectx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if r, err := w.runner(ectx); err == nil {
 		env = r.Environ()
 	}
 	cancel()
@@ -124,8 +128,8 @@ func (s *TerminalService) Open(cols, rows int) (TermInfo, error) {
 }
 
 // Write sends keyboard input to a terminal.
-func (s *TerminalService) Write(id, data string) error {
-	ts, _, err := s.session()
+func (s *TerminalService) Write(ctx context.Context, id, data string) error {
+	ts, _, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -133,8 +137,8 @@ func (s *TerminalService) Write(id, data string) error {
 }
 
 // Resize changes a terminal's size.
-func (s *TerminalService) Resize(id string, cols, rows int) error {
-	ts, _, err := s.session()
+func (s *TerminalService) Resize(ctx context.Context, id string, cols, rows int) error {
+	ts, _, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -142,8 +146,8 @@ func (s *TerminalService) Resize(id string, cols, rows int) error {
 }
 
 // Close kills a terminal's shell.
-func (s *TerminalService) Close(id string) error {
-	ts, _, err := s.session()
+func (s *TerminalService) Close(ctx context.Context, id string) error {
+	ts, _, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -155,8 +159,8 @@ func (s *TerminalService) Close(id string) error {
 }
 
 // Count is the number of open terminals.
-func (s *TerminalService) Count() int {
-	ts, _, err := s.session()
+func (s *TerminalService) Count(ctx context.Context) int {
+	ts, _, err := s.session(ctx)
 	if err != nil {
 		return 0
 	}

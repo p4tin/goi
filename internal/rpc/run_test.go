@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,31 +123,31 @@ func TestRunConfigCRUDAndEvents(t *testing.T) {
 	root := runModule(t)
 	a, bus := started(t, root)
 	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Kind: runconfig.KindPackage, Package: "./cmd/app", Shared: true}
-	if _, err := a.runSvc.SaveConfig(c, ""); err != nil {
+	if _, err := a.runSvc.SaveConfig(context.Background(), c, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".goi", "runConfigurations", "App.toml")); err != nil {
 		t.Fatal("shared configuration not written to .goi/runConfigurations")
 	}
-	if got := a.runSvc.Configs(); len(got) != 1 || got[0].Name != "App" || !got[0].Shared || got[0].Files == nil {
+	if got := a.runSvc.Configs(context.Background()); len(got) != 1 || got[0].Name != "App" || !got[0].Shared || got[0].Files == nil {
 		t.Fatalf("Configs = %+v", got)
 	}
 	if len(bus.Events(events.TopicRunConfigs)) == 0 {
 		t.Fatal("no run.configs event")
 	}
-	if errs := a.runSvc.Validate(runconfig.Config{Name: "x", Type: runconfig.TypeApp}); len(errs) == 0 {
+	if errs := a.runSvc.Validate(context.Background(), runconfig.Config{Name: "x", Type: runconfig.TypeApp}); len(errs) == 0 {
 		t.Fatal("Validate should report a missing package")
 	}
 	// A configuration file added on disk is picked up by the watcher.
 	os.WriteFile(filepath.Join(root, ".goi", "runConfigurations", "Disk.toml"), []byte("name = \"From disk\"\ntype = \"test\"\nkind = \"directory\"\ndirectory = \".\"\n"), 0o644)
 	deadline := time.Now().Add(10 * time.Second)
-	for len(a.runSvc.Configs()) < 2 {
+	for len(a.runSvc.Configs(context.Background())) < 2 {
 		if time.Now().After(deadline) {
-			t.Fatalf("watcher did not reload: %+v", a.runSvc.Configs())
+			t.Fatalf("watcher did not reload: %+v", a.runSvc.Configs(context.Background()))
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if err := a.runSvc.DeleteConfig("App"); err != nil {
+	if err := a.runSvc.DeleteConfig(context.Background(), "App"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -155,16 +156,16 @@ func TestRunAppWithInputAndExitCode(t *testing.T) {
 	a, bus := started(t, runModule(t))
 	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Kind: runconfig.KindPackage, Package: "./cmd/app",
 		Args: "one two", Env: map[string]string{"GREETING": "world"}}
-	if _, err := a.runSvc.SaveConfig(c, ""); err != nil {
+	if _, err := a.runSvc.SaveConfig(context.Background(), c, ""); err != nil {
 		t.Fatal(err)
 	}
-	id, err := a.runSvc.Run("App", false)
+	id, err := a.runSvc.Run(context.Background(), "App", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	waitRun(t, bus, id, 0, RunRunning)
 	waitOutput(t, bus, id, "stdout", "hello world 2")
-	if err := a.runSvc.Input(id, "typed\n"); err != nil {
+	if err := a.runSvc.Input(context.Background(), id, "typed\n"); err != nil {
 		t.Fatal(err)
 	}
 	info := waitRun(t, bus, id, 0, RunExited, RunFailed)
@@ -175,7 +176,7 @@ func TestRunAppWithInputAndExitCode(t *testing.T) {
 	if !strings.Contains(out["stdout"], "read: typed") || !strings.Contains(out["stderr"], "to stderr") || !strings.Contains(out[streamSystem], "build -o") {
 		t.Fatalf("output = %+v", out)
 	}
-	if a.runSvc.Active() != 0 {
+	if a.runSvc.Active(context.Background()) != 0 {
 		t.Fatal("no run should be active")
 	}
 }
@@ -183,14 +184,14 @@ func TestRunAppWithInputAndExitCode(t *testing.T) {
 func TestRunTestsStreamsEvents(t *testing.T) {
 	root := runModule(t)
 	a, bus := started(t, root)
-	cfg, err := a.runSvc.ContextConfig(ContextRequest{Path: filepath.Join(root, "calc"), Kind: "dir"})
+	cfg, err := a.runSvc.ContextConfig(context.Background(), ContextRequest{Path: filepath.Join(root, "calc"), Kind: "dir"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Name != "go test ./calc" || !cfg.Temporary || cfg.Kind != runconfig.KindDirectory {
 		t.Fatalf("context config = %+v", cfg)
 	}
-	id, err := a.runSvc.Run(cfg.Name, false)
+	id, err := a.runSvc.Run(context.Background(), cfg.Name, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +219,7 @@ func TestRunTestsStreamsEvents(t *testing.T) {
 	rerun.Kind, rerun.Packages, rerun.Pattern, rerun.Directory = runconfig.KindFunction, []string{"example.com/m/calc"}, runconfig.TestRunPattern([]string{"TestAdd/broken_case"}), ""
 	before := len(bus.Events(events.TopicRunTest))
 	since := len(bus.Events(events.TopicRunState))
-	if _, err := a.runSvc.RunConfig(rerun, id, false); err != nil {
+	if _, err := a.runSvc.RunConfig(context.Background(), rerun, id, false); err != nil {
 		t.Fatal(err)
 	}
 	waitRun(t, bus, id, since, RunExited)
@@ -242,8 +243,8 @@ func TestRunBeforeLaunchFailureAborts(t *testing.T) {
 	a, bus := started(t, runModule(t))
 	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app",
 		BeforeLaunch: []runconfig.Task{{Type: runconfig.TaskCommand, Command: "false"}}}
-	a.runSvc.SaveConfig(c, "")
-	id, err := a.runSvc.Run("App", false)
+	a.runSvc.SaveConfig(context.Background(), c, "")
+	id, err := a.runSvc.Run(context.Background(), "App", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,39 +259,39 @@ func TestRunBeforeLaunchFailureAborts(t *testing.T) {
 
 func TestRunStop(t *testing.T) {
 	a, bus := started(t, runModule(t))
-	a.runSvc.SaveConfig(runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
-	id, _ := a.runSvc.Run("App", false)
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
+	id, _ := a.runSvc.Run(context.Background(), "App", false)
 	waitOutput(t, bus, id, "stdout", "hello")
-	if a.runSvc.Active() != 1 {
-		t.Fatalf("Active = %d", a.runSvc.Active())
+	if a.runSvc.Active(context.Background()) != 1 {
+		t.Fatalf("Active = %d", a.runSvc.Active(context.Background()))
 	}
-	if err := a.runSvc.Stop(id); err != nil {
+	if err := a.runSvc.Stop(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
 	info := waitRun(t, bus, id, 0, RunExited)
 	if info.Exit == nil || (runtime.GOOS != "windows" && info.Exit.Signal == "" && info.Exit.Code == 4) {
 		t.Fatalf("stopped run = %+v", info.Exit)
 	}
-	if err := a.runSvc.Close(id); err != nil {
+	if err := a.runSvc.Close(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
-	if len(a.runSvc.Runs()) != 0 {
+	if len(a.runSvc.Runs(context.Background())) != 0 {
 		t.Fatal("closed run still listed")
 	}
 }
 
 func TestBenchHistoryRoundTrip(t *testing.T) {
 	a, _ := started(t, runModule(t))
-	if got, _ := a.runSvc.LoadBench(); got != "" {
+	if got, _ := a.runSvc.LoadBench(context.Background()); got != "" {
 		t.Fatalf("empty history = %q", got)
 	}
-	if err := a.runSvc.SaveBench(`{"BenchmarkAdd":{"nsPerOp":1.5}}`); err != nil {
+	if err := a.runSvc.SaveBench(context.Background(), `{"BenchmarkAdd":{"nsPerOp":1.5}}`); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := a.runSvc.LoadBench(); !strings.Contains(got, "nsPerOp") {
+	if got, _ := a.runSvc.LoadBench(context.Background()); !strings.Contains(got, "nsPerOp") {
 		t.Fatalf("history = %q", got)
 	}
-	if a.runSvc.SaveBench("{bad") == nil {
+	if a.runSvc.SaveBench(context.Background(), "{bad") == nil {
 		t.Fatal("invalid JSON must be rejected")
 	}
 }
@@ -342,15 +343,15 @@ func TestTerminalServiceRoundTrip(t *testing.T) {
 		t.Skip("uses /bin/sh")
 	}
 	a, bus := started(t, runModule(t))
-	a.mainWindow().settings.Set(settings.LayerUser, "terminal.shell", "/bin/sh")
-	info, err := a.termSvc.Open(100, 30)
+	a.allWindows()[0].settings.Set(settings.LayerUser, "terminal.shell", "/bin/sh")
+	info, err := a.termSvc.Open(context.Background(), 100, 30)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Shell != "/bin/sh" || a.termSvc.Count() != 1 {
+	if info.Shell != "/bin/sh" || a.termSvc.Count(context.Background()) != 1 {
 		t.Fatalf("info = %+v", info)
 	}
-	a.termSvc.Write(info.ID, "echo term_$((1+1)); exit 7\n")
+	a.termSvc.Write(context.Background(), info.ID, "echo term_$((1+1)); exit 7\n")
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		out := ""
@@ -369,7 +370,7 @@ func TestTerminalServiceRoundTrip(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	if err := a.termSvc.Close(info.ID); err != nil {
+	if err := a.termSvc.Close(context.Background(), info.ID); err != nil {
 		t.Fatal(err)
 	}
 }
