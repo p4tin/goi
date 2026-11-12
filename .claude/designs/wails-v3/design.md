@@ -19,6 +19,23 @@ Implements `requirements.md`. The target is Wails **v3.1.x** (`github.com/wailsa
 | Browser clients (for E2E) | build tag `server`: browser tabs become `BrowserWindow`s | Spike S3. |
 | **Dock menu** | **none** | We add it ourselves (§5). |
 
+### 1.1 Spike findings (Wave 0, v3.1.0 on macOS 26.6)
+
+- **S1, confirmed:**
+  - `Who(ctx)` returned `1/A` and `2/B` from the two windows.
+  - `DispatchWailsEvent` reached only its window.
+  - `app.Event.Emit` reached both.
+  - The `WindowClosing` hook can cancel a close.
+  - `ShouldQuit` returning false keeps the app running.
+  - The `WindowMenu` role sets `NSApp.windowsMenu`.
+  - `SingleInstance` delivered the second launch's args and working dir, and the second process exited 0. **`Args` includes argv[0]**, so the handoff must drop it.
+- **S2, confirmed:** `class_addMethod(object_getClass(NSApp.delegate), @selector(applicationDockMenu:))` succeeds; v3's `AppDelegate` doesn't implement the selector. The menu builds, and an item's action calls back into Go. `class_addMethod` must run on the main thread after `ApplicationStarted`.
+- **S3, works with two adjustments:**
+  1. In server mode (`-tags server`), `BrowserWindow.DispatchWailsEvent` is a no-op and every event goes out as a WebSocket broadcast to all tabs. So the server-build `windowBus` (`bus_server.go`) emits through `app.Event.Emit` with an envelope `{"_w": <windowID>, "d": payload}`, and `lib/api.ts` `onEvent` drops envelopes for other windows and unwraps the rest. The native build sends unwrapped payloads.
+  2. A tab only gets its `BrowserWindow` once its WebSocket connects, and calls made before that have no window. So a new bound `AppService.WindowID(ctx) uint` exists, and the frontend's boot waits until it returns non-zero (polling every 50 ms, up to 5 s) before anything else. In native windows it returns immediately.
+
+  Server-mode `BrowserWindow`s aren't created by us, so `windowFor` **registers an unknown window id lazily** (a Welcome window), and `BrowserWindow.Close/Focus/SetTitle` are no-ops there. Native-only pieces (dock menu, appearance cgo, dialogs) are guarded by the `!server` build tag. Server mode is for E2E only and isn't shipped.
+
 ## 2. Process and window model
 
 ```
