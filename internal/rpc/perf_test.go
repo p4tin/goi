@@ -25,7 +25,7 @@ func TestPerfOpenLargeProject(t *testing.T) {
 	start := time.Now()
 	a, _ := started(t, root)
 	opened := time.Since(start)
-	if _, err := a.fileSvc.List(root); err != nil {
+	if _, err := a.fileSvc.List(context.Background(), root); err != nil {
 		t.Fatal(err)
 	}
 	listed := time.Since(start)

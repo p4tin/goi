@@ -32,7 +32,7 @@ func TestEditorFormat(t *testing.T) {
 		t.Errorf("non-go = %+v", res)
 	}
 
-	if err := a.settingsSvc.Set("project", "save.format", "none"); err != nil {
+	if err := a.settingsSvc.Set(context.Background(), "project", "save.format", "none"); err != nil {
 		t.Fatal(err)
 	}
 	if res, _ := ed.Format(context.Background(), path, "package m\nfunc  f( ) {  }\n"); res.Changed {

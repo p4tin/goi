@@ -28,7 +28,7 @@ func TestOpenProjectFocusesWindowThatHasIt(t *testing.T) {
 	var focused atomic.Int32
 	a.mainWindow().handle = &fakeHandle{focus: func() { focused.Add(1) }}
 	recs := withWindows(a)
-	if err := a.appSvc.OpenProject(root, true); err != nil {
+	if err := a.appSvc.OpenProject(context.Background(), root, true); err != nil {
 		t.Fatal(err)
 	}
 	if focused.Load() != 1 || len(*recs) != 0 {
@@ -42,7 +42,7 @@ func TestOpenProjectWindowRules(t *testing.T) {
 	recs := withWindows(a)
 
 	// newWindow: a new window even though this one shows Welcome.
-	if err := a.appSvc.OpenProject(root, true); err != nil {
+	if err := a.appSvc.OpenProject(context.Background(), root, true); err != nil {
 		t.Fatal(err)
 	}
 	if len(*recs) != 1 || len(a.allWindows()) != 2 {
