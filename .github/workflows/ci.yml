@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  WAILS_VERSION: v2.17.1
+  WAILS_VERSION: v3.1.0
 
 jobs:
   build:
@@ -34,7 +34,10 @@ jobs:
 
       - name: Linux webview dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+        # Goi builds Linux with the gtk3 tag (GTK3 + WebKitGTK 4.1).
+        run: |
+          sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          echo "GOFLAGS=-tags=gtk3" >> "$GITHUB_ENV"
 
       - name: Frontend install
         working-directory: frontend
@@ -53,29 +56,26 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
 
       - name: go vet
-        run: go vet -tags webkit2_41 ./...
+        run: go vet ./...
+
+      - name: go vet (E2E server build)
+        if: runner.os != 'Linux'
+        run: go vet -tags server ./internal/rpc
 
       - name: go test
         run: go test ./internal/...
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Wails build
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            wails build -tags webkit2_41
-          elif [ "$RUNNER_OS" = "Windows" ]; then
-            wails build -webview2 embed
-          else
-            wails build
-          fi
+        run: wails3 build
 
       - uses: actions/upload-artifact@v4
         with:
           name: goi-${{ matrix.os }}
-          path: build/bin/
+          path: bin/
           retention-days: 7
 
   arm64-compile:
