@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,10 +55,10 @@ func TestLangMissingBinary(t *testing.T) {
 	if !strings.Contains(st.Message, "gopls") {
 		t.Errorf("message = %q", st.Message)
 	}
-	if got := a.langSvc.Status(); got.State != LangMissing {
+	if got := a.langSvc.Status(context.Background()); got.State != LangMissing {
 		t.Errorf("Status() = %+v", got)
 	}
-	if _, err := a.langSvc.Definition(filepath.Join(t.TempDir(), "x.go"), 0, 0); err == nil {
+	if _, err := a.langSvc.Definition(context.Background(), filepath.Join(t.TempDir(), "x.go"), 0, 0); err == nil {
 		t.Error("request without gopls should fail")
 	}
 }
@@ -132,27 +133,27 @@ func TestFindInPathScopeAndBuffers(t *testing.T) {
 	}
 	waitIndex(t, a)
 
-	res, err := a.searchSvc.FindInPath(FindQuery{Pattern: "needle"})
+	res, err := a.searchSvc.FindInPath(context.Background(), FindQuery{Pattern: "needle"})
 	if err != nil || len(res.Matches) != 2 {
 		t.Fatalf("all: %+v %v", res, err)
 	}
-	res, _ = a.searchSvc.FindInPath(FindQuery{Pattern: "needle", Scope: filepath.Join(root, "pkg")})
+	res, _ = a.searchSvc.FindInPath(context.Background(), FindQuery{Pattern: "needle", Scope: filepath.Join(root, "pkg")})
 	if len(res.Matches) != 1 || res.Matches[0].Path != util {
 		t.Fatalf("scoped: %+v", res)
 	}
-	res, _ = a.searchSvc.FindInPath(FindQuery{Pattern: "needle", Buffers: []BufferText{{Path: util, Text: "package helpers\n"}}})
+	res, _ = a.searchSvc.FindInPath(context.Background(), FindQuery{Pattern: "needle", Buffers: []BufferText{{Path: util, Text: "package helpers\n"}}})
 	if len(res.Matches) != 1 || res.Matches[0].Path == util {
 		t.Fatalf("buffer override: %+v", res)
 	}
-	res, _ = a.searchSvc.FindInPath(FindQuery{Pattern: "needle", Mask: "!util.go"})
+	res, _ = a.searchSvc.FindInPath(context.Background(), FindQuery{Pattern: "needle", Mask: "!util.go"})
 	if len(res.Matches) != 1 {
 		t.Fatalf("mask: %+v", res)
 	}
-	if _, err := a.searchSvc.FindInPath(FindQuery{Pattern: "(", Regex: true}); err == nil {
+	if _, err := a.searchSvc.FindInPath(context.Background(), FindQuery{Pattern: "(", Regex: true}); err == nil {
 		t.Error("bad regex accepted")
 	}
 
-	n, err := a.searchSvc.ReplaceInPath(FindQuery{Pattern: "needle", Replace: "pin"}, []string{util, filepath.Join(t.TempDir(), "outside.go")})
+	n, err := a.searchSvc.ReplaceInPath(context.Background(), FindQuery{Pattern: "needle", Replace: "pin"}, []string{util, filepath.Join(t.TempDir(), "outside.go")})
 	if n != 1 || err == nil || !strings.Contains(err.Error(), "outside the project") {
 		t.Fatalf("replace = %d, %v", n, err)
 	}

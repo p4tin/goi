@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestPerfOpenLargeProject(t *testing.T) {
 	}
 	listed := time.Since(start)
 	eventuallyRPC(t, func() bool {
-		r, _ := a.searchSvc.Files("f09999", 1, nil)
+		r, _ := a.searchSvc.Files(context.Background(), "f09999", 1, nil)
 		return r.Index.Ready && len(r.Matches) == 1
 	})
 	indexed := time.Since(start)

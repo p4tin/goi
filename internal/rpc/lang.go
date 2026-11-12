@@ -385,8 +385,8 @@ type HoverResult struct {
 	Range    *lsp.Range `json:"range"`
 }
 
-func (s *LangService) lang() (*langSession, error) {
-	sess, err := s.app.current()
+func (s *LangService) lang(ctx context.Context) (*langSession, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -396,8 +396,8 @@ func (s *LangService) lang() (*langSession, error) {
 	return sess.lang, nil
 }
 
-func (s *LangService) srv() (*langSession, *gopls.Server, error) {
-	ls, err := s.lang()
+func (s *LangService) srv(ctx context.Context) (*langSession, *gopls.Server, error) {
+	ls, err := s.lang(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -408,15 +408,19 @@ func (s *LangService) srv() (*langSession, *gopls.Server, error) {
 	return ls, srv, nil
 }
 
-func reqCtx(d time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), d)
+// reqCtx bounds a request made during a bound call; it ends with the call.
+func reqCtx(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithTimeout(ctx, d)
 }
 
 func pos(line, char int) lsp.Position { return lsp.Position{Line: line, Character: char} }
 
 // Status returns the gopls status.
-func (s *LangService) Status() LangStatus {
-	ls, err := s.lang()
+func (s *LangService) Status(ctx context.Context) LangStatus {
+	ls, err := s.lang(ctx)
 	if err != nil {
 		return LangStatus{State: string(gopls.StateStopped), Message: "No project open"}
 	}
@@ -424,8 +428,8 @@ func (s *LangService) Status() LangStatus {
 }
 
 // Restart restarts gopls.
-func (s *LangService) Restart() error {
-	ls, err := s.lang()
+func (s *LangService) Restart(ctx context.Context) error {
+	ls, err := s.lang(ctx)
 	if err != nil {
 		return err
 	}
@@ -434,8 +438,8 @@ func (s *LangService) Restart() error {
 }
 
 // InstallGopls installs gopls into Goi's tools directory and starts it.
-func (s *LangService) InstallGopls() error {
-	ls, err := s.lang()
+func (s *LangService) InstallGopls(ctx context.Context) error {
+	ls, err := s.lang(ctx)
 	if err != nil {
 		return err
 	}
@@ -443,53 +447,53 @@ func (s *LangService) InstallGopls() error {
 }
 
 // DidOpen tracks an editor buffer.
-func (s *LangService) DidOpen(path string, version int, text string) {
-	if _, srv, err := s.srv(); err == nil && gopls.LanguageID(path) != "" {
+func (s *LangService) DidOpen(ctx context.Context, path string, version int, text string) {
+	if _, srv, err := s.srv(ctx); err == nil && gopls.LanguageID(path) != "" {
 		srv.Open(path, version, text)
 	}
 }
 
 // DidChange sends a buffer's full text.
-func (s *LangService) DidChange(path string, version int, text string) {
-	if _, srv, err := s.srv(); err == nil && gopls.LanguageID(path) != "" {
+func (s *LangService) DidChange(ctx context.Context, path string, version int, text string) {
+	if _, srv, err := s.srv(ctx); err == nil && gopls.LanguageID(path) != "" {
 		srv.Change(path, version, text)
 	}
 }
 
 // DidSave notifies gopls that a buffer was saved.
-func (s *LangService) DidSave(path string) {
-	if _, srv, err := s.srv(); err == nil {
+func (s *LangService) DidSave(ctx context.Context, path string) {
+	if _, srv, err := s.srv(ctx); err == nil {
 		srv.Save(path)
 	}
 }
 
 // DidClose stops tracking a buffer.
-func (s *LangService) DidClose(path string) {
-	if _, srv, err := s.srv(); err == nil {
+func (s *LangService) DidClose(ctx context.Context, path string) {
+	if _, srv, err := s.srv(ctx); err == nil {
 		srv.CloseDoc(path)
 	}
 }
 
 // Completion returns completion candidates.
-func (s *LangService) Completion(path string, line, char int) (lsp.CompletionList, error) {
-	_, srv, err := s.srv()
+func (s *LangService) Completion(ctx context.Context, path string, line, char int) (lsp.CompletionList, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return lsp.CompletionList{Items: []lsp.CompletionItem{}}, err
 	}
-	ctx, cancel := reqCtx(10 * time.Second)
+	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
-	return srv.Completion(ctx, path, pos(line, char))
+	return srv.Completion(rctx, path, pos(line, char))
 }
 
 // Hover returns documentation for a position (empty Markdown if none).
-func (s *LangService) Hover(path string, line, char int) (HoverResult, error) {
-	_, srv, err := s.srv()
+func (s *LangService) Hover(ctx context.Context, path string, line, char int) (HoverResult, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return HoverResult{}, err
 	}
-	ctx, cancel := reqCtx(10 * time.Second)
+	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
-	h, err := srv.Hover(ctx, path, pos(line, char))
+	h, err := srv.Hover(rctx, path, pos(line, char))
 	if err != nil || h == nil {
 		return HoverResult{}, err
 	}
@@ -497,80 +501,80 @@ func (s *LangService) Hover(path string, line, char int) (HoverResult, error) {
 }
 
 // SignatureHelp returns the signature of the enclosing call (nil if none).
-func (s *LangService) SignatureHelp(path string, line, char int) (*lsp.SignatureHelp, error) {
-	_, srv, err := s.srv()
+func (s *LangService) SignatureHelp(ctx context.Context, path string, line, char int) (*lsp.SignatureHelp, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := reqCtx(10 * time.Second)
+	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
-	return srv.SignatureHelp(ctx, path, pos(line, char))
+	return srv.SignatureHelp(rctx, path, pos(line, char))
 }
 
 type locFunc func(*gopls.Server, context.Context, string, lsp.Position) ([]gopls.Location, error)
 
-func (s *LangService) locations(f locFunc, path string, line, char int, timeout time.Duration) ([]gopls.Location, error) {
-	ls, srv, err := s.srv()
+func (s *LangService) locations(ctx context.Context, f locFunc, path string, line, char int, timeout time.Duration) ([]gopls.Location, error) {
+	ls, srv, err := s.srv(ctx)
 	if err != nil {
 		return []gopls.Location{}, err
 	}
-	ctx, cancel := reqCtx(timeout)
+	rctx, cancel := reqCtx(ctx, timeout)
 	defer cancel()
-	locs, err := f(srv, ctx, path, pos(line, char))
+	locs, err := f(srv, rctx, path, pos(line, char))
 	return ls.mapLocs(locs), err
 }
 
 // Definition returns the declaration(s) of the symbol at a position.
-func (s *LangService) Definition(path string, line, char int) ([]gopls.Location, error) {
-	return s.locations((*gopls.Server).Definition, path, line, char, 15*time.Second)
+func (s *LangService) Definition(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
+	return s.locations(ctx, (*gopls.Server).Definition, path, line, char, 15*time.Second)
 }
 
 // TypeDefinition returns the declaration of the symbol's type.
-func (s *LangService) TypeDefinition(path string, line, char int) ([]gopls.Location, error) {
-	return s.locations((*gopls.Server).TypeDefinition, path, line, char, 15*time.Second)
+func (s *LangService) TypeDefinition(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
+	return s.locations(ctx, (*gopls.Server).TypeDefinition, path, line, char, 15*time.Second)
 }
 
 // Implementation returns implementations or implemented interfaces.
-func (s *LangService) Implementation(path string, line, char int) ([]gopls.Location, error) {
-	return s.locations((*gopls.Server).Implementation, path, line, char, 30*time.Second)
+func (s *LangService) Implementation(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
+	return s.locations(ctx, (*gopls.Server).Implementation, path, line, char, 30*time.Second)
 }
 
 // References returns the usages of the symbol at a position.
-func (s *LangService) References(path string, line, char int) ([]gopls.Location, error) {
-	return s.locations((*gopls.Server).References, path, line, char, 60*time.Second)
+func (s *LangService) References(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
+	return s.locations(ctx, (*gopls.Server).References, path, line, char, 60*time.Second)
 }
 
 // DocumentHighlight returns the occurrences of the symbol in its file.
-func (s *LangService) DocumentHighlight(path string, line, char int) ([]lsp.DocumentHighlight, error) {
-	_, srv, err := s.srv()
+func (s *LangService) DocumentHighlight(ctx context.Context, path string, line, char int) ([]lsp.DocumentHighlight, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return []lsp.DocumentHighlight{}, err
 	}
-	ctx, cancel := reqCtx(5 * time.Second)
+	rctx, cancel := reqCtx(ctx, 5*time.Second)
 	defer cancel()
-	return srv.DocumentHighlight(ctx, path, pos(line, char))
+	return srv.DocumentHighlight(rctx, path, pos(line, char))
 }
 
 // DocumentSymbols returns the symbol tree of a file.
-func (s *LangService) DocumentSymbols(path string) ([]lsp.DocumentSymbol, error) {
-	_, srv, err := s.srv()
+func (s *LangService) DocumentSymbols(ctx context.Context, path string) ([]lsp.DocumentSymbol, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return []lsp.DocumentSymbol{}, err
 	}
-	ctx, cancel := reqCtx(10 * time.Second)
+	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
-	return srv.DocumentSymbols(ctx, path)
+	return srv.DocumentSymbols(rctx, path)
 }
 
 // WorkspaceSymbols searches symbols across the project.
-func (s *LangService) WorkspaceSymbols(query string) ([]gopls.Symbol, error) {
-	ls, srv, err := s.srv()
+func (s *LangService) WorkspaceSymbols(ctx context.Context, query string) ([]gopls.Symbol, error) {
+	ls, srv, err := s.srv(ctx)
 	if err != nil {
 		return []gopls.Symbol{}, err
 	}
-	ctx, cancel := reqCtx(10 * time.Second)
+	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
-	syms, err := srv.WorkspaceSymbols(ctx, query)
+	syms, err := srv.WorkspaceSymbols(rctx, query)
 	for i := range syms {
 		syms[i].Location.Path = ls.toEditor(syms[i].Location.Path)
 	}
@@ -578,50 +582,50 @@ func (s *LangService) WorkspaceSymbols(query string) ([]gopls.Symbol, error) {
 }
 
 // PrepareRename checks that the symbol at a position can be renamed.
-func (s *LangService) PrepareRename(path string, line, char int) (lsp.PrepareRenameResult, error) {
-	_, srv, err := s.srv()
+func (s *LangService) PrepareRename(ctx context.Context, path string, line, char int) (lsp.PrepareRenameResult, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return lsp.PrepareRenameResult{}, err
 	}
-	ctx, cancel := reqCtx(15 * time.Second)
+	rctx, cancel := reqCtx(ctx, 15*time.Second)
 	defer cancel()
-	return srv.PrepareRename(ctx, path, pos(line, char))
+	return srv.PrepareRename(rctx, path, pos(line, char))
 }
 
 // Rename computes the edits that rename the symbol at a position.
-func (s *LangService) Rename(path string, line, char int, newName string) ([]gopls.FileEdit, error) {
-	ls, srv, err := s.srv()
+func (s *LangService) Rename(ctx context.Context, path string, line, char int, newName string) ([]gopls.FileEdit, error) {
+	ls, srv, err := s.srv(ctx)
 	if err != nil {
 		return []gopls.FileEdit{}, err
 	}
-	ctx, cancel := reqCtx(60 * time.Second)
+	rctx, cancel := reqCtx(ctx, 60*time.Second)
 	defer cancel()
-	edits, err := srv.Rename(ctx, path, pos(line, char), newName)
+	edits, err := srv.Rename(rctx, path, pos(line, char), newName)
 	return ls.mapEdits(edits), err
 }
 
 // CodeActions lists quick-fixes, refactorings and source actions.
-func (s *LangService) CodeActions(path string, rng lsp.Range, diags []lsp.Diagnostic) ([]lsp.CodeAction, error) {
-	_, srv, err := s.srv()
+func (s *LangService) CodeActions(ctx context.Context, path string, rng lsp.Range, diags []lsp.Diagnostic) ([]lsp.CodeAction, error) {
+	_, srv, err := s.srv(ctx)
 	if err != nil {
 		return []lsp.CodeAction{}, err
 	}
-	ctx, cancel := reqCtx(15 * time.Second)
+	rctx, cancel := reqCtx(ctx, 15*time.Second)
 	defer cancel()
-	return srv.CodeActions(ctx, path, rng, diags)
+	return srv.CodeActions(rctx, path, rng, diags)
 }
 
 // RunCodeAction returns a code action's edits, resolving them first if
 // needed, and runs its command (whose edits arrive as lang.applyEdit).
-func (s *LangService) RunCodeAction(action lsp.CodeAction) ([]gopls.FileEdit, error) {
-	ls, srv, err := s.srv()
+func (s *LangService) RunCodeAction(ctx context.Context, action lsp.CodeAction) ([]gopls.FileEdit, error) {
+	ls, srv, err := s.srv(ctx)
 	if err != nil {
 		return []gopls.FileEdit{}, err
 	}
-	ctx, cancel := reqCtx(60 * time.Second)
+	rctx, cancel := reqCtx(ctx, 60*time.Second)
 	defer cancel()
 	if action.Edit == nil && action.Command == nil && action.Data != nil {
-		resolved, err := srv.ResolveCodeAction(ctx, action)
+		resolved, err := srv.ResolveCodeAction(rctx, action)
 		if err != nil {
 			return []gopls.FileEdit{}, err
 		}
@@ -632,7 +636,7 @@ func (s *LangService) RunCodeAction(action lsp.CodeAction) ([]gopls.FileEdit, er
 		edits = ls.mapEdits(gopls.FileEdits(*action.Edit))
 	}
 	if action.Command != nil {
-		if err := srv.ExecuteCommand(ctx, *action.Command); err != nil {
+		if err := srv.ExecuteCommand(rctx, *action.Command); err != nil {
 			return edits, err
 		}
 	}

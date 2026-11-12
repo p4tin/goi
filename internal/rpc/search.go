@@ -155,8 +155,8 @@ type FileSearchResult struct {
 
 // Files fuzzy-matches query against project file paths. recent lists
 // absolute paths, most recent first, to boost; an empty query returns them.
-func (s *SearchService) Files(query string, limit int, recent []string) (FileSearchResult, error) {
-	sess, err := s.app.current()
+func (s *SearchService) Files(ctx context.Context, query string, limit int, recent []string) (FileSearchResult, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return FileSearchResult{Matches: []index.Match{}}, err
 	}
@@ -203,9 +203,9 @@ type FindResult struct {
 var errIndexNotReady = errors.New("the file index is still being built; try again in a moment")
 
 // FindInPath searches project files (honoring excludes) for q.
-func (s *SearchService) FindInPath(q FindQuery) (FindResult, error) {
+func (s *SearchService) FindInPath(ctx context.Context, q FindQuery) (FindResult, error) {
 	empty := FindResult{Matches: []textsearch.Match{}}
-	sess, err := s.app.current()
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return empty, err
 	}
@@ -223,9 +223,9 @@ func (s *SearchService) FindInPath(q FindQuery) (FindResult, error) {
 	for _, b := range q.Buffers {
 		buffers[b.Path] = b.Text
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	sctx, cancel := reqCtx(ctx, 60*time.Second)
 	defer cancel()
-	m, truncated, err := textsearch.SearchWith(ctx, paths, q.query(), MaxFindResults, buffers)
+	m, truncated, err := textsearch.SearchWith(sctx, paths, q.query(), MaxFindResults, buffers)
 	if m == nil {
 		m = []textsearch.Match{}
 	}
@@ -235,8 +235,8 @@ func (s *SearchService) FindInPath(q FindQuery) (FindResult, error) {
 // ReplaceInPath replaces q's matches in paths (files not open in the
 // editor; the frontend edits open buffers itself). It returns the number of
 // replacements.
-func (s *SearchService) ReplaceInPath(q FindQuery, paths []string) (int, error) {
-	sess, err := s.app.current()
+func (s *SearchService) ReplaceInPath(ctx context.Context, q FindQuery, paths []string) (int, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return 0, err
 	}

@@ -223,7 +223,7 @@ func TestSearchServiceIndexesAndFollowsChanges(t *testing.T) {
 	a, _ := started(t, root)
 	var res FileSearchResult
 	eventuallyRPC(t, func() bool {
-		res, _ = a.searchSvc.Files("util", 10, nil)
+		res, _ = a.searchSvc.Files(context.Background(), "util", 10, nil)
 		return res.Index.Ready && len(res.Matches) > 0
 	})
 	if res.Matches[0].Rel != "pkg/util/util.go" {
@@ -236,12 +236,12 @@ func TestSearchServiceIndexesAndFollowsChanges(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(root, "brandnew.go"), []byte("package m\n"), 0o644)
 	eventuallyRPC(t, func() bool {
-		res, _ = a.searchSvc.Files("brandnew", 10, nil)
+		res, _ = a.searchSvc.Files(context.Background(), "brandnew", 10, nil)
 		return len(res.Matches) == 1
 	})
 	os.Remove(filepath.Join(root, "brandnew.go"))
 	eventuallyRPC(t, func() bool {
-		res, _ = a.searchSvc.Files("brandnew", 10, nil)
+		res, _ = a.searchSvc.Files(context.Background(), "brandnew", 10, nil)
 		return len(res.Matches) == 0
 	})
 }
