@@ -14,12 +14,14 @@ const newProjectTimeout = 15 * time.Second
 
 // NewProject creates parentDir/name with a go.mod for modulePath and a
 // main.go, and returns the new directory. It uses `go mod init` when a Go SDK
-// is available and writes a minimal go.mod otherwise.
-func (s *AppService) NewProject(parentDir, name, modulePath string) (string, error) {
-	return s.app.newProject(parentDir, name, modulePath)
+// is available and writes a minimal go.mod otherwise. The SDK and go settings
+// are the calling window's.
+func (s *AppService) NewProject(ctx context.Context, parentDir, name, modulePath string) (string, error) {
+	w, _ := s.app.windowFor(ctx) // no window: write go.mod without the go command
+	return s.app.newProject(w, parentDir, name, modulePath)
 }
 
-func (a *App) newProject(parentDir, name, modulePath string) (string, error) {
+func (a *App) newProject(w *window, parentDir, name, modulePath string) (string, error) {
 	name = strings.TrimSpace(name)
 	modulePath = strings.TrimSpace(modulePath)
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
@@ -43,7 +45,7 @@ func (a *App) newProject(parentDir, name, modulePath string) (string, error) {
 		return "", fmt.Errorf("new project: %w", err)
 	}
 
-	if err := a.goModInit(dir, modulePath); err != nil {
+	if err := a.goModInit(w, dir, modulePath); err != nil {
 		a.log.Info("go mod init unavailable, writing go.mod", "err", err)
 		content := fmt.Sprintf("module %s\n\ngo %s\n", modulePath, goMajorMinor(runtime.Version()))
 		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0o644); err != nil {
@@ -56,10 +58,13 @@ func (a *App) newProject(parentDir, name, modulePath string) (string, error) {
 	return dir, nil
 }
 
-func (a *App) goModInit(dir, modulePath string) error {
+func (a *App) goModInit(w *window, dir, modulePath string) error {
+	if w == nil {
+		return errNoWindow
+	}
 	ctx, cancel := context.WithTimeout(a.ctx, newProjectTimeout)
 	defer cancel()
-	r, err := a.runner(ctx)
+	r, err := w.runner(ctx)
 	if err != nil {
 		return err
 	}

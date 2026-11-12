@@ -14,8 +14,8 @@ type WorkspaceService struct {
 }
 
 // Project returns the open project, or nil on the Welcome screen.
-func (s *WorkspaceService) Project() *workspace.Project {
-	sess, err := s.app.current()
+func (s *WorkspaceService) Project(ctx context.Context) *workspace.Project {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil
 	}
@@ -24,8 +24,8 @@ func (s *WorkspaceService) Project() *workspace.Project {
 }
 
 // AddContentRoot adds an extra top-level folder to the project.
-func (s *WorkspaceService) AddContentRoot(path string) error {
-	sess, err := s.app.current()
+func (s *WorkspaceService) AddContentRoot(ctx context.Context, path string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}
@@ -33,8 +33,8 @@ func (s *WorkspaceService) AddContentRoot(path string) error {
 }
 
 // RemoveContentRoot removes an extra top-level folder.
-func (s *WorkspaceService) RemoveContentRoot(path string) error {
-	sess, err := s.app.current()
+func (s *WorkspaceService) RemoveContentRoot(ctx context.Context, path string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func (s *WorkspaceService) RemoveContentRoot(path string) error {
 }
 
 // SetExcludes replaces the project's exclude globs.
-func (s *WorkspaceService) SetExcludes(globs []string) error {
-	sess, err := s.app.current()
+func (s *WorkspaceService) SetExcludes(ctx context.Context, globs []string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,12 @@ type SDKStatus struct {
 
 // SDKStatus resolves the configured SDK: go.goroot when set, otherwise the
 // only discovered SDK, otherwise the one on PATH.
-func (s *WorkspaceService) SDKStatus() SDKStatus {
-	sdk, err := s.app.mainWindow().resolveSDK(s.app.ctx)
+func (s *WorkspaceService) SDKStatus(ctx context.Context) SDKStatus {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return SDKStatus{Problem: err.Error()}
+	}
+	sdk, err := w.resolveSDK(s.app.ctx)
 	if err != nil {
 		return SDKStatus{Problem: err.Error()}
 	}
@@ -76,19 +80,23 @@ type GoEnvSummary struct {
 }
 
 // GoEnv runs `go env -json` with the project environment.
-func (s *WorkspaceService) GoEnv() (map[string]string, error) {
-	r, err := s.app.runner(s.app.ctx)
+func (s *WorkspaceService) GoEnv(ctx context.Context) (map[string]string, error) {
+	w, err := s.app.windowFor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(s.app.ctx, 10*time.Second)
+	r, err := w.runner(s.app.ctx)
+	if err != nil {
+		return nil, err
+	}
+	tctx, cancel := context.WithTimeout(s.app.ctx, 10*time.Second)
 	defer cancel()
-	return r.GoEnv(ctx)
+	return r.GoEnv(tctx)
 }
 
 // GoEnvSummary returns GOOS/GOARCH/GOVERSION for the status bar.
-func (s *WorkspaceService) GoEnvSummary() (GoEnvSummary, error) {
-	env, err := s.GoEnv()
+func (s *WorkspaceService) GoEnvSummary(ctx context.Context) (GoEnvSummary, error) {
+	env, err := s.GoEnv(ctx)
 	if err != nil {
 		return GoEnvSummary{}, err
 	}

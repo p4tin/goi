@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"time"
 
 	"github.com/p4tin/goi/internal/journal"
@@ -9,8 +10,8 @@ import (
 // JournalPut records an unsaved buffer so it can be restored after a crash.
 // baseModTime is the file's RFC 3339 modification time when the buffer was
 // loaded ("" if unknown).
-func (s *AppService) JournalPut(path, content, baseModTime string) error {
-	sess, err := s.app.current()
+func (s *AppService) JournalPut(ctx context.Context, path, content, baseModTime string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}
@@ -22,8 +23,8 @@ func (s *AppService) JournalPut(path, content, baseModTime string) error {
 }
 
 // JournalDrop forgets a buffer's journaled content (after save or discard).
-func (s *AppService) JournalDrop(path string) error {
-	sess, err := s.app.current()
+func (s *AppService) JournalDrop(ctx context.Context, path string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}

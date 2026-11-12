@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/p4tin/goi/internal/events"
@@ -13,28 +14,41 @@ type SettingsService struct {
 	app *App
 }
 
-// Effective returns the merged settings.
-func (s *SettingsService) Effective() settings.Settings {
-	return s.app.mainWindow().settings.Effective()
+// Effective returns the calling window's merged settings.
+func (s *SettingsService) Effective(ctx context.Context) (settings.Settings, error) {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return settings.Settings{}, err
+	}
+	return w.settings.Effective(), nil
 }
 
 // Origins maps each dotted key to the layer ("default", "user" or
 // "project") its value comes from.
-func (s *SettingsService) Origins() map[string]string {
+func (s *SettingsService) Origins(ctx context.Context) (map[string]string, error) {
 	out := map[string]string{}
-	for k, l := range s.app.mainWindow().settings.Origins() {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return out, err
+	}
+	for k, l := range w.settings.Origins() {
 		out[k] = string(l)
 	}
-	return out
+	return out, nil
 }
 
-// Set writes key in layer ("user" or "project"). A null value removes it.
-func (s *SettingsService) Set(layer string, key string, value any) error {
+// Set writes key in layer ("user" or "project") of the calling window's
+// settings. A null value removes it.
+func (s *SettingsService) Set(ctx context.Context, layer string, key string, value any) error {
 	l := settings.Layer(layer)
 	if l != settings.LayerUser && l != settings.LayerProject {
 		return fmt.Errorf("settings: cannot write layer %q", layer)
 	}
-	return s.app.mainWindow().settings.Set(l, key, value)
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return err
+	}
+	return w.settings.Set(l, key, value)
 }
 
 // SettingsPaths are the files behind each writable layer.
@@ -43,12 +57,16 @@ type SettingsPaths struct {
 	Project string `json:"project"`
 }
 
-// Paths returns the user and project settings files.
-func (s *SettingsService) Paths() SettingsPaths {
-	return SettingsPaths{
-		User:    s.app.mainWindow().settings.Path(settings.LayerUser),
-		Project: s.app.mainWindow().settings.Path(settings.LayerProject),
+// Paths returns the calling window's user and project settings files.
+func (s *SettingsService) Paths(ctx context.Context) (SettingsPaths, error) {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return SettingsPaths{}, err
 	}
+	return SettingsPaths{
+		User:    w.settings.Path(settings.LayerUser),
+		Project: w.settings.Path(settings.LayerProject),
+	}, nil
 }
 
 // RecentService lists recent projects.

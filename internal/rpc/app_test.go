@@ -74,11 +74,11 @@ func TestStartupOpensProjectAndRecordsRecent(t *testing.T) {
 	root := module(t)
 	a, bus := started(t, root)
 
-	p := a.workspaceSvc.Project()
+	p := a.workspaceSvc.Project(context.Background())
 	if p == nil || p.Kind != workspace.KindModule || p.Root != root {
 		t.Fatalf("project = %+v", p)
 	}
-	if info := a.appSvc.Info(); info.ProjectPath != root || info.Name != "Goi" {
+	if info := a.appSvc.Info(context.Background()); info.ProjectPath != root || info.Name != "Goi" {
 		t.Errorf("info = %+v", info)
 	}
 	list, err := a.recentSvc.List()
@@ -91,7 +91,7 @@ func TestStartupOpensProjectAndRecordsRecent(t *testing.T) {
 	// A second project goes to a new window, never this one.
 	recs := withWindows(a)
 	other := t.TempDir()
-	if err := a.appSvc.OpenProject(other, false); err != nil || len(*recs) != 1 || a.windowWithProject(other) == a.allWindows()[0] {
+	if err := a.appSvc.OpenProject(context.Background(), other, false); err != nil || len(*recs) != 1 || a.windowWithProject(other) == a.allWindows()[0] {
 		t.Errorf("second project: err=%v new windows=%d", err, len(*recs))
 	}
 	if err := a.allWindows()[0].openProject(other); err == nil {
@@ -113,13 +113,13 @@ func TestReopenLastProjectAndClose(t *testing.T) {
 	}
 	a2.start(context.Background(), events.Nop{}, nil)
 	defer a2.Shutdown(context.Background())
-	if p := a2.workspaceSvc.Project(); p == nil || p.Root != root {
+	if p := a2.workspaceSvc.Project(context.Background()); p == nil || p.Root != root {
 		t.Fatalf("reopened project = %+v", p)
 	}
-	if err := a2.appSvc.CloseProject(); err != nil {
+	if err := a2.appSvc.CloseProject(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if a2.workspaceSvc.Project() != nil {
+	if a2.workspaceSvc.Project(context.Background()) != nil {
 		t.Error("project still open after CloseProject")
 	}
 }
@@ -128,8 +128,9 @@ func TestFileServiceGuardAndOps(t *testing.T) {
 	root := module(t)
 	a, _ := started(t, root)
 	fs := a.fileSvc
+	ctx := context.Background()
 
-	entries, err := fs.List(root)
+	entries, err := fs.List(ctx, root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,22 +139,22 @@ func TestFileServiceGuardAndOps(t *testing.T) {
 			t.Error(".git should be excluded")
 		}
 	}
-	if _, err := fs.List(t.TempDir()); err == nil {
+	if _, err := fs.List(ctx, t.TempDir()); err == nil {
 		t.Error("List outside project: want error")
 	}
 
 	outside := filepath.Join(t.TempDir(), "x.txt")
-	if err := fs.Create(outside, false, "x"); err == nil {
+	if err := fs.Create(ctx, outside, false, "x"); err == nil {
 		t.Error("Create outside project: want error")
 	}
-	if err := fs.Trash(root); err == nil {
+	if err := fs.Trash(ctx, root); err == nil {
 		t.Error("Trash content root: want error")
 	}
-	if _, err := fs.Write(filepath.Join(root, "..", "escape.txt"), "x", vfs.FileMeta{}); err == nil {
+	if _, err := fs.Write(ctx, filepath.Join(root, "..", "escape.txt"), "x", vfs.FileMeta{}); err == nil {
 		t.Error("Write via .. escape: want error")
 	}
 
-	p, err := fs.CreateGoFile(filepath.Join(root, "pkg", "util"), "more")
+	p, err := fs.CreateGoFile(ctx, filepath.Join(root, "pkg", "util"), "more")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,20 +163,20 @@ func TestFileServiceGuardAndOps(t *testing.T) {
 		t.Errorf("CreateGoFile content = %q", b)
 	}
 	newDir := filepath.Join(root, "my-tool")
-	if err := fs.Create(newDir, true, ""); err != nil {
+	if err := fs.Create(ctx, newDir, true, ""); err != nil {
 		t.Fatal(err)
 	}
-	p2, _ := fs.CreateGoFile(newDir, "main.go")
+	p2, _ := fs.CreateGoFile(ctx, newDir, "main.go")
 	b2, _ := os.ReadFile(p2)
 	if string(b2) != "package mytool\n" {
 		t.Errorf("derived package = %q", b2)
 	}
 
-	f, err := fs.Read(filepath.Join(root, "go.mod"))
+	f, err := fs.Read(ctx, filepath.Join(root, "go.mod"))
 	if err != nil || !strings.HasPrefix(f.Content, "module example.com/m") || f.Meta.Mode != vfs.ModeNormal {
 		t.Errorf("Read = %+v, %v", f, err)
 	}
-	if _, err := fs.Write(f.Meta.Path, f.Content+"\n// x\n", f.Meta); err != nil {
+	if _, err := fs.Write(ctx, f.Meta.Path, f.Content+"\n// x\n", f.Meta); err != nil {
 		t.Errorf("Write inside project: %v", err)
 	}
 }
@@ -183,29 +184,29 @@ func TestFileServiceGuardAndOps(t *testing.T) {
 func TestSettingsAndLayout(t *testing.T) {
 	root := module(t)
 	a, _ := started(t, root)
-	if err := a.settingsSvc.Set("project", "save.format", "gofmt"); err != nil {
+	if err := a.settingsSvc.Set(context.Background(), "project", "save.format", "gofmt"); err != nil {
 		t.Fatal(err)
 	}
-	if got := a.settingsSvc.Effective().Save.Format; got != "gofmt" {
-		t.Errorf("format = %q", got)
+	if eff, err := a.settingsSvc.Effective(context.Background()); err != nil || eff.Save.Format != "gofmt" {
+		t.Errorf("format = %q, %v", eff.Save.Format, err)
 	}
-	if o := a.settingsSvc.Origins()["save.format"]; o != "project" {
-		t.Errorf("origin = %q", o)
+	if o, err := a.settingsSvc.Origins(context.Background()); err != nil || o["save.format"] != "project" {
+		t.Errorf("origin = %q, %v", o["save.format"], err)
 	}
-	if err := a.settingsSvc.Set("default", "save.format", "none"); err == nil {
+	if err := a.settingsSvc.Set(context.Background(), "default", "save.format", "none"); err == nil {
 		t.Error("write default layer: want error")
 	}
 	if _, err := os.Stat(filepath.Join(root, ".goi", "settings.toml")); err != nil {
 		t.Errorf("project settings file: %v", err)
 	}
 
-	if s, err := a.appSvc.LoadLayout(); err != nil || s != "" {
+	if s, err := a.appSvc.LoadLayout(context.Background()); err != nil || s != "" {
 		t.Errorf("initial layout = %q, %v", s, err)
 	}
-	if err := a.appSvc.SaveLayout(`{"left":240}`); err != nil {
+	if err := a.appSvc.SaveLayout(context.Background(), `{"left":240}`); err != nil {
 		t.Fatal(err)
 	}
-	if s, _ := a.appSvc.LoadLayout(); s != `{"left":240}` {
+	if s, _ := a.appSvc.LoadLayout(context.Background()); s != `{"left":240}` {
 		t.Errorf("layout = %q", s)
 	}
 }
@@ -267,7 +268,7 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	}
 	a1.start(context.Background(), events.Nop{}, nil)
 	file := filepath.Join(root, "go.mod")
-	if err := a1.appSvc.JournalPut(file, "module changed\n", time.Now().Format(time.RFC3339Nano)); err != nil {
+	if err := a1.appSvc.JournalPut(context.Background(), file, "module changed\n", time.Now().Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
 	// Simulate a crash: pretend the journal's owner died by rewriting
@@ -296,14 +297,14 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	}
 	a2.start(context.Background(), events.Nop{}, nil)
 	defer a2.Shutdown(context.Background())
-	got, err := a2.appSvc.PendingRestore()
+	got, err := a2.appSvc.PendingRestore(context.Background())
 	if err != nil || len(got) != 1 || got[0].Path != file || got[0].Content != "module changed\n" {
 		t.Fatalf("PendingRestore = %+v, %v", got, err)
 	}
-	if err := a2.appSvc.JournalDrop(file); err != nil {
+	if err := a2.appSvc.JournalDrop(context.Background(), file); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := a2.appSvc.PendingRestore(); len(got) != 0 {
+	if got, _ := a2.appSvc.PendingRestore(context.Background()); len(got) != 0 {
 		t.Errorf("after drop = %+v", got)
 	}
 }
@@ -337,7 +338,7 @@ func TestOpenFileQueuedThenOpensProject(t *testing.T) {
 	bus := &events.Recorder{}
 	a.start(context.Background(), bus, nil)
 	defer a.Shutdown(context.Background())
-	if p := a.workspaceSvc.Project(); p == nil || p.Root != root {
+	if p := a.workspaceSvc.Project(context.Background()); p == nil || p.Root != root {
 		t.Fatalf("project = %+v", p)
 	}
 	ev := bus.Events(TopicOpenFile)
@@ -349,11 +350,15 @@ func TestOpenFileQueuedThenOpensProject(t *testing.T) {
 func TestWriteUserSettingsFileOutsideProject(t *testing.T) {
 	root := module(t)
 	a, _ := started(t, root)
-	user := a.settingsSvc.Paths().User
-	if _, err := a.fileSvc.Write(user, "[editor]\nfontSize = 15\n", vfs.FileMeta{}); err != nil {
+	paths, err := a.settingsSvc.Paths(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := paths.User
+	if _, err := a.fileSvc.Write(context.Background(), user, "[editor]\nfontSize = 15\n", vfs.FileMeta{}); err != nil {
 		t.Fatalf("write user settings: %v", err)
 	}
-	if _, err := a.fileSvc.Write(filepath.Join(filepath.Dir(user), "other.toml"), "x", vfs.FileMeta{}); err == nil {
+	if _, err := a.fileSvc.Write(context.Background(), filepath.Join(filepath.Dir(user), "other.toml"), "x", vfs.FileMeta{}); err == nil {
 		t.Error("other file outside project: want error")
 	}
 }

@@ -28,7 +28,11 @@ func (s *SDKService) Validate(goroot string) (gosdk.SDK, error) {
 
 // Select stores goroot as the SDK: in project settings when a project is
 // open, otherwise in user settings. An empty goroot clears the choice.
-func (s *SDKService) Select(goroot string) error {
+func (s *SDKService) Select(ctx context.Context, goroot string) error {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return err
+	}
 	if goroot != "" {
 		if _, err := gosdk.Validate(goroot); err != nil {
 			return err
@@ -38,7 +42,7 @@ func (s *SDKService) Select(goroot string) error {
 	if goroot == "" {
 		v = nil
 	}
-	return s.app.mainWindow().settings.Set(s.app.mainWindow().settingsLayerForProject(), "go.goroot", v)
+	return w.settings.Set(w.settingsLayerForProject(), "go.goroot", v)
 }
 
 var errNoSDK = errors.New("no Go SDK found; install Go or choose an SDK in settings")

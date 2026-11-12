@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/parser"
@@ -27,8 +28,8 @@ type OpenedFile struct {
 }
 
 // List returns the children of dir, honouring project excludes.
-func (s *FileService) List(dir string) ([]vfs.Entry, error) {
-	sess, err := s.app.current()
+func (s *FileService) List(ctx context.Context, dir string) ([]vfs.Entry, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -43,25 +44,30 @@ func (s *FileService) List(dir string) ([]vfs.Entry, error) {
 	return entries, err
 }
 
-// Read loads a text file using the editor size limits from settings.
-func (s *FileService) Read(path string) (OpenedFile, error) {
-	e := s.app.mainWindow().settings.Effective().Editor
+// Read loads a text file using the editor size limits from the calling
+// window's settings.
+func (s *FileService) Read(ctx context.Context, path string) (OpenedFile, error) {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return OpenedFile{}, err
+	}
+	e := w.settings.Effective().Editor
 	lim := vfs.Limits{HighlightBytes: int64(e.MaxHighlightSizeKB) * 1024, OpenBytes: int64(e.MaxOpenSizeKB) * 1024}
 	meta, content, err := vfs.ReadText(path, lim)
 	return OpenedFile{Meta: meta, Content: content}, err
 }
 
 // Write saves content (LF-normalized) restoring the file's EOL and BOM.
-func (s *FileService) Write(path string, content string, meta vfs.FileMeta) (vfs.FileMeta, error) {
-	if err := s.guard(path); err != nil && !s.isSettingsFile(path) {
+func (s *FileService) Write(ctx context.Context, path string, content string, meta vfs.FileMeta) (vfs.FileMeta, error) {
+	if err := s.guard(ctx, path); err != nil && !s.isSettingsFile(ctx, path) {
 		return vfs.FileMeta{}, err
 	}
 	return vfs.WriteText(path, content, meta)
 }
 
 // Create makes a new file (with content) or directory.
-func (s *FileService) Create(path string, isDir bool, content string) error {
-	if err := s.guard(path); err != nil {
+func (s *FileService) Create(ctx context.Context, path string, isDir bool, content string) error {
+	if err := s.guard(ctx, path); err != nil {
 		return err
 	}
 	return vfs.Create(path, isDir, content)
@@ -70,13 +76,13 @@ func (s *FileService) Create(path string, isDir bool, content string) error {
 // CreateGoFile creates <dir>/<name>.go with a package clause matching the
 // other Go files in dir, or derived from the directory name. It returns the
 // new file's path.
-func (s *FileService) CreateGoFile(dir, name string) (string, error) {
+func (s *FileService) CreateGoFile(ctx context.Context, dir, name string) (string, error) {
 	name = strings.TrimSuffix(strings.TrimSpace(name), ".go")
 	if name == "" || strings.ContainsAny(name, `/\`) {
 		return "", fmt.Errorf("files: invalid Go file name %q", name)
 	}
 	path := filepath.Join(dir, name+".go")
-	if err := s.guard(path); err != nil {
+	if err := s.guard(ctx, path); err != nil {
 		return "", err
 	}
 	pkg := packageFor(dir, strings.HasSuffix(name, "_test"))
@@ -84,19 +90,19 @@ func (s *FileService) CreateGoFile(dir, name string) (string, error) {
 }
 
 // Rename moves a file or directory within the project.
-func (s *FileService) Rename(from, to string) error {
-	if err := s.guard(from); err != nil {
+func (s *FileService) Rename(ctx context.Context, from, to string) error {
+	if err := s.guard(ctx, from); err != nil {
 		return err
 	}
-	if err := s.guard(to); err != nil {
+	if err := s.guard(ctx, to); err != nil {
 		return err
 	}
 	return vfs.Rename(from, to)
 }
 
 // Trash moves path to the OS trash.
-func (s *FileService) Trash(path string) error {
-	if err := s.guard(path); err != nil {
+func (s *FileService) Trash(ctx context.Context, path string) error {
+	if err := s.guard(ctx, path); err != nil {
 		return err
 	}
 	return vfs.Trash(path)
@@ -115,14 +121,18 @@ func (s *FileService) CopyPath(path string) error {
 	return nil
 }
 
-// isSettingsFile reports whether path is the user or project settings file,
-// which may be edited directly even when outside the project.
-func (s *FileService) isSettingsFile(path string) bool {
+// isSettingsFile reports whether path is the calling window's user or project
+// settings file, which may be edited directly even when outside the project.
+func (s *FileService) isSettingsFile(ctx context.Context, path string) bool {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return false
+	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
-	for _, p := range []string{s.app.mainWindow().settings.Path(settings.LayerUser), s.app.mainWindow().settings.Path(settings.LayerProject)} {
+	for _, p := range []string{w.settings.Path(settings.LayerUser), w.settings.Path(settings.LayerProject)} {
 		if p != "" && filepath.Clean(p) == abs {
 			return true
 		}
@@ -130,10 +140,10 @@ func (s *FileService) isSettingsFile(path string) bool {
 	return false
 }
 
-// guard rejects paths outside the open project's content roots, and content
-// roots themselves.
-func (s *FileService) guard(path string) error {
-	sess, err := s.app.current()
+// guard rejects paths outside the calling window's project content roots,
+// and content roots themselves.
+func (s *FileService) guard(ctx context.Context, path string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}

@@ -274,7 +274,7 @@ type AppService struct {
 
 // Info returns static application information. ProjectPath is the project
 // open in this window, if any.
-func (s *AppService) Info() AppInfo {
+func (s *AppService) Info(ctx context.Context) AppInfo {
 	info := AppInfo{
 		Name:      "Goi",
 		Version:   paths.Version,
@@ -284,17 +284,18 @@ func (s *AppService) Info() AppInfo {
 		Arch:      runtime.GOARCH,
 		LogPath:   s.app.logPath,
 	}
-	if sess, err := s.app.current(); err == nil {
-		info.ProjectPath = sess.root
-	} else {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
 		info.ProjectPath = s.app.opts.ProjectPath
+	} else if sess, err := w.current(); err == nil {
+		info.ProjectPath = sess.root
 	}
 	return info
 }
 
 // OpenFolderDialog shows the native folder picker and returns the chosen
-// path, or "" if cancelled.
-func (s *AppService) OpenFolderDialog() (string, error) {
+// path, or "" if cancelled. The dialog is attached to the calling window.
+func (s *AppService) OpenFolderDialog(ctx context.Context) (string, error) {
 	if s.app.wapp == nil {
 		return "", errNoWindow
 	}
@@ -303,7 +304,7 @@ func (s *AppService) OpenFolderDialog() (string, error) {
 		CanChooseDirectories(true).
 		CanChooseFiles(false).
 		CanCreateDirectories(true)
-	if w := s.app.mainWindow(); w != nil {
+	if w, err := s.app.windowFor(ctx); err == nil {
 		if h, ok := w.handle.(*nativeHandle); ok {
 			d = d.AttachToWindow(h.w)
 		}
@@ -314,8 +315,8 @@ func (s *AppService) OpenFolderDialog() (string, error) {
 // OpenProject opens path. With newWindow, or when this window already has a
 // project, it focuses the window that has path open or launches a new one.
 // Otherwise it opens path in this window.
-func (s *AppService) OpenProject(path string, newWindow bool) error {
-	w := s.app.mainWindow()
+func (s *AppService) OpenProject(ctx context.Context, path string, newWindow bool) error {
+	w, _ := s.app.windowFor(ctx) // no calling window: open in a new one
 	if newWindow {
 		return s.app.openProjectWindow(path, nil)
 	}
@@ -323,14 +324,18 @@ func (s *AppService) OpenProject(path string, newWindow bool) error {
 }
 
 // CloseProject closes the project in this window and returns to Welcome.
-func (s *AppService) CloseProject() error {
-	return s.app.closeProject()
+func (s *AppService) CloseProject(ctx context.Context) error {
+	w, err := s.app.windowFor(ctx)
+	if err != nil {
+		return err
+	}
+	return w.closeProject()
 }
 
 // PendingRestore returns unsaved buffers journaled before a crash of the
 // previous session for the open project.
-func (s *AppService) PendingRestore() ([]journal.Entry, error) {
-	sess, err := s.app.current()
+func (s *AppService) PendingRestore(ctx context.Context) ([]journal.Entry, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil || !sess.crashed {
 		return []journal.Entry{}, nil
 	}
@@ -342,8 +347,8 @@ func (s *AppService) PendingRestore() ([]journal.Entry, error) {
 }
 
 // SaveLayout persists the window layout JSON for the open project.
-func (s *AppService) SaveLayout(layout string) error {
-	sess, err := s.app.current()
+func (s *AppService) SaveLayout(ctx context.Context, layout string) error {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return err
 	}
@@ -351,8 +356,8 @@ func (s *AppService) SaveLayout(layout string) error {
 }
 
 // LoadLayout returns the saved layout JSON for the open project, or "".
-func (s *AppService) LoadLayout() (string, error) {
-	sess, err := s.app.current()
+func (s *AppService) LoadLayout(ctx context.Context) (string, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return "", err
 	}
