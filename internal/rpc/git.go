@@ -246,8 +246,8 @@ type GitService struct {
 	app *App
 }
 
-func (s *GitService) session() (*gitSession, error) {
-	sess, err := s.app.current()
+func (s *GitService) session(ctx context.Context) (*gitSession, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -257,8 +257,8 @@ func (s *GitService) session() (*gitSession, error) {
 	return sess.git, nil
 }
 
-func (s *GitService) repo() (*gitSession, *git.Repo, error) {
-	gs, err := s.session()
+func (s *GitService) repo(ctx context.Context) (*gitSession, *git.Repo, error) {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,21 +274,21 @@ func gitCtx() (context.Context, context.CancelFunc) {
 }
 
 // mutate runs fn and refreshes the status afterwards.
-func (s *GitService) mutate(fn func(ctx context.Context, r *git.Repo) error) error {
-	gs, r, err := s.repo()
+func (s *GitService) mutate(ctx context.Context, fn func(ctx context.Context, r *git.Repo) error) error {
+	gs, r, err := s.repo(ctx)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	err = fn(ctx, r)
+	err = fn(gctx, r)
 	gs.refresh()
 	return err
 }
 
 // State returns the cached status (Repo false outside a repository).
-func (s *GitService) State() GitState {
-	gs, err := s.session()
+func (s *GitService) State(ctx context.Context) GitState {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return GitState{Status: git.Status{Files: []git.FileStatus{}}}
 	}
@@ -302,38 +302,39 @@ func (s *GitService) State() GitState {
 }
 
 // Refresh re-reads the status now (window focus, after terminal use).
-func (s *GitService) Refresh() {
-	if gs, err := s.session(); err == nil {
+func (s *GitService) Refresh(ctx context.Context) {
+	if gs, err := s.session(ctx); err == nil {
 		gs.refresh()
 	}
 }
 
 // Init creates a repository at the project root.
-func (s *GitService) Init() error {
-	gs, err := s.session()
+func (s *GitService) Init(ctx context.Context) error {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	if err := git.Init(ctx, gs.root, gs.bin(), nil); err != nil {
+	if err := git.Init(gctx, gs.root, gs.bin(), nil); err != nil {
 		return err
 	}
-	sess, _ := s.app.current()
-	gs.open(sess.watcher)
+	if sess, err := s.app.sessionFor(ctx); err == nil {
+		gs.open(sess.watcher)
+	}
 	return nil
 }
 
 // Show returns a file's content at rev (":0" index, "HEAD", a hash, ":2"…).
 // Missing files return "" and found=false.
-func (s *GitService) Show(rev, path string) (ShowResult, error) {
-	_, r, err := s.repo()
+func (s *GitService) Show(ctx context.Context, rev, path string) (ShowResult, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return ShowResult{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	text, err := r.Show(ctx, rev, path)
+	text, err := r.Show(gctx, rev, path)
 	if errors.Is(err, git.ErrNotFound) {
 		return ShowResult{}, nil
 	}
@@ -350,14 +351,14 @@ type ShowResult struct {
 }
 
 // Diff returns unified diff text parsed into files.
-func (s *GitService) Diff(path string, staged bool, rev, commit string) ([]git.FileDiff, error) {
-	_, r, err := s.repo()
+func (s *GitService) Diff(ctx context.Context, path string, staged bool, rev, commit string) ([]git.FileDiff, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.FileDiff{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	text, err := r.Diff(ctx, git.DiffSpec{Path: path, Staged: staged, Rev: rev, Commit: commit})
+	text, err := r.Diff(gctx, git.DiffSpec{Path: path, Staged: staged, Rev: rev, Commit: commit})
 	if err != nil {
 		return []git.FileDiff{}, err
 	}
@@ -365,23 +366,23 @@ func (s *GitService) Diff(path string, staged bool, rev, commit string) ([]git.F
 }
 
 // ApplyPatch applies a patch to the index (cached) or the work tree.
-func (s *GitService) ApplyPatch(patch string, cached, reverse bool) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.ApplyPatch(ctx, patch, cached, reverse) })
+func (s *GitService) ApplyPatch(ctx context.Context, patch string, cached, reverse bool) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.ApplyPatch(ctx, patch, cached, reverse) })
 }
 
 // Stage adds paths to the index.
-func (s *GitService) Stage(paths []string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Stage(ctx, paths) })
+func (s *GitService) Stage(ctx context.Context, paths []string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Stage(ctx, paths) })
 }
 
 // Unstage removes paths from the index.
-func (s *GitService) Unstage(paths []string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Unstage(ctx, paths) })
+func (s *GitService) Unstage(ctx context.Context, paths []string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Unstage(ctx, paths) })
 }
 
 // Rollback discards changes; untracked files are moved to the trash.
-func (s *GitService) Rollback(paths []string) error {
-	gs, _, err := s.repo()
+func (s *GitService) Rollback(ctx context.Context, paths []string) error {
+	gs, _, err := s.repo(ctx)
 	if err != nil {
 		return err
 	}
@@ -405,95 +406,95 @@ func (s *GitService) Rollback(paths []string) error {
 		}
 		tracked = append(tracked, p)
 	}
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Discard(ctx, tracked) })
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Discard(ctx, tracked) })
 }
 
 // Commit commits the index.
-func (s *GitService) Commit(message string, amend bool) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Commit(ctx, message, amend) })
+func (s *GitService) Commit(ctx context.Context, message string, amend bool) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Commit(ctx, message, amend) })
 }
 
 // LastMessage is HEAD's message (for amend).
-func (s *GitService) LastMessage() string {
-	_, r, err := s.repo()
+func (s *GitService) LastMessage(ctx context.Context) string {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return ""
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.LastMessage(ctx)
+	return r.LastMessage(gctx)
 }
 
 // Branches lists branches.
-func (s *GitService) Branches() ([]git.Branch, error) {
-	_, r, err := s.repo()
+func (s *GitService) Branches(ctx context.Context) ([]git.Branch, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.Branch{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.Branches(ctx)
+	return r.Branches(gctx)
 }
 
 // Checkout switches branch (newBranch creates one from ref or HEAD).
-func (s *GitService) Checkout(ref, newBranch string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Checkout(ctx, ref, newBranch) })
+func (s *GitService) Checkout(ctx context.Context, ref, newBranch string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Checkout(ctx, ref, newBranch) })
 }
 
 // RenameBranch renames a local branch.
-func (s *GitService) RenameBranch(from, to string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.RenameBranch(ctx, from, to) })
+func (s *GitService) RenameBranch(ctx context.Context, from, to string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.RenameBranch(ctx, from, to) })
 }
 
 // DeleteBranch deletes a local branch; "unmerged" errors mean force is
 // needed.
-func (s *GitService) DeleteBranch(name string, force bool) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.DeleteBranch(ctx, name, force) })
+func (s *GitService) DeleteBranch(ctx context.Context, name string, force bool) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.DeleteBranch(ctx, name, force) })
 }
 
 // Merge merges ref into the current branch.
-func (s *GitService) Merge(ref string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Merge(ctx, ref) })
+func (s *GitService) Merge(ctx context.Context, ref string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Merge(ctx, ref) })
 }
 
 // Rebase rebases the current branch onto ref.
-func (s *GitService) Rebase(onto string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Rebase(ctx, onto) })
+func (s *GitService) Rebase(ctx context.Context, onto string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Rebase(ctx, onto) })
 }
 
 // CherryPick applies a commit.
-func (s *GitService) CherryPick(hash string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.CherryPick(ctx, hash) })
+func (s *GitService) CherryPick(ctx context.Context, hash string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.CherryPick(ctx, hash) })
 }
 
 // Revert reverts a commit.
-func (s *GitService) Revert(hash string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Revert(ctx, hash) })
+func (s *GitService) Revert(ctx context.Context, hash string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Revert(ctx, hash) })
 }
 
 // Reset moves the current branch (mode soft, mixed, hard).
-func (s *GitService) Reset(rev, mode string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Reset(ctx, rev, mode) })
+func (s *GitService) Reset(ctx context.Context, rev, mode string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Reset(ctx, rev, mode) })
 }
 
 // Continue, Skip and Abort control the operation in progress.
-func (s *GitService) Continue() error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Continue(ctx) })
+func (s *GitService) Continue(ctx context.Context) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Continue(ctx) })
 }
 
 // Skip skips the current commit of a rebase or cherry-pick.
-func (s *GitService) Skip() error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Skip(ctx) })
+func (s *GitService) Skip(ctx context.Context) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Skip(ctx) })
 }
 
 // Abort aborts the operation in progress.
-func (s *GitService) Abort() error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.Abort(ctx) })
+func (s *GitService) Abort(ctx context.Context) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.Abort(ctx) })
 }
 
 // AcceptSide resolves a conflicted file with "ours" or "theirs" and stages it.
-func (s *GitService) AcceptSide(path, side string) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error {
+func (s *GitService) AcceptSide(ctx context.Context, path, side string) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error {
 		if err := r.CheckoutVersion(ctx, path, side); err != nil {
 			return err
 		}
@@ -502,40 +503,40 @@ func (s *GitService) AcceptSide(path, side string) error {
 }
 
 // Stash stashes changes.
-func (s *GitService) Stash(message string, untracked bool) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.StashPush(ctx, message, untracked) })
+func (s *GitService) Stash(ctx context.Context, message string, untracked bool) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.StashPush(ctx, message, untracked) })
 }
 
 // Stashes lists stashes.
-func (s *GitService) Stashes() ([]git.Stash, error) {
-	_, r, err := s.repo()
+func (s *GitService) Stashes(ctx context.Context) ([]git.Stash, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.Stash{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.Stashes(ctx)
+	return r.Stashes(gctx)
 }
 
 // StashApply applies (or pops) stash i.
-func (s *GitService) StashApply(i int, pop bool) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.StashApply(ctx, i, pop) })
+func (s *GitService) StashApply(ctx context.Context, i int, pop bool) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.StashApply(ctx, i, pop) })
 }
 
 // StashDrop deletes stash i.
-func (s *GitService) StashDrop(i int) error {
-	return s.mutate(func(ctx context.Context, r *git.Repo) error { return r.StashDrop(ctx, i) })
+func (s *GitService) StashDrop(ctx context.Context, i int) error {
+	return s.mutate(ctx, func(ctx context.Context, r *git.Repo) error { return r.StashDrop(ctx, i) })
 }
 
 // StashDiff is the patch of stash i, parsed.
-func (s *GitService) StashDiff(i int) ([]git.FileDiff, error) {
-	_, r, err := s.repo()
+func (s *GitService) StashDiff(ctx context.Context, i int) ([]git.FileDiff, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.FileDiff{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	text, err := r.StashDiff(ctx, i)
+	text, err := r.StashDiff(gctx, i)
 	if err != nil {
 		return []git.FileDiff{}, err
 	}
@@ -543,57 +544,57 @@ func (s *GitService) StashDiff(i int) ([]git.FileDiff, error) {
 }
 
 // Log lists commits.
-func (s *GitService) Log(q git.LogQuery) ([]git.Commit, error) {
-	_, r, err := s.repo()
+func (s *GitService) Log(ctx context.Context, q git.LogQuery) ([]git.Commit, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.Commit{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.Log(ctx, q)
+	return r.Log(gctx, q)
 }
 
 // CommitFiles lists the files a commit changed.
-func (s *GitService) CommitFiles(hash string) ([]git.ChangedFile, error) {
-	_, r, err := s.repo()
+func (s *GitService) CommitFiles(ctx context.Context, hash string) ([]git.ChangedFile, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.ChangedFile{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.CommitFiles(ctx, hash)
+	return r.CommitFiles(gctx, hash)
 }
 
 // Blame annotates a file using the given (possibly unsaved) contents.
-func (s *GitService) Blame(path, contents string) ([]git.BlameLine, error) {
-	_, r, err := s.repo()
+func (s *GitService) Blame(ctx context.Context, path, contents string) ([]git.BlameLine, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []git.BlameLine{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.Blame(ctx, path, &contents)
+	return r.Blame(gctx, path, &contents)
 }
 
 // AddToGitignore appends paths to .gitignore.
-func (s *GitService) AddToGitignore(paths []string) error {
-	return s.mutate(func(_ context.Context, r *git.Repo) error { return r.AddToGitignore(paths) })
+func (s *GitService) AddToGitignore(ctx context.Context, paths []string) error {
+	return s.mutate(ctx, func(_ context.Context, r *git.Repo) error { return r.AddToGitignore(paths) })
 }
 
 // Remotes lists remote names.
-func (s *GitService) Remotes() ([]string, error) {
-	_, r, err := s.repo()
+func (s *GitService) Remotes(ctx context.Context) ([]string, error) {
+	_, r, err := s.repo(ctx)
 	if err != nil {
 		return []string{}, err
 	}
-	ctx, cancel := gitCtx()
+	gctx, cancel := gitCtx()
 	defer cancel()
-	return r.Remotes(ctx)
+	return r.Remotes(gctx)
 }
 
 // Fetch fetches all remotes in the background; returns the op id.
-func (s *GitService) Fetch() (string, error) {
-	gs, err := s.session()
+func (s *GitService) Fetch(ctx context.Context) (string, error) {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -601,18 +602,18 @@ func (s *GitService) Fetch() (string, error) {
 }
 
 // Pull pulls the current branch (rebase per setting) in the background.
-func (s *GitService) Pull() (string, error) {
-	gs, err := s.session()
+func (s *GitService) Pull(ctx context.Context) (string, error) {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return "", err
 	}
-	return gs.startOp("Pull", git.PullArgs(s.app.mainWindow().settings.Effective().Git.PullRebase), nil)
+	return gs.startOp("Pull", git.PullArgs(gs.win.settings.Effective().Git.PullRebase), nil)
 }
 
 // Push pushes the current branch in the background (sets the upstream when
 // missing). force uses --force-with-lease.
-func (s *GitService) Push(force bool) (string, error) {
-	gs, err := s.session()
+func (s *GitService) Push(ctx context.Context, force bool) (string, error) {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -626,8 +627,8 @@ func (s *GitService) Push(force bool) (string, error) {
 }
 
 // StopOp stops a running fetch/pull/push.
-func (s *GitService) StopOp(id string) error {
-	gs, err := s.session()
+func (s *GitService) StopOp(ctx context.Context, id string) error {
+	gs, err := s.session(ctx)
 	if err != nil {
 		return err
 	}

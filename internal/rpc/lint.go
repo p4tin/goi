@@ -65,8 +65,8 @@ type LintService struct {
 	app *App
 }
 
-func (s *LintService) session() (*session, *lintSession, error) {
-	sess, err := s.app.current()
+func (s *LintService) session(ctx context.Context) (*session, *lintSession, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -110,11 +110,12 @@ func (s *LintService) version(ls *lintSession, bin string) (int, string, error) 
 	return m, v, nil
 }
 
-func (s *LintService) status(ls *lintSession) LintStatus {
+// status reports golangci-lint as resolved for window w.
+func (s *LintService) status(w *window, ls *lintSession) LintStatus {
 	ls.mu.Lock()
 	st := LintStatus{Installing: ls.installing, Running: len(ls.running)}
 	ls.mu.Unlock()
-	bin, err := s.app.mainWindow().resolveGolangci()
+	bin, err := w.resolveGolangci()
 	if err != nil {
 		st.Message = err.Error()
 		return st
@@ -128,22 +129,23 @@ func (s *LintService) status(ls *lintSession) LintStatus {
 	return st
 }
 
-func (s *LintService) emitStatus(ls *lintSession) {
-	s.app.mainWindow().bus.Emit(events.TopicLintStatus, s.status(ls))
+// emitStatus sends lint.status to window w.
+func (s *LintService) emitStatus(w *window, ls *lintSession) {
+	w.bus.Emit(events.TopicLintStatus, s.status(w, ls))
 }
 
 // Status reports whether golangci-lint is available.
-func (s *LintService) Status() LintStatus {
-	_, ls, err := s.session()
+func (s *LintService) Status(ctx context.Context) LintStatus {
+	sess, ls, err := s.session(ctx)
 	if err != nil {
 		return LintStatus{Message: err.Error()}
 	}
-	return s.status(ls)
+	return s.status(sess.win, ls)
 }
 
 // Install installs golangci-lint into Goi's tools dir in the background.
-func (s *LintService) Install() error {
-	_, ls, err := s.session()
+func (s *LintService) Install(ctx context.Context) error {
+	sess, ls, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -154,8 +156,8 @@ func (s *LintService) Install() error {
 	}
 	ls.installing = true
 	ls.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	r, err := s.app.runner(ctx)
+	ictx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	r, err := sess.win.runner(ictx)
 	if err != nil {
 		cancel()
 		ls.mu.Lock()
@@ -166,7 +168,7 @@ func (s *LintService) Install() error {
 	s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Installing: true, Message: "Installing golangci-lint (go install " + lint.Module + ")…"})
 	go func() {
 		defer cancel()
-		_, err := toolbin.Install(ctx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), lint.Module, lint.Name)
+		_, err := toolbin.Install(ictx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), lint.Module, lint.Name)
 		ls.mu.Lock()
 		ls.installing = false
 		ls.bin, ls.major = "", 0
@@ -176,7 +178,7 @@ func (s *LintService) Install() error {
 			s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Message: err.Error()})
 			return
 		}
-		s.emitStatus(ls)
+		s.emitStatus(sess.win, ls)
 	}()
 	return nil
 }
@@ -209,15 +211,16 @@ type LintResult struct {
 // Run lints the package containing path ("package") or every module of the
 // project ("project"), then emits lint.diagnostics. A newer run of the same
 // scope cancels the older one.
-func (s *LintService) Run(scope, path string) (LintResult, error) {
-	sess, ls, err := s.session()
+func (s *LintService) Run(ctx context.Context, scope, path string) (LintResult, error) {
+	sess, ls, err := s.session(ctx)
 	if err != nil {
 		return LintResult{}, err
 	}
-	if !s.app.mainWindow().settings.Effective().Lint.Enabled {
+	w := sess.win
+	if !w.settings.Effective().Lint.Enabled {
 		return LintResult{}, errors.New("golangci-lint is disabled in settings (lint.enabled)")
 	}
-	bin, err := s.app.mainWindow().resolveGolangci()
+	bin, err := w.resolveGolangci()
 	if err != nil {
 		return LintResult{}, err
 	}
@@ -261,31 +264,31 @@ func (s *LintService) Run(scope, path string) (LintResult, error) {
 		return LintResult{}, errors.New("no Go module in the project")
 	}
 	key := scope + ":" + jobs[0].covered
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	rctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	ls.mu.Lock()
 	if prev := ls.running[key]; prev != nil {
 		prev()
 	}
 	ls.running[key] = cancel
 	ls.mu.Unlock()
-	s.emitStatus(ls)
+	s.emitStatus(w, ls)
 	defer func() {
 		ls.mu.Lock()
 		delete(ls.running, key)
 		ls.mu.Unlock()
 		cancel()
-		s.emitStatus(ls)
+		s.emitStatus(w, ls)
 	}()
 
 	env := os.Environ()
-	if r, err := s.app.runner(ctx); err == nil {
+	if r, err := w.runner(rctx); err == nil {
 		env = r.Environ()
 	}
-	extra := s.app.mainWindow().settings.Effective().Lint.Args
+	extra := w.settings.Effective().Lint.Args
 	ev := LintDiagnosticsEvent{Files: map[string][]lsp.Diagnostic{}, Recursive: scope == "project"}
 	res := LintResult{}
 	for _, j := range jobs {
-		issues, err := lint.Run(ctx, lint.Spec{Bin: bin, Major: major, Dir: j.dir, Env: env, Targets: j.targets, Extra: extra})
+		issues, err := lint.Run(rctx, lint.Spec{Bin: bin, Major: major, Dir: j.dir, Env: env, Targets: j.targets, Extra: extra})
 		if errors.Is(err, context.Canceled) {
 			return LintResult{Error: "cancelled"}, nil
 		}

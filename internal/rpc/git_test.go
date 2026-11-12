@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,7 +72,7 @@ func TestGitNotRepo(t *testing.T) {
 	if st.Repo || st.Status.Files == nil {
 		t.Fatalf("state = %+v", st)
 	}
-	if _, err := a.gitSvc.Branches(); err == nil {
+	if _, err := a.gitSvc.Branches(context.Background()); err == nil {
 		t.Fatal("Branches outside a repo should fail")
 	}
 }
@@ -86,21 +87,21 @@ func TestGitStatusStageCommitPush(t *testing.T) {
 	if f := st.Status.Files[0]; f.Path != filepath.Join(root, "main.go") || f.Work != "M" {
 		t.Fatalf("file = %+v", f)
 	}
-	d, err := a.gitSvc.Diff(filepath.Join(root, "main.go"), false, "", "")
+	d, err := a.gitSvc.Diff(context.Background(), filepath.Join(root, "main.go"), false, "", "")
 	if err != nil || len(d) != 1 || len(d[0].Hunks) != 1 {
 		t.Fatalf("diff = %+v %v", d, err)
 	}
-	if err := a.gitSvc.Stage([]string{filepath.Join(root, "main.go")}); err != nil {
+	if err := a.gitSvc.Stage(context.Background(), []string{filepath.Join(root, "main.go")}); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.gitSvc.Commit("print", false); err != nil {
+	if err := a.gitSvc.Commit(context.Background(), "print", false); err != nil {
 		t.Fatal(err)
 	}
 	st = lastGitState(t, bus, func(s GitState) bool { return len(s.Status.Files) == 0 })
 	if st.Status.Upstream != "" {
 		t.Fatalf("upstream before push = %q", st.Status.Upstream)
 	}
-	id, err := a.gitSvc.Push(false)
+	id, err := a.gitSvc.Push(context.Background(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,16 +138,16 @@ func TestGitStatusStageCommitPush(t *testing.T) {
 	if st.Status.Ahead != 0 {
 		t.Fatalf("ahead = %d", st.Status.Ahead)
 	}
-	if bs, _ := a.gitSvc.Branches(); len(bs) != 2 {
+	if bs, _ := a.gitSvc.Branches(context.Background()); len(bs) != 2 {
 		t.Fatalf("branches = %+v", bs)
 	}
-	if log, _ := a.gitSvc.Log(gitLogQuery()); len(log) != 2 || log[0].Subject != "print" {
+	if log, _ := a.gitSvc.Log(context.Background(), gitLogQuery()); len(log) != 2 || log[0].Subject != "print" {
 		t.Fatalf("log = %+v", log)
 	}
-	if sr, _ := a.gitSvc.Show("HEAD~1", filepath.Join(root, "main.go")); !sr.Found || strings.Contains(sr.Text, "println") {
+	if sr, _ := a.gitSvc.Show(context.Background(), "HEAD~1", filepath.Join(root, "main.go")); !sr.Found || strings.Contains(sr.Text, "println") {
 		t.Fatalf("show = %+v", sr)
 	}
-	if sr, _ := a.gitSvc.Show("HEAD", filepath.Join(root, "nope.go")); sr.Found {
+	if sr, _ := a.gitSvc.Show(context.Background(), "HEAD", filepath.Join(root, "nope.go")); sr.Found {
 		t.Fatal("missing file found")
 	}
 }
@@ -158,7 +159,7 @@ func TestGitRollbackTrashesUntracked(t *testing.T) {
 	os.WriteFile(p, []byte("package main\n"), 0o644)
 	os.WriteFile(filepath.Join(root, "main.go"), []byte("changed\n"), 0o644)
 	lastGitState(t, bus, func(s GitState) bool { return len(s.Status.Files) == 2 })
-	if err := a.gitSvc.Rollback([]string{p, filepath.Join(root, "main.go")}); err != nil {
+	if err := a.gitSvc.Rollback(context.Background(), []string{p, filepath.Join(root, "main.go")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(p); !os.IsNotExist(err) {

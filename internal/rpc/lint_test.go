@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,11 +18,11 @@ func TestLintRunEmitsDiagnostics(t *testing.T) {
 	root := runModule(t)
 	os.WriteFile(filepath.Join(root, "calc", "bad.go"), []byte("package calc\n\nimport \"os\"\n\nfunc Bad() {\n\tos.Remove(\"x\")\n}\n"), 0o644)
 	a, bus := started(t, root)
-	a.mainWindow().settings.Set(settings.LayerUser, "lint.golangciPath", bin)
-	if st := a.lintSvc.Status(); !st.Found || st.Version == "" {
+	a.allWindows()[0].settings.Set(settings.LayerUser, "lint.golangciPath", bin)
+	if st := a.lintSvc.Status(context.Background()); !st.Found || st.Version == "" {
 		t.Fatalf("status = %+v", st)
 	}
-	res, err := a.lintSvc.Run("package", filepath.Join(root, "calc", "bad.go"))
+	res, err := a.lintSvc.Run(context.Background(), "package", filepath.Join(root, "calc", "bad.go"))
 	if err != nil || res.Error != "" || res.Issues == 0 {
 		t.Fatalf("run = %+v %v", res, err)
 	}
@@ -35,19 +36,19 @@ func TestLintRunEmitsDiagnostics(t *testing.T) {
 		t.Fatalf("event = %+v", ev)
 	}
 	// Disabled in settings: no run.
-	a.mainWindow().settings.Set(settings.LayerUser, "lint.enabled", false)
-	if _, err := a.lintSvc.Run("project", root); err == nil {
+	a.allWindows()[0].settings.Set(settings.LayerUser, "lint.enabled", false)
+	if _, err := a.lintSvc.Run(context.Background(), "project", root); err == nil {
 		t.Fatal("disabled lint must not run")
 	}
 }
 
 func TestLintMissingBinary(t *testing.T) {
 	a, _ := started(t, runModule(t))
-	a.mainWindow().settings.Set(settings.LayerUser, "lint.golangciPath", filepath.Join(t.TempDir(), "nope"))
-	if st := a.lintSvc.Status(); st.Found {
+	a.allWindows()[0].settings.Set(settings.LayerUser, "lint.golangciPath", filepath.Join(t.TempDir(), "nope"))
+	if st := a.lintSvc.Status(context.Background()); st.Found {
 		t.Fatalf("status = %+v", st)
 	}
-	if _, err := a.lintSvc.Run("project", ""); err == nil {
+	if _, err := a.lintSvc.Run(context.Background(), "project", ""); err == nil {
 		t.Fatal("run without golangci-lint must fail")
 	}
 }
@@ -66,7 +67,7 @@ func TestModServiceModulesFromGoSum(t *testing.T) {
 	root := runModule(t)
 	os.WriteFile(filepath.Join(root, "go.sum"), []byte("github.com/stretchr/testify v1.9.0 h1:x=\n"), 0o644)
 	a, _ := started(t, root)
-	got := a.modSvc.Modules("github.com/stre")
+	got := a.modSvc.Modules(context.Background(), "github.com/stre")
 	found := false
 	for _, m := range got {
 		if m == "github.com/stretchr/testify" {

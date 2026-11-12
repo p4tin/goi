@@ -24,8 +24,8 @@ type ModService struct {
 	app *App
 }
 
-func (s *ModService) session() (*session, *modSession, error) {
-	sess, err := s.app.current()
+func (s *ModService) session(ctx context.Context) (*session, *modSession, error) {
+	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -35,8 +35,8 @@ func (s *ModService) session() (*session, *modSession, error) {
 	return sess, sess.mod, nil
 }
 
-func (s *ModService) goEnv(ctx context.Context) map[string]string {
-	if r, err := s.app.runner(ctx); err == nil {
+func (s *ModService) goEnv(ctx context.Context, w *window) map[string]string {
+	if r, err := w.runner(ctx); err == nil {
 		if ge, err := r.GoEnv(ctx); err == nil {
 			return ge
 		}
@@ -46,23 +46,23 @@ func (s *ModService) goEnv(ctx context.Context) map[string]string {
 
 // Versions lists released versions of a module from the GOPROXY, newest
 // first.
-func (s *ModService) Versions(module string) ([]string, error) {
-	_, ms, err := s.session()
+func (s *ModService) Versions(ctx context.Context, module string) ([]string, error) {
+	sess, ms, err := s.session(ctx)
 	if err != nil {
 		return []string{}, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	vctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	ms.mu.Lock()
 	p := ms.proxy
 	ms.mu.Unlock()
 	if p == nil {
-		p = gomod.NewProxy(s.goEnv(ctx)["GOPROXY"])
+		p = gomod.NewProxy(s.goEnv(vctx, sess.win)["GOPROXY"])
 		ms.mu.Lock()
 		ms.proxy = p
 		ms.mu.Unlock()
 	}
-	vs, err := p.Versions(ctx, strings.TrimSpace(module))
+	vs, err := p.Versions(vctx, strings.TrimSpace(module))
 	if err != nil {
 		return []string{}, err
 	}
@@ -71,8 +71,8 @@ func (s *ModService) Versions(module string) ([]string, error) {
 
 // Modules lists module paths known locally (module cache, go.sum files in
 // the project) that start with prefix.
-func (s *ModService) Modules(prefix string) []string {
-	sess, ms, err := s.session()
+func (s *ModService) Modules(ctx context.Context, prefix string) []string {
+	sess, ms, err := s.session(ctx)
 	if err != nil {
 		return []string{}
 	}
@@ -80,14 +80,14 @@ func (s *ModService) Modules(prefix string) []string {
 	known, fresh := ms.known, time.Since(ms.knownAt) < 5*time.Minute
 	ms.mu.Unlock()
 	if !fresh {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		ge := s.goEnv(ctx)
+		kctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ge := s.goEnv(kctx, sess.win)
 		var sums []string
 		for _, m := range sess.manager.Project().Modules {
 			sums = append(sums, filepath.Join(m.Dir, "go.sum"))
 		}
 		sums = append(sums, filepath.Join(sess.root, "go.work.sum"))
-		known = gomod.KnownModules(ctx, ge["GOMODCACHE"], sums)
+		known = gomod.KnownModules(kctx, ge["GOMODCACHE"], sums)
 		cancel()
 		ms.mu.Lock()
 		ms.known, ms.knownAt = known, time.Now()
