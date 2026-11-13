@@ -29,15 +29,18 @@ func (s *Store) SetOpenSet(paths []string) error {
 	return writeAtomic(s.openSetPath(), b)
 }
 
-// OpenSet returns the projects recorded by SetOpenSet; nil if none.
-func (s *Store) OpenSet() []string {
+// OpenSet returns the projects recorded by SetOpenSet. ok is false when no
+// set was recorded; an empty recorded set means Goi quit from Welcome.
+func (s *Store) OpenSet() (paths []string, ok bool) {
 	b, err := os.ReadFile(s.openSetPath())
 	if err != nil {
-		return nil
+		return nil, false
 	}
-	var paths []string
 	if json.Unmarshal(b, &paths) != nil {
-		return nil
+		return nil, false
 	}
-	return paths
+	if paths == nil {
+		paths = []string{}
+	}
+	return paths, true
 }

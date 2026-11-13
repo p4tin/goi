@@ -70,20 +70,20 @@ func TestCancelCloseResetsForceWindow(t *testing.T) {
 	}
 }
 
-func TestLastWindowQuitsOffMac(t *testing.T) {
+func TestClosingLastWelcomeWindowQuits(t *testing.T) {
 	a, _ := started(t, "")
+	a.recent.SetOpenSet([]string{module(t)})
 	quits := 0
 	a.quitFn = func() { quits++ }
 	w := a.mainWindow()
 	w.handle = &closingHandle{w: w}
 	w.requestClose()
 	a.appSvc.ConfirmClose(withWindow(context.Background(), w))
-	want := 1
-	if isMac() {
-		want = 0 // Mac apps keep running without windows
+	if quits != 1 || len(a.allWindows()) != 0 {
+		t.Errorf("quits = %d (want 1), windows = %d", quits, len(a.allWindows()))
 	}
-	if quits != want || len(a.allWindows()) != 0 {
-		t.Errorf("quits = %d (want %d), windows = %d", quits, want, len(a.allWindows()))
+	if got, ok := a.recent.OpenSet(); !ok || len(got) != 0 {
+		t.Errorf("open set = %v, %v; want saved empty so the next start shows Welcome", got, ok)
 	}
 }
 

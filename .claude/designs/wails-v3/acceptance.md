@@ -37,9 +37,9 @@ Two-window unit tests (`*_multiwindow_test.go`, `windows_test.go`, `window_test.
 | R4.5 Dock click with no windows | implemented | `ApplicationShouldHandleReopen` → `reopen()`. Manual |
 | R4.6 Cmd-Tab / App Exposé | expected by construction (one process). Manual |
 | R5.1–R5.3 menus and commands | pass | `menu_test.go`; mac: focused window; Windows/Linux: menu per window. Manual on Windows/Linux |
-| R6.1 last window | pass | Closing the last project window opens Welcome (`TestLastProjectWindowOpensWelcome`); closing a last Welcome window quits off macOS (`TestLastWindowQuitsOffMac`) |
+| R6.1 last window | pass | Closing the last project window opens Welcome (`TestLastProjectWindowOpensWelcome`); closing the last window when it shows Welcome quits on every OS (`TestClosingLastWelcomeWindowQuits`) |
 | R6.2 quit with cancel | pass | `TestQuitClosesWindowsAndStopsOnCancel`; frontend reports cancels (`CancelClose`). Manual: Cmd-Q with unsaved files in two windows |
-| R6.3 reopen open projects | pass | `TestStartupReopensOpenSet` (`open-projects.json`) |
+| R6.3 reopen open projects | pass | `TestStartupReopensOpenSet` (`open-projects.json`); quitting from Welcome records an empty set, so the next start shows Welcome (`TestStartupAfterQuitFromWelcomeShowsWelcome`) |
 | R6.4 crash journal per project | pass | `TestCrashJournalRestore` |
 | R7.1 Windows | pending | CI builds (`wails3 build`); installer/taskbar grouping need a Windows run |
 | R7.2 Linux | pending | Builds with `-tags gtk3`, nfpm deps switched to GTK3/WebKitGTK 4.1; needs a Linux run |

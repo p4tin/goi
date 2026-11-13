@@ -76,10 +76,15 @@ func (a *App) openStartup(w *window) {
 }
 
 // reopenTargets returns the existing projects that were open at the last
-// quit, falling back to the most recent project.
+// quit; none when Goi quit from Welcome. Without a recorded set, or when none
+// of its projects exist any more, it falls back to the most recent project.
 func (a *App) reopenTargets() []string {
+	set, ok := a.recent.OpenSet()
+	if ok && len(set) == 0 {
+		return nil
+	}
 	var out []string
-	for _, p := range a.recent.OpenSet() {
+	for _, p := range set {
 		if st, err := os.Stat(p); err == nil && st.IsDir() {
 			out = append(out, p)
 		}
@@ -166,8 +171,8 @@ func (a *App) openWindow(project string) error {
 
 // windowClosed runs after a window's close was confirmed: it releases the
 // window and continues a pending quit. Closing the last project window opens
-// Welcome; closing the last window when it shows Welcome quits on Windows and
-// Linux.
+// Welcome; closing the last window when it shows Welcome quits, and the next
+// start shows Welcome too.
 func (a *App) windowClosed(w *window) {
 	_, err := w.current()
 	hadProject := err == nil
@@ -187,9 +192,8 @@ func (a *App) windowClosed(w *window) {
 		}
 		a.log.Warn("open Welcome after last project", "err", err)
 	}
-	if !isMac() {
-		a.quitNow()
-	}
+	a.saveOpenSet()
+	a.quitNow()
 }
 
 // shouldQuit is the Wails ShouldQuit hook. The first request saves the open

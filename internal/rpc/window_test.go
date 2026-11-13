@@ -2,12 +2,14 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/recent"
 )
 
 // withWindows lets a started app open more windows, each with a fake handle
@@ -192,7 +194,7 @@ func TestQuitClosesWindowsAndStopsOnCancel(t *testing.T) {
 	if len(a.allWindows()) != 0 || quits != 1 || !a.shouldQuit() {
 		t.Errorf("windows = %d, quits = %d", len(a.allWindows()), quits)
 	}
-	if got := a.recent.OpenSet(); len(got) != 2 {
+	if got, _ := a.recent.OpenSet(); len(got) != 2 {
 		t.Errorf("open set = %v, want both projects", got)
 	}
 }
@@ -237,5 +239,53 @@ func TestWindowIDWaitsForReady(t *testing.T) {
 	w.ready.Store(false)
 	if id := a.appSvc.WindowID(ctx); id != 0 {
 		t.Errorf("WindowID before ready = %d, want 0", id)
+	}
+}
+
+func TestStartupAfterQuitFromWelcomeShowsWelcome(t *testing.T) {
+	t.Setenv("GOI_HOME", t.TempDir())
+	root := module(t)
+	// A previous run opened a project, then quit from Welcome.
+	pre, _ := NewApp(Options{})
+	pre.start(context.Background(), events.Nop{}, nil)
+	pre.recent.Touch(recent.Entry{Path: root})
+	pre.recent.SetOpenSet(nil)
+	pre.Shutdown(context.Background())
+
+	a, err := NewApp(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.start(context.Background(), &events.Recorder{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	defer a.Shutdown(context.Background())
+	ws := a.allWindows()
+	if len(ws) != 1 {
+		t.Fatalf("windows = %d, want 1", len(ws))
+	}
+	if _, err := ws[0].current(); !errors.Is(err, errNoProject) {
+		t.Errorf("startup opened a project (err %v), want Welcome", err)
+	}
+}
+
+func TestStartupWithoutOpenSetReopensMostRecent(t *testing.T) {
+	t.Setenv("GOI_HOME", t.TempDir())
+	root := module(t)
+	pre, _ := NewApp(Options{})
+	pre.start(context.Background(), events.Nop{}, nil)
+	pre.recent.Touch(recent.Entry{Path: root})
+	pre.Shutdown(context.Background())
+
+	a, err := NewApp(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.start(context.Background(), &events.Recorder{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	defer a.Shutdown(context.Background())
+	if a.windowWithProject(root) == nil {
+		t.Error("most recent project not reopened")
 	}
 }
