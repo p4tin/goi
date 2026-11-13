@@ -37,7 +37,7 @@ Two-window unit tests (`*_multiwindow_test.go`, `windows_test.go`, `window_test.
 | R4.5 Dock click with no windows | implemented | `ApplicationShouldHandleReopen` → `reopen()`. Manual |
 | R4.6 Cmd-Tab / App Exposé | expected by construction (one process). Manual |
 | R5.1–R5.3 menus and commands | pass | `menu_test.go`; mac: focused window; Windows/Linux: menu per window. Manual on Windows/Linux |
-| R6.1 last window | pass | `TestLastWindowQuitsOffMac` (mac keeps running) |
+| R6.1 last window | pass | Closing the last project window opens Welcome (`TestLastProjectWindowOpensWelcome`); closing a last Welcome window quits off macOS (`TestLastWindowQuitsOffMac`) |
 | R6.2 quit with cancel | pass | `TestQuitClosesWindowsAndStopsOnCancel`; frontend reports cancels (`CancelClose`). Manual: Cmd-Q with unsaved files in two windows |
 | R6.3 reopen open projects | pass | `TestStartupReopensOpenSet` (`open-projects.json`) |
 | R6.4 crash journal per project | pass | `TestCrashJournalRestore` |

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -83,5 +84,34 @@ func TestLastWindowQuitsOffMac(t *testing.T) {
 	}
 	if quits != want || len(a.allWindows()) != 0 {
 		t.Errorf("quits = %d (want %d), windows = %d", quits, want, len(a.allWindows()))
+	}
+}
+
+func TestLastProjectWindowOpensWelcome(t *testing.T) {
+	a, _ := started(t, module(t))
+	withWindows(a)
+	quits := 0
+	a.quitFn = func() { quits++ }
+	w := a.mainWindow()
+	w.handle = &closingHandle{w: w}
+	w.requestClose()
+	a.appSvc.ConfirmClose(withWindow(context.Background(), w))
+	ws := a.allWindows()
+	if quits != 0 || len(ws) != 1 {
+		t.Fatalf("quits = %d, windows = %d; want a Welcome window", quits, len(ws))
+	}
+	if _, err := ws[0].current(); !errors.Is(err, errNoProject) {
+		t.Errorf("new window has a project (err %v), want Welcome", err)
+	}
+}
+
+func TestProjectWindowWithOthersOpenDoesNotOpenWelcome(t *testing.T) {
+	a, w1, w2, _, _ := twoWindows(t)
+	withWindows(a)
+	w1.handle = &closingHandle{w: w1}
+	w1.requestClose()
+	a.appSvc.ConfirmClose(withWindow(context.Background(), w1))
+	if ws := a.allWindows(); len(ws) != 1 || ws[0] != w2 {
+		t.Errorf("windows = %d, want only the other project window", len(ws))
 	}
 }

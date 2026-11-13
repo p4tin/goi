@@ -165,16 +165,29 @@ func (a *App) openWindow(project string) error {
 }
 
 // windowClosed runs after a window's close was confirmed: it releases the
-// window and continues a pending quit. On Windows and Linux closing the last
-// window quits.
+// window and continues a pending quit. Closing the last project window opens
+// Welcome; closing the last window when it shows Welcome quits on Windows and
+// Linux.
 func (a *App) windowClosed(w *window) {
+	_, err := w.current()
+	hadProject := err == nil
 	a.removeWindow(w)
 	a.refreshDock()
 	if a.quitRequested.Load() {
 		a.closeNextForQuit()
 		return
 	}
-	if !isMac() && len(a.allWindows()) == 0 {
+	if len(a.allWindows()) > 0 {
+		return
+	}
+	if hadProject {
+		err := a.openWindow("")
+		if err == nil {
+			return
+		}
+		a.log.Warn("open Welcome after last project", "err", err)
+	}
+	if !isMac() {
 		a.quitNow()
 	}
 }
