@@ -105,10 +105,16 @@ jobs:
       - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Install NSIS
         run: choco install nsis -y --no-progress && echo "C:\\Program Files (x86)\\NSIS" >> "$GITHUB_PATH"
+      # windows:build always writes bin/goi.exe and doesn't set GOARCH, so each
+      # arch's exe is moved to bin/<arch>/ before the next build.
       - name: Build amd64 installer
-        run: wails3 task windows:package ARCH=amd64 BUILD_VERSION="${VERSION}"
+        run: |
+          GOARCH=amd64 wails3 task windows:package ARCH=amd64 BUILD_VERSION="${VERSION}"
+          mkdir -p bin/amd64 && mv bin/goi.exe bin/amd64/goi.exe
       - name: Build arm64 (portable)
-        run: wails3 task windows:build ARCH=arm64 OUTPUT=bin/goi-arm64.exe BUILD_VERSION="${VERSION}"
+        run: |
+          GOARCH=arm64 wails3 task windows:build ARCH=arm64 BUILD_VERSION="${VERSION}"
+          mkdir -p bin/arm64 && mv bin/goi.exe bin/arm64/goi.exe
       - name: Sign (when a certificate is configured)
         if: env.WINDOWS_CERTIFICATE != ''
         shell: pwsh
@@ -117,15 +123,16 @@ jobs:
         run: |
           [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
-          Get-ChildItem bin/*.exe | ForEach-Object { & $signtool.FullName sign /f cert.pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName }
+          Get-ChildItem bin -Recurse -Filter *.exe | ForEach-Object { & $signtool.FullName sign /f cert.pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName }
       - name: Package
         run: |
           mkdir -p dist
-          ls bin build/windows/nsis
-          installer=$(ls bin/*installer*.exe build/windows/nsis/*installer*.exe 2>/dev/null | head -1)
-          cp "$installer" "dist/Goi-${VERSION}-windows-amd64-installer.exe"
-          (cd bin && 7z a "../dist/Goi-${VERSION}-windows-amd64.zip" goi.exe >/dev/null)
-          (cd bin && 7z a "../dist/Goi-${VERSION}-windows-arm64.zip" goi-arm64.exe >/dev/null)
+          cp bin/goi-amd64-installer.exe "dist/Goi-${VERSION}-windows-amd64-installer.exe"
+          for arch in amd64 arm64; do
+            go version -m "bin/$arch/goi.exe" | grep -q "GOARCH=$arch" || { echo "bin/$arch/goi.exe is not $arch"; exit 1; }
+            (cd "bin/$arch" && 7z a "../../dist/Goi-${VERSION}-windows-${arch}.zip" goi.exe >/dev/null)
+          done
+          ls -l dist
       - uses: actions/upload-artifact@v4
         with:
           name: goi-windows
