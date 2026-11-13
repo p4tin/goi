@@ -37,4 +37,6 @@ for s, data in zip(sizes, pngs):
     offset += len(data)
 open(out, "wb").write(head + entries + b"".join(pngs))
 PY
-echo "wrote build/appicon.png and build/windows/icon.ico"
+# The NSIS file associations (iconName: appicon in build/config.yml) install build/windows/appicon.ico.
+cp build/windows/icon.ico build/windows/appicon.ico
+echo "wrote build/appicon.png, build/windows/icon.ico and build/windows/appicon.ico"

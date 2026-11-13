@@ -98,7 +98,8 @@ jobs:
 
       - name: Core packages (linux/arm64, windows/arm64)
         run: |
-          GOOS=linux GOARCH=arm64 go build ./internal/...
+          # rpc and dockmenu need cgo on Linux (Wails, GTK); the rest must stay cgo-free.
+          GOOS=linux GOARCH=arm64 go build $(go list ./internal/... | grep -v -e /internal/rpc -e /internal/dockmenu)
           GOOS=windows GOARCH=arm64 go build ./internal/...
 
       - name: App binary (windows/arm64, cgo-free)

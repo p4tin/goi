@@ -147,7 +147,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      # The CLI links Wails too: without gtk3 it needs GTK4/WebKitGTK 6.0.
+      - run: go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@${{ env.NFPM_VERSION }}
       - name: Build
         # EXTRA_TAGS defaults to gtk3 (GTK3 + WebKitGTK 4.1) in build/linux/Taskfile.yml.
