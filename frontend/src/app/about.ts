@@ -7,7 +7,7 @@ import { h } from '../lib/dom';
 import { showDialog } from './dialog';
 import type { Workbench } from './workbench';
 
-/** "0.1.0" for release builds, "0.1 (dev)" otherwise. */
+/** "0.1.3" for release builds, "0.1.3 (dev)" otherwise. */
 export function versionLabel(version: string, build: string): string {
   return build && build !== 'dev' ? build : `${version} (dev)`;
 }

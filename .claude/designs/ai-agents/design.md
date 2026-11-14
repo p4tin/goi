@@ -123,7 +123,7 @@ agents = {}           # id = "command line": custom agents, or overrides for cla
 - `changes.ts` — `ChangeLog` per session key: first-change snapshot `{path, before, created}`; `revert(path)`, `revertAll()`.
 - `tools.ts` — `createAgentTools(deps)`: handlers for `fs.read`, `fs.write` and the MCP tools (R6.4). `deps` = editor manager, file/lang/run/search/git APIs, problems store, changes, notifier — injected for tests. Edits to open buffers are one CodeMirror transaction (`userEvent: 'input.agent'`) followed by a save; closed files go through `files.write`/`files.create`.
 - `view.ts` — the AI Agent panel: session tabs, header (agent picker, mode picker, Stop, New session, Changes), transcript (virtualized by appending; batched per animation frame), plan box, permission cards, composer (textarea, context chips for current file and selection, `/` command suggestions).
-- `install.ts` — `installAgent(wb)`: panel registration (right dock), commands, `agent.request` dispatch (tools vs permission), status item showing a running turn, menu entries (`app/menuBar.ts`), settings descriptors (`views/settings/schema.ts`, section "AI").
+- `install.ts` — `installAgent(wb)`: panel registration (bottom dock), commands, `agent.request` dispatch (tools vs permission), status item showing a running turn, menu entries (`app/menuBar.ts`), settings descriptors (`views/settings/schema.ts`, section "AI").
 - `git/diffView.ts` gains a `text` mode (`DiffRequest.left/right/leftLabel/rightLabel`) for "before agent → now" diffs.
 - `agent.css` — theme tokens only.
 
@@ -147,4 +147,4 @@ agents = {}           # id = "command line": custom agents, or overrides for cla
 - Session updates that arrive before `session/new` returns are buffered per ACP session and replayed when the session is registered.
 - The stdio MCP fallback passes the token in `GOI_MCP_TOKEN` (the server's `env`), not on the command line.
 - `newTerminal` returns the tab id and `runInTerminal` types a command into it (terminal auth methods).
-- The right dock widens to 380 px when the AI Agent window opens.
+- The AI Agent window is in the bottom dock next to Terminal, like GoLand (moved from the right dock after review). The dock grows to 320 px when it opens; in the bottom dock the tabs and toolbar share a row, Send sits beside the prompt, and the plan and change list sit beside the transcript.

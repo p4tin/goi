@@ -233,7 +233,7 @@ func (m *agentManager) proc(ctx context.Context, def agent.Definition, override 
 		Host:           p,
 		Log:            m.app.log,
 		TerminalPrefix: def.ID + "-",
-		ClientVersion:  paths.Version,
+		ClientVersion:  paths.ProductVersion,
 	})
 	if err != nil {
 		m.win.bus.Emit(events.TopicAgentState, AgentStateEvent{Agent: def.ID, State: "error", Message: err.Error(), Sessions: []string{}})

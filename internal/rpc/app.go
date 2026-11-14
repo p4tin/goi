@@ -266,7 +266,7 @@ type AppService struct {
 func (s *AppService) Info(ctx context.Context) AppInfo {
 	info := AppInfo{
 		Name:      "Goi",
-		Version:   paths.Version,
+		Version:   paths.ProductVersion,
 		Build:     paths.BuildVersion,
 		GoVersion: runtime.Version(),
 		OS:        runtime.GOOS,

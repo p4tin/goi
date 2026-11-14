@@ -51,7 +51,7 @@ func (h *mcpHost) serve(addr, token string) (*mcpListener, error) {
 	}
 	s := mcp.NewServer(mcp.Options{
 		Token:        token,
-		Info:         mcp.Implementation{Name: "goi", Version: paths.Version},
+		Info:         mcp.Implementation{Name: "goi", Version: paths.ProductVersion},
 		Instructions: mcpInstructions,
 		Tools:        agentTools(),
 		Call:         h.call,

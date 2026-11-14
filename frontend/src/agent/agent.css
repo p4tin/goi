@@ -766,3 +766,76 @@
   word-break: break-all;
   user-select: text;
 }
+
+/* In the bottom dock the window is wide and short. Session tabs and the
+   toolbar share one row, Send sits beside the prompt, the plan and the change
+   list sit beside the transcript instead of under it, and the agent cards
+   line up in columns. */
+.dock-bottom .agent-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.dock-bottom .agent-toolbar {
+  padding: 2px 6px;
+}
+
+.dock-bottom .agent-select {
+  max-width: 200px;
+}
+
+.dock-bottom .agent-body,
+.dock-bottom .agent-composer {
+  grid-column: 1 / -1;
+}
+
+.dock-bottom .agent-body {
+  flex-direction: row;
+}
+
+.dock-bottom .agent-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+}
+
+.dock-bottom .agent-chips {
+  grid-column: 1 / -1;
+}
+
+.dock-bottom .agent-composer-foot {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  width: 110px;
+}
+
+.dock-bottom .agent-status {
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.dock-bottom .agent-plan,
+.dock-bottom .agent-changes {
+  border-top: 0;
+  border-left: 1px solid var(--goi-panel-border);
+  max-height: none;
+  width: 300px;
+  max-width: 35%;
+}
+
+.dock-bottom .agent-start {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0 10px;
+  align-content: start;
+}
+
+.dock-bottom .agent-start > :not(.agent-card) {
+  grid-column: 1 / -1;
+}
+
+.dock-bottom .agent-input {
+  max-height: 120px;
+}

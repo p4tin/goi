@@ -72,7 +72,7 @@ This feature delivers F-AI-2 and F-AI-3. F-AI-1 (inline completion) and F-AI-4 (
 
 ## R7 UI and settings
 
-- R7.1 An **AI Agent** tool window (right dock) SHALL hold session tabs, the agent picker, mode picker, transcript, change list and prompt box. Enter sends; Shift+Enter inserts a newline.
+- R7.1 An **AI Agent** tool window (bottom dock, next to Terminal) SHALL hold session tabs, the agent picker, mode picker, transcript, change list and prompt box. Enter sends; Shift+Enter inserts a newline.
 - R7.2 Commands: *AI Agent: Show*, *New Agent Session…*, *Ask Agent About Selection*, *Stop Agent Turn*, *Install Agent…*, *Copy MCP Server Config*. The native menu gets an entry under Tools.
 - R7.3 Settings (section "AI"): `ai.mcpServer` (bool, default on), `ai.externalMcp` (bool, default off), `ai.mcpPort` (int, default 64342), `ai.agents` (map id → command line), `ai.defaultAgent` (string).
 - R7.4 Colors come from theme tokens only; the panel works in every theme.

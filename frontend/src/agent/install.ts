@@ -69,7 +69,8 @@ export function installAgent(wb: Workbench): void {
   const tools = new AgentTools({ editor: editorPort(), disk: diskPort(), ide: idePort(), changes: changeLog });
   const panel = new AgentPanel(wb, tools, changeLog);
 
-  wb.panels.register({ id: 'agent', title: 'AI Agent', dock: 'right', order: 20, render: (c) => void c.append(panel.el) });
+  // Bottom dock, next to Terminal, like GoLand's agent tool windows.
+  wb.panels.register({ id: 'agent', title: 'AI Agent', dock: 'bottom', order: 9, render: (c) => void c.append(panel.el) });
 
   on<AgentRequestEvent>(Topics.agentRequest, (req) => void handleRequest(req, tools, panel));
   on<AgentUpdateEvent>(Topics.agentUpdate, (e) => panel.onUpdate(e));
@@ -97,10 +98,10 @@ export function installAgent(wb: Workbench): void {
   };
   panel.onRender();
 
-  // A chat needs more room than the right dock's default width.
+  // A chat needs more room than the bottom dock's default height.
   const showPanel = (): void => {
     wb.panels.show('agent');
-    if (wb.panels.state.peek().right.size < 380) wb.panels.patch('right', { size: 380 });
+    if (wb.panels.state.peek().bottom.size < 320) wb.panels.patch('bottom', { size: 320 });
   };
   function show(): void {
     showPanel();
