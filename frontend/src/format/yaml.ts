@@ -73,7 +73,7 @@ export async function formatYAML(text: string, indentSize: number, mangle?: (out
   const again = Y.parseAllDocuments(out, PARSE);
   const after = Array.isArray(again) && again.every((d) => !d.errors.length) ? again.map((d) => fingerprint(Y, d)) : null;
   if (!after || JSON.stringify(after) !== JSON.stringify(before)) {
-    return { ok: false, line: 1, col: 1, message: 'formatting would change the document' };
+    return { ok: false, line: 1, col: 1, message: 'formatting would change the document', kind: 'unsafe' };
   }
   return { ok: true, text: out };
 }

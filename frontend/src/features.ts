@@ -24,6 +24,7 @@ import { installGit } from './git/install';
 import { installLint } from './lint/lint';
 import { installGoMod } from './mod/gomod';
 import { installSaveFlow } from './editor/saveFlow';
+import { installFormatters } from './format/install';
 import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
 import { installThemeCommands } from './theme/commands';
@@ -37,6 +38,7 @@ export const features: Feature[] = [
   installWindowCommands,
   installEditor,
   installSaveFlow,
+  installFormatters,
   installJournal,
   installLanguages,
   installRunGutter,

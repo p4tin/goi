@@ -10,8 +10,11 @@ export interface FormatOptions {
   path: string;
 }
 
-/** A formatted text, or the first syntax error (1-based line and column). */
-export type FormatOutcome = { ok: true; text: string } | { ok: false; line: number; col: number; message: string };
+/** A formatted text, or why not: the first syntax error (1-based line and
+ * column), or 'unsafe' when the output would change the document. */
+export type FormatOutcome =
+  | { ok: true; text: string }
+  | { ok: false; line: number; col: number; message: string; kind?: 'syntax' | 'unsafe' };
 
 export interface DocFormatter {
   /** Also the diagnostic source of its syntax errors. */
