@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"os/exec"
@@ -308,9 +309,7 @@ func (a *agent) prompt(ctx context.Context, p acp.PromptParams) (any, error) {
 }
 
 func merge(a, b map[string]any) map[string]any {
-	for k, v := range b {
-		a[k] = v
-	}
+	maps.Copy(a, b)
 	return a
 }
 
