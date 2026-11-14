@@ -85,6 +85,8 @@ export class AgentPanel {
   private attachFile = true;
   private suggestion = 0;
   private renderQueued = false;
+  /** Keep the transcript scrolled to the end (until the user scrolls up). */
+  private stick = true;
   private entryEls = new WeakMap<Entry, { el: HTMLElement; sig: string }>();
 
   private tabs = h('div', { class: 'agent-tabs', role: 'tablist' });
@@ -115,6 +117,11 @@ export class AgentPanel {
     this.modeSel.addEventListener('change', () => void this.setMode(this.modeSel.value));
     this.sendBtn.addEventListener('click', () => (this.current()?.state.busy ? void this.stop() : void this.send()));
     this.input.addEventListener('keydown', (e) => this.onKey(e));
+    this.transcript.addEventListener('scroll', () => {
+      const t = this.transcript;
+      this.stick = t.scrollHeight - t.scrollTop - t.clientHeight < 40;
+    });
+    this.body.append(this.transcript, this.planBox, this.changesBox, this.startView);
     this.input.addEventListener('input', () => {
       this.suggestion = 0;
       this.renderSuggestions();
@@ -236,6 +243,7 @@ export class AgentPanel {
   async send(text = this.input.value.trim()): Promise<void> {
     const s = this.current();
     if (!s || !text || s.state.busy || s.state.ended) return;
+    this.stick = true;
     const ctx = this.context(s);
     const { blocks, labels } = promptBlocks(text, ctx);
     addUser(s.state, text, labels);
@@ -499,19 +507,18 @@ export class AgentPanel {
     this.changesBtn.classList.toggle('on', this.showChanges);
     this.changesBtn.hidden = !nChanges && !this.showChanges;
 
+    // The body's children never move (moving the transcript resets its scroll).
+    this.transcript.hidden = !s;
+    this.planBox.hidden = !s || s.state.plan.length === 0;
+    this.changesBox.hidden = !this.showChanges;
+    this.startView.hidden = !!s;
     if (s) {
       this.renderTranscript(s);
       this.renderPlan(s);
-      const parts: HTMLElement[] = [this.transcript];
-      if (s.state.plan.length) parts.push(this.planBox);
-      if (this.showChanges) parts.push(this.renderChanges(changeKey));
-      if (this.body.children.length !== parts.length || parts.some((p, i) => this.body.children[i] !== p)) this.body.replaceChildren(...parts);
     } else {
       this.renderStart();
-      const parts: HTMLElement[] = [this.startView];
-      if (this.showChanges) parts.push(this.renderChanges(''));
-      this.body.replaceChildren(...parts);
     }
+    if (this.showChanges) this.renderChanges(changeKey);
 
     const busy = !!s?.state.busy;
     this.sendBtn.textContent = busy ? 'Stop' : 'Send';
@@ -682,7 +689,10 @@ export class AgentPanel {
 
   private renderTranscript(s: Sess): void {
     const t = this.transcript;
-    const atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 60;
+    if (t.dataset.session !== s.key) {
+      t.dataset.session = s.key;
+      this.stick = true;
+    }
     const wanted: HTMLElement[] = [];
     const entries = s.state.entries;
     entries.forEach((e, i) => {
@@ -696,7 +706,7 @@ export class AgentPanel {
     });
     if (!entries.length) wanted.push(h('div', { class: 'muted agent-empty' }, `Ask ${s.info.agentName} anything about this project.`));
     if (t.children.length !== wanted.length || wanted.some((el, i) => t.children[i] !== el)) t.replaceChildren(...wanted);
-    if (atBottom) t.scrollTop = t.scrollHeight;
+    if (this.stick) t.scrollTop = t.scrollHeight;
   }
 
   private renderEntry(e: Entry, s: Sess, last: boolean): HTMLElement {

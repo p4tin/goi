@@ -67,13 +67,19 @@
 }
 
 .agent-select {
+  flex: 0 1 auto;
+  min-width: 60px;
   background: var(--goi-input-bg);
   color: var(--goi-fg);
   border: 1px solid var(--goi-input-border);
   border-radius: 4px;
   padding: 2px 4px;
   font: inherit;
-  max-width: 160px;
+  max-width: 45%;
+}
+
+.agent-changes-btn {
+  flex-shrink: 0;
 }
 
 .agent-spacer {

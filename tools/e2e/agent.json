@@ -1,0 +1,161 @@
+{
+  "_comment": "AI agents against the scripted fake ACP agent (server build). Build: go build -tags server -o bin/goi-server . && go build -o bin/fakeagent ./tools/fakeagent ; sample: tools/e2e/agent-sample.sh /private/tmp/goi-e2e/agentsample $PWD/bin/fakeagent",
+  "server": {
+    "cmd": [
+      "bin/goi-server",
+      "--project",
+      "/private/tmp/goi-e2e/agentsample/proj"
+    ],
+    "env": {
+      "GOI_HOME": "/private/tmp/goi-e2e/agentsample/home"
+    }
+  },
+  "url": "{{server}}/",
+  "out": "/tmp/goi-e2e-agent",
+  "initialWait": 5000,
+  "steps": [
+    {
+      "label": "helpers",
+      "eval": "(() => { window.__w = async (fn, ms = 30000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 100)); } return 'TIMEOUT'; }; window.__open = (name) => { const pt = [...document.querySelectorAll('.dock-tab')].find(b => b.textContent === 'Project'); if (pt && !pt.classList.contains('active')) pt.click(); const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === name); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; window.__palette = async (text) => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'a', code: 'KeyA', metaKey: true, shiftKey: true, bubbles: true})); const i = await __w(() => document.querySelector('.palette input, .pal-input, input.palette-input')); i.value = text; i.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 400)); i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return true; }; window.__ask = async (text) => { await __w(() => document.querySelector('.agent-send').textContent === 'Send'); const i = document.querySelector('.agent-input'); i.value = text; i.dispatchEvent(new Event('input', {bubbles: true})); document.querySelector('.agent-send').click(); return true; }; window.__said = (s) => __w(() => { const m = [...document.querySelectorAll('.agent-msg.agent')].map(e => e.textContent).find(t => t.includes(s)); return m || false; }); window.__editor = () => [...document.querySelectorAll('.cm-content')].map(c => c.textContent).find(t => t.includes('package main')) || ''; window.__btn = (sel, text) => { const b = [...document.querySelectorAll(sel)].find(x => x.textContent.trim() === text && !x.disabled); b?.click(); return !!b; }; return true; })()"
+    },
+    {
+      "label": "R7.1 AI Agent window opens from the palette",
+      "eval": "(async () => { await __palette('AI Agent'); return __w(() => { const p = document.querySelector('.agent-panel'); const t = [...document.querySelectorAll('.agent-card-title')].map(e => e.textContent); return p && p.offsetParent && t.includes('fake') && t.join(', '); }); })()"
+    },
+    {
+      "label": "R1.2 catalogue + custom agent listed (fake available)",
+      "eval": "[...document.querySelectorAll('.agent-card')].map(c => c.querySelector('.agent-card-title').textContent + ':' + (c.querySelector('.btn')?.textContent ?? '-')).join(' | ')"
+    },
+    {
+      "label": "open main.go",
+      "eval": "__w(() => __open('main.go'))"
+    },
+    {
+      "wait": 800
+    },
+    {
+      "label": "focus editor",
+      "eval": "(() => { const c = [...document.querySelectorAll('.cm-content')].find(x => x.textContent.includes('package main')); c.focus(); return !!c; })()"
+    },
+    {
+      "key": "ArrowDown",
+      "mods": [
+        "Meta"
+      ]
+    },
+    {
+      "type": "// unsaved-marker"
+    },
+    {
+      "label": "R2.1 start a session with the fake agent",
+      "eval": "(async () => { const card = [...document.querySelectorAll('.agent-card')].find(c => c.querySelector('.agent-card-title').textContent === 'fake'); card.querySelector('.btn-primary').click(); return __w(() => document.querySelector('.agent-tab.active')?.textContent); })()"
+    },
+    {
+      "label": "R2.4 current file chip shown",
+      "eval": "__w(() => [...document.querySelectorAll('.agent-chips .agent-chip')].map(c => c.textContent).join(',') || false)"
+    },
+    {
+      "label": "R2.3 echo streams an agent message",
+      "eval": "(async () => { await __ask('echo hello from goi'); return __said('hello from goi'); })()"
+    },
+    {
+      "label": "R2.5 thought shown collapsed",
+      "eval": "__w(() => { const d = [...document.querySelectorAll('.agent-thought')].pop(); return d && !d.open && d.textContent; })"
+    },
+    {
+      "label": "R3.1 fs read sees the unsaved buffer",
+      "eval": "(async () => { await __ask('read /private/tmp/goi-e2e/agentsample/proj/main.go'); return __said('unsaved-marker'); })()"
+    },
+    {
+      "label": "R3.3 reads outside the project are refused",
+      "eval": "(async () => { await __ask('read /etc/hosts'); return __said('inside the project'); })()"
+    },
+    {
+      "label": "R2.4 prompt carries the file as embedded context",
+      "eval": "(async () => { await __ask('blocks'); return __said('resource:file://'); })()"
+    },
+    {
+      "label": "R4.1 write asks permission (card with options)",
+      "eval": "(async () => { await __ask('write /private/tmp/goi-e2e/agentsample/proj/main.go package main // written by agent'); return __w(() => { const p = [...document.querySelectorAll('.agent-perm:not(.answered)')].pop(); return p && [...p.querySelectorAll('.agent-perm-buttons .btn')].map(b => b.textContent).join('/'); }); })()"
+    },
+    {
+      "label": "R4.1 inline diff in the permission card",
+      "eval": "(() => { const p = [...document.querySelectorAll('.agent-perm')].pop(); return p.querySelectorAll('.agent-diff-line.add').length + ' added, ' + p.querySelectorAll('.agent-diff-line.del').length + ' removed'; })()"
+    },
+    {
+      "label": "allow",
+      "eval": "__btn('.agent-perm-buttons .btn', 'Allow')"
+    },
+    {
+      "label": "R3.2 agent wrote through the editor",
+      "eval": "(async () => { await __said('wrote '); return __w(() => __editor().includes('written by agent') && __editor()); })()"
+    },
+    {
+      "label": "R3.2 buffer saved (tab not dirty)",
+      "eval": "__w(() => { const t = [...document.querySelectorAll('.tab, .editor-tab')].find(x => x.textContent.includes('main.go')); return t && !t.className.includes('dirty') && t.className; })"
+    },
+    {
+      "label": "R5.1 change list shows main.go",
+      "eval": "(async () => { __btn('.agent-changes-btn', document.querySelector('.agent-changes-btn').textContent.trim()); return __w(() => [...document.querySelectorAll('.agent-change-path')].map(e => e.textContent).join(',') || false); })()"
+    },
+    {
+      "label": "R5.2 diff opens (before agent \u2192 now)",
+      "eval": "(async () => { __btn('.agent-change .btn', 'Diff'); return __w(() => { const h = document.querySelector('.diff-host-area'); return h && !h.hidden && document.querySelector('.diff-sides')?.textContent; }); })()"
+    },
+    {
+      "label": "close diff",
+      "eval": "(() => { const b = document.querySelector('.diff-tabs .run-tab-close'); b?.click(); return !!b; })()"
+    },
+    {
+      "label": "R5.3 revert restores the unsaved text",
+      "eval": "(async () => { __btn('.agent-change .btn', 'Revert'); return __w(() => __editor().includes('unsaved-marker') && !__editor().includes('written by agent') && 'restored'); })()"
+    },
+    {
+      "label": "R3.5/R3.6 agent terminal command with live output",
+      "eval": "(async () => { await __ask('run echo agent-terminal'); await __said('exit 0: agent-terminal'); return [...document.querySelectorAll('.agent-term')].pop()?.textContent.trim() + ' / ' + [...document.querySelectorAll('.agent-term-exit')].pop()?.textContent; })()"
+    },
+    {
+      "label": "R6.2/R6.4 MCP tool get_open_editors",
+      "eval": "(async () => { await __ask('mcp get_open_editors {}'); return __said('\"editors\"'); })()"
+    },
+    {
+      "label": "R6.4 MCP tool read_file sees unsaved text",
+      "eval": "(async () => { await __ask('mcp read_file {\"path\":\"/private/tmp/goi-e2e/agentsample/proj/main.go\",\"startLine\":1,\"endLine\":2}'); return __said('mcp: package main'); })()"
+    },
+    {
+      "label": "R6.4 MCP tool get_diagnostics",
+      "eval": "(async () => { await __ask('mcp get_diagnostics {\"severity\":\"all\"}'); return __said('\"count\"'); })()"
+    },
+    {
+      "label": "R6.4 MCP tool list_run_configurations",
+      "eval": "(async () => { await __ask('mcp list_run_configurations {}'); return __said('configurations'); })()"
+    },
+    {
+      "label": "R2.7 mode picker switches mode",
+      "eval": "(async () => { const s = document.querySelectorAll('.agent-toolbar .agent-select')[1]; s.value = 'code'; s.dispatchEvent(new Event('change', {bubbles: true})); return __w(() => s.value === 'code' && [...s.options].map(o => o.textContent).join('/')); })()"
+    },
+    {
+      "label": "R2.8 slash commands suggested",
+      "eval": "(async () => { await __ask('commands'); await __said('commands sent'); const i = document.querySelector('.agent-input'); i.value = '/'; i.dispatchEvent(new Event('input', {bubbles: true})); return __w(() => !document.querySelector('.agent-suggest').hidden && document.querySelector('.agent-suggest').textContent); })()"
+    },
+    {
+      "label": "clear prompt",
+      "eval": "(() => { const i = document.querySelector('.agent-input'); i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()"
+    },
+    {
+      "label": "plan shown",
+      "eval": "(async () => { await __ask('plan'); await __said('planned'); return __w(() => [...document.querySelectorAll('.agent-plan-item')].map(e => e.textContent).join(' | ')); })()"
+    },
+    {
+      "label": "R2.6 Stop cancels a running turn",
+      "eval": "(async () => { await __ask('wait'); await __said('waiting'); await __w(() => document.querySelector('.agent-send').textContent === 'Stop'); document.querySelector('.agent-send').click(); return __w(() => [...document.querySelectorAll('.agent-turn')].map(e => e.textContent).find(t => t.includes('Stopped')) && document.querySelector('.agent-send').textContent === 'Send' && 'stopped, Send is back'); })()"
+    },
+    {
+      "label": "status bar item",
+      "eval": "document.querySelector('[data-status=agent]')?.textContent"
+    },
+    {
+      "shot": "agent.png"
+    }
+  ]
+}

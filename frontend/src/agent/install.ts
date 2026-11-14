@@ -97,8 +97,13 @@ export function installAgent(wb: Workbench): void {
   };
   panel.onRender();
 
-  function show(): void {
+  // A chat needs more room than the right dock's default width.
+  const showPanel = (): void => {
     wb.panels.show('agent');
+    if (wb.panels.state.peek().right.size < 380) wb.panels.patch('right', { size: 380 });
+  };
+  function show(): void {
+    showPanel();
     queueMicrotask(() => panel.focusInput());
   }
 
@@ -110,7 +115,7 @@ export function installAgent(wb: Workbench): void {
     category: 'Tools',
     when: hasProject,
     run: async () => {
-      wb.panels.show('agent');
+      showPanel();
       await panel.startSelected();
     },
   });
@@ -120,7 +125,7 @@ export function installAgent(wb: Workbench): void {
     category: 'Code',
     when: () => hasProject() && !!editors.activeView(),
     run: async () => {
-      wb.panels.show('agent');
+      showPanel();
       if (!panel.current() || panel.current()?.state.ended) await panel.startSelected();
       const v = editors.activeView();
       panel.prefill(v && !v.state.selection.main.empty ? 'Explain the selected code.' : 'Explain this file.');
@@ -139,7 +144,7 @@ export function installAgent(wb: Workbench): void {
     category: 'Tools',
     when: hasProject,
     run: async () => {
-      wb.panels.show('agent');
+      showPanel();
       await panel.refreshAgents();
     },
   });
