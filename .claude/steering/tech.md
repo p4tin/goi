@@ -22,6 +22,8 @@
 | Packaging | `wails3 task darwin:package:universal` / `windows:package` / `linux:build`, `hdiutil` dmg, nfpm deb/rpm | `release.yml` on `v*` tags |
 | Coding agents | Agent Client Protocol v1 over stdio | Own minimal client (`internal/acp`); agents are npm packages (claude-agent-acp, gemini-cli, codex-acp) installed on demand into Goi's tools dir, or any command in `ai.agents` |
 | IDE tools for agents | MCP (Streamable HTTP, JSON responses) | Own minimal server (`internal/mcp`) on 127.0.0.1 with a bearer token; `goi mcp-bridge` for stdio-only clients |
+| Markdown preview | `@lezer/markdown` (GFM) rendered to DOM nodes; Mermaid 11 (lazy chunk, `securityLevel: 'strict'`) | No HTML injection: raw HTML shows as text; local images via `FileService.ReadImage` data URLs |
+| JSON/YAML formatting | Own token-preserving JSON printer; `yaml` 2 (eemeli, lazy chunk) with the failsafe schema | YAML output is re-parsed and compared (values, comments, tags, anchors) before it's applied |
 | Terminal | `github.com/aymanbagabas/go-pty` + `@xterm/xterm` 6 (fit, search, web-links addons) | ConPTY on Windows; zsh/bash integration via ZDOTDIR / --rcfile |
 
 ## Prerequisites (dev machine)
@@ -38,7 +40,7 @@
 
 ## Dependencies (as built)
 - Go: wails/v3, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock, aymanbagabas/go-pty
-- Frontend: @wailsio/runtime (exact), @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @tanstack/virtual-core, @xterm/{xterm,addon-fit,addon-search,addon-web-links} (exact versions); dev: vite, typescript, vitest, happy-dom
+- Frontend: @wailsio/runtime (exact), @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @lezer/markdown, mermaid and yaml (both loaded with dynamic `import()`), @tanstack/virtual-core, @xterm/{xterm,addon-fit,addon-search,addon-web-links} (exact versions); dev: vite, typescript, vitest, happy-dom
 
 ## Developer commands
 ```

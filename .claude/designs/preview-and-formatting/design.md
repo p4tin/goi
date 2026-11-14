@@ -254,4 +254,16 @@ export function formatterFor(path: string): DocFormatter | null;
 
 ## 6. Changes during implementation
 
-(Filled in during execution.)
+- **`FormatOutcome` gained `kind: 'syntax' | 'unsafe'`.** The YAML round-trip guard returns `unsafe`. `saveFlow` shows "Not formatted: formatting would change the document" for it, without a diagnostic, since there's no error position.
+- **Folded block scalars (`>`, `>-`, `>+`).** The `yaml` library re-folds their content ("long\ntext" → "long text"): same value, different text, which R4.3 doesn't allow. `format/yaml.ts` swaps each folded scalar for a placeholder before stringifying, then puts the original lines back, re-indented, keeping the chomping indicator. Scalars with an explicit indentation indicator (`>2`) keep the library's output.
+- **Known YAML limitation.** Multi-line *flow* scalars (a plain or quoted string continued on the next line) are joined onto one line. The value is unchanged and the round-trip guard accepts it.
+- **`saveFlow.formatBuffer`, `formatsOnSave` and `canReformat` are exported** for tests. The Go path behaves as before.
+- **Preview CSS classes are `mdp-*`** (`mdp-code`, `mdp-table`, `mdp-mermaid`, `mdp-raw`, `mdp-tight`, `mdp-task`). `agent/agent.css` already styles `.md-code` and `.md-table` globally.
+- **Preview mode needs `display: none !important`** on `.cm-editor`, because CodeMirror's base theme sets `display: flex !important`. The preview E2E caught this; happy-dom unit tests can't.
+- **SVG parsing uses `text/html`, not `image/svg+xml`.** Mermaid's sanitized output can contain HTML labels that aren't well-formed XML. HTML parsing never runs scripts either.
+- **Links to files outside the project** show a warning notification and don't open. `FileService.Read` has no project guard, so the frontend checks the project roots (`links.insideRoots`).
+- **HTML comments** (`<!-- … -->`, block or inline) are hidden instead of shown as text. Other raw HTML still shows as text (R1.8).
+- **Heading ids are part of the block key**, because a heading's id depends on earlier duplicates.
+- **The highlight style's classes** come from the Markdown buffer's own editor view, which uses the same scheme, so the preview doesn't mount the style module itself.
+- **`markdown.previewMode` is in the settings UI's Editor section**, not a new Markdown section. The two `formatOnSave` flags are under Save Actions.
+- **Bundle:** the main chunk grew 20.6 KB gzip (382.8 → 403.4 KB). Mermaid (and its diagram chunks) and `yaml` are separate lazy chunks.

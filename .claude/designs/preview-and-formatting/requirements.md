@@ -1,6 +1,6 @@
 # Markdown Preview, Mermaid, and JSON/YAML Formatting: Requirements
 
-Status: R1 (Markdown preview) and R2 (JSON) approved. R3 (Mermaid) and R4 (YAML) were added after review and are waiting for approval.
+Status: R1 (Markdown preview) and R2 (JSON) approved. R3 (Mermaid) and R4 (YAML) were added after review; the user gave the go-ahead to implement everything on 2026-11-14.
 
 ## Context
 

@@ -61,6 +61,8 @@ goi/
 │   │   ├── lint/            # golangci-lint diagnostics source, lint on save, fixes
 │   │   ├── mod/             # go.mod/go.work completion, links, module actions
 │   │   ├── agent/           # AI Agent window, transcript model, Markdown, IDE tools for agents (ACP fs + MCP), change log
+│   │   ├── markdown/        # Markdown preview: renderer (@lezer/markdown + GFM), code highlighting, Mermaid, links/images, scroll sync
+│   │   ├── format/          # JSON (hand-written) and YAML (`yaml` library) formatters for Reformat File / format on save
 │   │   ├── palette/         # Search Everywhere (files, symbols, actions, settings), ranking, double-Shift, recent files
 │   │   ├── keymap/          # keymaps, chords, dispatcher, rebinding
 │   │   ├── theme/           # tokens, themes, editor schemes, theme commands (dark mode toggle)
