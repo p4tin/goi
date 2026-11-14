@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as acp$0 from "../acp/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as format$0 from "../format/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -28,6 +31,62 @@ import * as textsearch$0 from "../textsearch/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as vfs$0 from "../vfs/models.js";
+
+/**
+ * AgentInfo describes an agent for the agent picker.
+ */
+export interface AgentInfo {
+    "id": string;
+    "name": string;
+    "description": string;
+    "homepage": string;
+    "available": boolean;
+
+    /**
+     * Source is setting, tools or path when available.
+     */
+    "source": string;
+
+    /**
+     * Command is the resolved command line, or why it isn't available.
+     */
+    "command": string;
+    "installable": boolean;
+    "package": string;
+    "running": boolean;
+}
+
+/**
+ * AgentSessionInfo describes a new agent session.
+ */
+export interface AgentSessionInfo {
+    "key": string;
+    "agent": string;
+    "agentName": string;
+    "modes": acp$0.SessionMode[] | null;
+    "currentMode": string;
+
+    /**
+     * EmbeddedContext: the agent accepts file contents in prompts.
+     */
+    "embeddedContext": boolean;
+
+    /**
+     * IDETools: the session got Goi's MCP server.
+     */
+    "ideTools": boolean;
+    "authRequired": boolean;
+    "authMethods": acp$0.AuthMethod[] | null;
+}
+
+/**
+ * AgentTerminal is a snapshot of an agent command's output.
+ */
+export interface AgentTerminal {
+    "output": string;
+    "truncated": boolean;
+    "exit": acp$0.ExitStatus | null;
+}
 
 /**
  * AppInfo describes the running application.
@@ -215,6 +274,16 @@ export interface LintStatus {
 }
 
 /**
+ * MCPConfig is how external MCP clients reach Goi.
+ */
+export interface MCPConfig {
+    "url": string;
+    "token": string;
+    "json": string;
+    "claudeCommand": string;
+}
+
+/**
  * MenuItemSpec is one entry of a menu built by the frontend. An item with
  * Separator set ignores the other fields.
  */
@@ -243,6 +312,18 @@ export interface MenuSpec {
 export interface OpenedFile {
     "meta": vfs$0.FileMeta;
     "content": string;
+}
+
+/**
+ * PromptBlock is one part of a prompt: text, resource (a file's text) or
+ * resource_link (a file reference).
+ */
+export interface PromptBlock {
+    "type": string;
+    "text": string;
+    "uri": string;
+    "name": string;
+    "mimeType": string;
 }
 
 /**

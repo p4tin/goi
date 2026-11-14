@@ -3,6 +3,7 @@
 
 import { Browser, Events } from '@wailsio/runtime';
 import {
+  AgentService,
   AppService,
   DebugService,
   EditorService,
@@ -44,6 +45,7 @@ const dict = <T>(p: Promise<{ [k: string]: T | undefined } | null>): Promise<Rec
 // specs and devtools sessions still call them that way.
 (globalThis as { go?: unknown }).go = {
   rpc: {
+    AgentService,
     AppService,
     DebugService,
     EditorService,
@@ -113,6 +115,12 @@ export const Topics = {
   gitOp: 'git.op',
   lintDiagnostics: 'lint.diagnostics',
   lintStatus: 'lint.status',
+  agentState: 'agent.state',
+  agentUpdate: 'agent.update',
+  agentRequest: 'agent.request',
+  agentTurn: 'agent.turn',
+  agentTerminal: 'agent.terminal',
+  agentInstall: 'agent.install',
 } as const;
 
 export type Topic = (typeof Topics)[keyof typeof Topics];
@@ -952,4 +960,133 @@ export const lintApi = {
 export const modApi = {
   versions: (module: string): Promise<string[]> => list(ModService.Versions(module)),
   modules: (prefix: string): Promise<string[]> => list(ModService.Modules(prefix)),
+};
+
+// ---- AI agents (Agent Client Protocol) and the IDE tools served to them.
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  description: string;
+  homepage: string;
+  available: boolean;
+  /** setting | tools | path when available. */
+  source: string;
+  /** Resolved command line, or why the agent isn't available. */
+  command: string;
+  installable: boolean;
+  package: string;
+  running: boolean;
+}
+
+export interface AgentMode {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface AgentAuthMethod {
+  id: string;
+  name: string;
+  description?: string;
+  /** "terminal": run the agent's command with args in a terminal. */
+  type?: string;
+  args?: string[] | null;
+}
+
+export interface AgentSessionInfo {
+  key: string;
+  agent: string;
+  agentName: string;
+  modes: AgentMode[];
+  currentMode: string;
+  embeddedContext: boolean;
+  ideTools: boolean;
+  authRequired: boolean;
+  authMethods: AgentAuthMethod[];
+}
+
+export interface PromptBlock {
+  type: 'text' | 'resource' | 'resource_link';
+  text: string;
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+
+export interface AgentExit {
+  exitCode: number | null;
+  signal?: string;
+}
+
+export interface AgentTerminal {
+  output: string;
+  truncated: boolean;
+  exit: AgentExit | null;
+}
+
+export interface McpConfig {
+  url: string;
+  token: string;
+  json: string;
+  claudeCommand: string;
+}
+
+export interface AgentStateEvent {
+  agent: string;
+  state: 'starting' | 'ready' | 'stopped' | 'error';
+  message: string;
+  sessions: string[];
+}
+
+export interface AgentUpdateEvent {
+  session: string;
+  /** An ACP session/update payload ({sessionUpdate: …}). */
+  update: Record<string, unknown>;
+}
+
+export type AgentRequestKind = 'fs.read' | 'fs.write' | 'permission' | 'tool';
+
+export interface AgentRequestEvent {
+  id: string;
+  kind: AgentRequestKind;
+  session: string;
+  params: unknown;
+}
+
+export interface AgentTurnEvent {
+  session: string;
+  stopReason: string;
+  error: string;
+}
+
+export interface AgentTerminalEvent {
+  id: string;
+  data: string;
+  exit: AgentExit | null;
+}
+
+export interface AgentInstallEvent {
+  agent: string;
+  line: string;
+  done: boolean;
+  error: string;
+}
+
+export const agentApi = {
+  agents: (): Promise<AgentInfo[]> => list(AgentService.Agents()) as Promise<AgentInfo[]>,
+  install: (id: string): Promise<void> => AgentService.Install(id),
+  newSession: (id: string): Promise<AgentSessionInfo> => cast(AgentService.NewSession(id)),
+  authenticate: (id: string, method: string): Promise<void> => AgentService.Authenticate(id, method),
+  authCommand: (id: string, method: string): Promise<string> => AgentService.AuthCommand(id, method),
+  prompt: (key: string, blocks: PromptBlock[]): Promise<void> => AgentService.Prompt(key, blocks as rpc.PromptBlock[]),
+  cancel: (key: string): Promise<void> => AgentService.Cancel(key),
+  setMode: (key: string, mode: string): Promise<void> => AgentService.SetMode(key, mode),
+  closeSession: (key: string): Promise<void> => AgentService.CloseSession(key),
+  stop: (id: string): Promise<void> => AgentService.StopAgent(id),
+  /** Answers an agent.request with a JSON-serializable result, or an error. */
+  respond: (id: string, result: unknown, error = ''): Promise<void> =>
+    AgentService.Respond(id, error ? '' : JSON.stringify(result ?? null), error),
+  terminalOutput: (id: string): Promise<AgentTerminal> => cast(AgentService.TerminalOutput(id)),
+  mcpConfig: (): Promise<McpConfig> => AgentService.MCPConfig(),
 };
