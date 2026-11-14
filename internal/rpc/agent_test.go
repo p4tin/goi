@@ -411,3 +411,33 @@ func TestMCPRouting(t *testing.T) {
 		t.Error("token not persisted")
 	}
 }
+
+// The MCP tools the backend lists are the ones the frontend implements.
+func TestAgentToolNamesMatchFrontend(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "..", "frontend", "src", "agent", "tools.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(string(src), "export const TOOL_NAMES = [")
+	end := strings.Index(string(src[start:]), "] as const")
+	if start < 0 || end < 0 {
+		t.Fatal("TOOL_NAMES not found in tools.ts")
+	}
+	var front []string
+	for _, f := range strings.Split(string(src[start:start+end]), "\n")[1:] {
+		if f = strings.Trim(strings.TrimSpace(f), "',"); f != "" {
+			front = append(front, f)
+		}
+	}
+	var back []string
+	for _, tool := range agentTools() {
+		back = append(back, tool.Name)
+		var s map[string]any
+		if err := json.Unmarshal(tool.InputSchema, &s); err != nil || s["type"] != "object" {
+			t.Errorf("%s: bad schema %s", tool.Name, tool.InputSchema)
+		}
+	}
+	if strings.Join(front, ",") != strings.Join(back, ",") {
+		t.Errorf("frontend TOOL_NAMES %v\nbackend agentTools %v", front, back)
+	}
+}
