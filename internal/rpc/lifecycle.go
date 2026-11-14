@@ -40,6 +40,12 @@ func (a *App) startWith(ctx context.Context, appBus events.Bus, handle windowHan
 	if err != nil {
 		return err
 	}
+	if ai := w.settings.Effective().AI; ai.ExternalMCP {
+		if err := a.mcp.startExternal(ai.MCPPort); err != nil {
+			a.log.Warn("external mcp server", "err", err)
+			w.notify("warn", "MCP server not started", err.Error())
+		}
+	}
 	a.openStartup(w)
 	return nil
 }

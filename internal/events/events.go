@@ -29,6 +29,12 @@ const (
 	TopicGitOp            = "git.op"
 	TopicLintDiagnostics  = "lint.diagnostics"
 	TopicLintStatus       = "lint.status"
+	TopicAgentState       = "agent.state"
+	TopicAgentUpdate      = "agent.update"
+	TopicAgentRequest     = "agent.request"
+	TopicAgentTurn        = "agent.turn"
+	TopicAgentTerminal    = "agent.terminal"
+	TopicAgentInstall     = "agent.install"
 )
 
 // Bus publishes a payload under a topic. Implementations must be safe for

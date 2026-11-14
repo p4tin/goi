@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/p4tin/goi/internal/mcp"
 	"github.com/p4tin/goi/internal/rpc"
 )
 
@@ -19,6 +20,10 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	// `goi mcp-bridge` relays MCP over stdio for agents; no GUI.
+	if len(os.Args) > 1 && os.Args[1] == "mcp-bridge" {
+		os.Exit(mcp.RunBridge(os.Args[2:]))
+	}
 	opts, err := rpc.ParseArgs(os.Args[1:])
 	if err != nil {
 		log.Fatalf("goi: %v", err)

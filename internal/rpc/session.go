@@ -31,6 +31,7 @@ type session struct {
 	git     *gitSession
 	lint    *lintSession
 	mod     *modSession
+	agents  *agentManager
 }
 
 // startLangHook starts gopls for a new session; tests set it to nil.
@@ -102,6 +103,7 @@ func (w *window) openProject(path string) error {
 	s.git = startGit(w, abs, fw)
 	s.lint = newLintSession()
 	s.mod = &modSession{}
+	s.agents = newAgentManager(w, s)
 	if startLangHook != nil {
 		s.lang = startLangHook(w, abs, fw)
 	}
@@ -145,6 +147,9 @@ func (w *window) closeProject() error {
 
 // close releases the session. clean=true removes the crash journal.
 func (s *session) close(clean bool) {
+	if s.agents != nil {
+		s.agents.close()
+	}
 	if s.lint != nil {
 		s.lint.close()
 	}

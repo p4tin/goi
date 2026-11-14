@@ -146,6 +146,8 @@ type App struct {
 	gitSvc       *GitService
 	lintSvc      *LintService
 	modSvc       *ModService
+	agentSvc     *AgentService
+	mcp          *mcpHost
 
 	// debugLaunch starts a debug session for a run whose before-launch
 	// tasks finished (set by the debugger integration).
@@ -201,6 +203,8 @@ func NewApp(opts Options) (*App, error) {
 	a.gitSvc = &GitService{app: a}
 	a.lintSvc = &LintService{app: a}
 	a.modSvc = &ModService{app: a}
+	a.agentSvc = &AgentService{app: a}
+	a.mcp = &mcpHost{app: a}
 	a.debugLaunch = a.startDebug
 	return a, nil
 }
@@ -224,6 +228,7 @@ func (a *App) services() []application.Service {
 		application.NewService(a.gitSvc),
 		application.NewService(a.lintSvc),
 		application.NewService(a.modSvc),
+		application.NewService(a.agentSvc),
 	}
 }
 
@@ -232,6 +237,7 @@ func (a *App) Shutdown(context.Context) {
 	for _, w := range a.allWindows() {
 		a.removeWindow(w)
 	}
+	a.mcp.close()
 	a.log.Info("shutdown")
 	a.closer.Close()
 }

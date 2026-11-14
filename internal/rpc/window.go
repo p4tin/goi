@@ -42,6 +42,8 @@ type window struct {
 	ready atomic.Bool
 
 	closing closeState
+
+	ui *uiBroker // requests to the frontend (agent file access, IDE tools)
 }
 
 // addWindow registers a window that delivers its events through bus, with its
@@ -52,6 +54,7 @@ func (a *App) addWindow(handle windowHandle, bus events.Bus) (*window, error) {
 		return nil, fmt.Errorf("settings: %w", err)
 	}
 	w := &window{app: a, handle: handle, bus: bus, settings: st}
+	w.ui = newUIBroker(func() events.Bus { return w.bus })
 	if w.cfgWatch, err = vfs.NewWatcher(nil, vfs.MatchNone, events.Nop{}); err != nil {
 		a.log.Warn("config watcher", "err", err)
 	} else if _, err := st.Watch(w.cfgWatch); err != nil {
@@ -78,6 +81,7 @@ func (a *App) removeWindow(w *window) {
 		}
 	}
 	a.winMu.Unlock()
+	w.ui.close()
 	w.mu.Lock()
 	s := w.session
 	w.session = nil

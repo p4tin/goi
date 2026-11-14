@@ -348,6 +348,10 @@ func callMCP(ctx context.Context, servers []acp.MCPServer, name string, args jso
 		}
 	} else {
 		cmd := exec.CommandContext(ctx, s.Command, s.Args...)
+		cmd.Env = os.Environ()
+		for _, e := range s.Env {
+			cmd.Env = append(cmd.Env, e.Name+"="+e.Value)
+		}
 		var in bytes.Buffer
 		for _, m := range msgs {
 			b, _ := json.Marshal(m)

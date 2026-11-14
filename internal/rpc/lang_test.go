@@ -8,13 +8,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/p4tin/goi/internal/acp/acptest"
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/gopls"
 	"github.com/p4tin/goi/internal/lsp"
+	"github.com/p4tin/goi/internal/mcp"
 	"github.com/p4tin/goi/internal/settings"
 )
 
 func TestMain(m *testing.M) {
+	// The test binary doubles as the fake ACP agent and as `goi mcp-bridge`
+	// (agent tests run it as both).
+	if len(os.Args) > 1 && os.Args[1] == "mcp-bridge" {
+		os.Exit(mcp.RunBridge(os.Args[2:]))
+	}
+	if os.Getenv("GOI_FAKE_AGENT") == "1" {
+		acptest.Main()
+	}
 	// Most tests open projects; don't spawn a real gopls for each one.
 	startLangHook = nil
 	os.Exit(m.Run())
