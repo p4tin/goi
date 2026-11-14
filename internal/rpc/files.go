@@ -57,6 +57,38 @@ func (s *FileService) Read(ctx context.Context, path string) (OpenedFile, error)
 	return OpenedFile{Meta: meta, Content: content}, err
 }
 
+// maxImageBytes caps images loaded by the Markdown preview.
+const maxImageBytes = 10 << 20
+
+// ReadImage returns an image inside the calling window's project as a data
+// URL, for the Markdown preview. Symlinks are resolved first, so a link
+// inside the project can't expose a file outside it.
+func (s *FileService) ReadImage(ctx context.Context, path string) (string, error) {
+	sess, err := s.app.sessionFor(ctx)
+	if err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", err
+	}
+	inside := false
+	for _, r := range sess.manager.Project().ContentRoots {
+		if rr, err := filepath.EvalSymlinks(r); err == nil && within(rr, resolved) {
+			inside = true
+			break
+		}
+	}
+	if !inside {
+		return "", fmt.Errorf("files: %s is outside the project", abs)
+	}
+	return vfs.ReadDataURL(resolved, maxImageBytes)
+}
+
 // Write saves content (LF-normalized) restoring the file's EOL and BOM.
 func (s *FileService) Write(ctx context.Context, path string, content string, meta vfs.FileMeta) (vfs.FileMeta, error) {
 	if err := s.guard(ctx, path); err != nil && !s.isSettingsFile(ctx, path) {
