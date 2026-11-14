@@ -62,6 +62,13 @@ onSave = true               # lint the saved file's package
 golangciPath = ""           # empty: $PATH, $GOBIN, $GOPATH/bin, then Goi's tools dir
 args = []                   # extra arguments for golangci-lint run
 
+[ai]
+mcpServer = true            # give agents started by Goi the IDE tools (MCP)
+externalMcp = false         # also serve the IDE tools to other MCP clients on mcpPort (restart to apply)
+mcpPort = 64342
+defaultAgent = ""           # agent preselected in the AI Agent window: claude, gemini, codex or a custom id
+agents = {}                 # id = "command line": custom ACP agents, or overrides for claude/gemini/codex
+
 [ui]
 theme = "auto"              # auto | light | dark | hc
 scheme = "auto" # auto follows the UI theme; or goi-light, goi-dark, goi-ember, goi-paper

@@ -113,6 +113,15 @@ type Lint struct {
 	Args         []string `toml:"args" json:"args"`
 }
 
+// AI configures coding agents and Goi's MCP server.
+type AI struct {
+	MCPServer    bool              `toml:"mcpServer" json:"mcpServer"`
+	ExternalMCP  bool              `toml:"externalMcp" json:"externalMcp"`
+	MCPPort      int               `toml:"mcpPort" json:"mcpPort"`
+	DefaultAgent string            `toml:"defaultAgent" json:"defaultAgent"`
+	Agents       map[string]string `toml:"agents" json:"agents"`
+}
+
 // UI holds theme and keymap selection.
 type UI struct {
 	Theme  string `toml:"theme" json:"theme"`
@@ -133,6 +142,7 @@ type Settings struct {
 	Terminal Terminal            `toml:"terminal" json:"terminal"`
 	Git      Git                 `toml:"git" json:"git"`
 	Lint     Lint                `toml:"lint" json:"lint"`
+	AI       AI                  `toml:"ai" json:"ai"`
 	UI       UI                  `toml:"ui" json:"ui"`
 	Keys     map[string][]string `toml:"keys" json:"keys"`
 }
@@ -169,6 +179,9 @@ func decode(doc map[string]any) (Settings, error) {
 	}
 	if s.Lint.Args == nil {
 		s.Lint.Args = []string{}
+	}
+	if s.AI.Agents == nil {
+		s.AI.Agents = map[string]string{}
 	}
 	if s.Gopls.Settings == nil {
 		s.Gopls.Settings = map[string]any{}

@@ -4,7 +4,7 @@
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
 export type WritableLayer = 'user' | 'project';
 
-export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Version Control', 'Linting', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
+export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Version Control', 'Linting', 'AI', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
 export type Section = (typeof sections)[number];
 
 export interface SettingDescriptor {
@@ -100,6 +100,18 @@ export const schema: SettingDescriptor[] = [
   { key: 'lint.onSave', title: 'Lint on Save', section: 'Linting', description: "Lint the saved file's package.", type: 'bool', layers: both },
   { key: 'lint.golangciPath', title: 'golangci-lint Path', section: 'Linting', description: "golangci-lint executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi's tools folder.", type: 'string', layers: userOnly },
   { key: 'lint.args', title: 'Extra Arguments', section: 'Linting', description: 'Added to golangci-lint run (the project .golangci.yml is always used).', type: 'stringList', layers: both },
+  { key: 'ai.defaultAgent', title: 'Default Agent', section: 'AI', description: 'Agent preselected for new sessions: claude, gemini, codex or a custom id.', type: 'string', layers: userOnly },
+  {
+    key: 'ai.agents',
+    title: 'Agent Commands',
+    section: 'AI',
+    description: 'id = command line. Adds a custom ACP agent, or overrides the command of claude, gemini or codex.',
+    type: 'map',
+    layers: userOnly,
+  },
+  { key: 'ai.mcpServer', title: 'IDE Tools for Agents', section: 'AI', description: 'Give agents started by Goi tools to open files, read diagnostics, run configurations and more (MCP).', type: 'bool', layers: userOnly },
+  { key: 'ai.externalMcp', title: 'External MCP Clients', section: 'AI', description: 'Also serve the IDE tools to other MCP clients (Claude Code in a terminal, …) on the port below. Takes effect after a restart.', type: 'bool', layers: userOnly },
+  { key: 'ai.mcpPort', title: 'MCP Port', section: 'AI', description: 'Local port for external MCP clients.', type: 'int', min: 1024, max: 65535, layers: userOnly },
   { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
   { key: 'go.env', title: 'Environment Variables', section: 'Go', description: 'Extra environment for go commands (GOPROXY, GOPRIVATE, GOFLAGS…).', type: 'map', layers: both },
   { key: 'go.tags', title: 'Build Tags', section: 'Go', description: 'Build tags passed as -tags to go commands.', type: 'stringList', layers: both },
