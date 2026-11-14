@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -141,10 +142,13 @@ func (c *Client) Info() acp.InitializeResult {
 	return c.info
 }
 
-// call fails fast with the agent's exit message when it dies mid-call.
+// call fails fast with the agent's exit message when it dies mid-call. Any
+// transport failure counts (closed connection, or a write to an agent that
+// already closed its stdin: EPIPE), not JSON-RPC errors or cancellation.
 func (c *Client) call(ctx context.Context, method string, params, out any) error {
 	err := c.conn.Call(ctx, method, params, out)
-	if err == acp.ErrClosed {
+	var rpcErr *acp.Error
+	if err != nil && ctx.Err() == nil && !errors.As(err, &rpcErr) {
 		select {
 		case <-c.proc.Done():
 			return c.ExitError()

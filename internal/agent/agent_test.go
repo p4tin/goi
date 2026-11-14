@@ -379,4 +379,16 @@ func TestStartFailure(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "code 7") || !strings.Contains(err.Error(), "boom") {
 		t.Errorf("err = %v", err)
 	}
+	// An agent that closes stdin before exiting makes the initialize write
+	// fail (EPIPE); the error is still the exit message.
+	c2, err := Start(Options{Command: Command{Path: "/bin/sh", Args: []string{"-c", "exec 0<&-; echo gone >&2; sleep 0.3; exit 3"}}, Host: h})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c2.Close()
+	time.Sleep(100 * time.Millisecond)
+	_, err = c2.Initialize(ctx)
+	if err == nil || !strings.Contains(err.Error(), "code 3") || !strings.Contains(err.Error(), "gone") {
+		t.Errorf("closed stdin: err = %v", err)
+	}
 }
