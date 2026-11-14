@@ -115,6 +115,34 @@ describe('EditorManager', () => {
     expect(m.activePane.peek().tabs.peek().map((t) => t.path)).toEqual(['/a']);
   });
 
+  it('wraps each text tab in a content element that features can extend', async () => {
+    const { m } = manager({ '/a.md': '# a', '/b.go': 'package b' });
+    const created: HTMLElement[] = [];
+    m.hooks.viewCreated.on(({ content, view }) => {
+      expect(view.dom.parentElement).toBe(content);
+      content.append(Object.assign(document.createElement('div'), { className: 'side' }));
+      created.push(content);
+    });
+    await m.open('/a.md', { focus: false });
+    await m.open('/b.go', { focus: false });
+    const pane = m.activePane.peek();
+    const a = pane.contents.get('/a.md')!;
+    const b = pane.contents.get('/b.go')!;
+    expect(created).toEqual([a, b]);
+    expect(a.parentElement).toBe(pane.host);
+    expect(a.classList.contains('tab-content')).toBe(true);
+    expect([a.hidden, b.hidden]).toEqual([true, false]);
+    // Focus inside a sibling of the editor activates its tab.
+    const side = a.querySelector<HTMLElement>('.side')!;
+    side.tabIndex = 0;
+    side.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(m.activePath.peek()).toBe('/a.md');
+    expect([a.hidden, b.hidden]).toEqual([false, true]);
+    await m.close('/a.md');
+    expect(pane.contents.has('/a.md')).toBe(false);
+    expect(a.isConnected).toBe(false);
+  });
+
   it('read-only and binary buffers', async () => {
     const { m } = manager({ '/big.log': 'x', '/img.png': '' }, { metas: { '/big.log': { mode: 'readOnly' }, '/img.png': { binary: true } } });
     const big = (await m.open('/big.log'))!;

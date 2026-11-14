@@ -84,6 +84,9 @@ export class Pane {
   readonly tabs = signal<TabState[]>([]);
   readonly active = signal<string | null>(null);
   readonly views = new Map<string, EditorView>();
+  /** Per text tab: the element holding its editor view. Features may add
+   * siblings beside the editor (viewCreated's content). */
+  readonly contents = new Map<string, HTMLElement>();
   readonly placeholders = new Map<string, HTMLElement>();
   readonly el: HTMLElement;
   readonly tabBar: HTMLElement;
@@ -108,8 +111,9 @@ export interface Hooks {
   /** Before writing; handlers may edit the document (e.g. formatting). */
   beforeSave: AsyncHook<Buffer>;
   saved: Hook<Buffer>;
-  /** A view was created for a buffer. */
-  viewCreated: Hook<{ buffer: Buffer; view: EditorView; pane: Pane }>;
+  /** A view was created for a buffer. content is the tab's element: a flex
+   * row holding view.dom, where features may add elements beside it. */
+  viewCreated: Hook<{ buffer: Buffer; view: EditorView; pane: Pane; content: HTMLElement }>;
   /** The active pane or tab changed. */
   activeChanged: Hook<Buffer | null>;
 }
@@ -256,9 +260,8 @@ export class EditorManager {
       }
       el = ph;
     } else {
-      let view = pane.views.get(path);
-      if (!view) view = this.createView(buf, pane);
-      el = view.dom;
+      if (!pane.views.has(path)) this.createView(buf, pane);
+      el = pane.contents.get(path)!;
     }
     for (const child of pane.host.children) (child as HTMLElement).hidden = child !== el;
     pane.active.set(path);
@@ -285,17 +288,20 @@ export class EditorManager {
         this.extra.of(this.extrasFor(buf)),
       ],
     });
+    const content = h('div', { class: 'tab-content' });
+    pane.host.appendChild(content);
     const view = new EditorView({
       state,
-      parent: pane.host,
+      parent: content,
       dispatchTransactions: (trs, v) => this.dispatch(buf, trs, v),
     });
-    view.dom.addEventListener('focusin', () => {
+    content.addEventListener('focusin', () => {
       if (this.activePane.peek() !== pane || this.activePath.peek() !== buf.path) this.activate(pane, buf.path);
     });
     buf.views.add(view);
     pane.views.set(buf.path, view);
-    this.hooks.viewCreated.emit({ buffer: buf, view, pane });
+    pane.contents.set(buf.path, content);
+    this.hooks.viewCreated.emit({ buffer: buf, view, pane, content });
     return view;
   }
 
@@ -393,6 +399,8 @@ export class EditorManager {
       view.destroy();
       pane.views.delete(path);
     }
+    pane.contents.get(path)?.remove();
+    pane.contents.delete(path);
     pane.placeholders.get(path)?.remove();
     pane.placeholders.delete(path);
     if (buf && lastTab) {
@@ -485,6 +493,7 @@ export class EditorManager {
       v.destroy();
     }
     pane.views.clear();
+    pane.contents.clear();
     pane.el.remove();
     this.tree.set(next);
     this.panes.set(leaves(next));
