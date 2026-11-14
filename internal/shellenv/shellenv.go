@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -47,19 +46,20 @@ func LoginPath(ctx context.Context, shell string) (string, error) {
 }
 
 // Merge returns the login PATH followed by the current entries it lacks,
-// without empty or duplicate entries.
+// without empty or duplicate entries. Both are POSIX PATHs (":"-separated):
+// the fix only runs on macOS and Linux.
 func Merge(current, login string) string {
 	seen := map[string]bool{}
 	var out []string
 	for _, list := range []string{login, current} {
-		for _, p := range filepath.SplitList(list) {
+		for _, p := range strings.Split(list, ":") {
 			if p != "" && !seen[p] {
 				seen[p] = true
 				out = append(out, p)
 			}
 		}
 	}
-	return strings.Join(out, string(os.PathListSeparator))
+	return strings.Join(out, ":")
 }
 
 // Fix merges the login shell's PATH into this process's PATH. On error PATH
