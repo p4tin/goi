@@ -3,14 +3,18 @@
 
 import { ViewPlugin } from '@codemirror/view';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
-import { resolvedTheme, settings } from '../app/state';
+import { project, resolvedTheme, settings } from '../app/state';
 import type { Workbench } from '../app/workbench';
 import type { Buffer } from '../editor/buffer';
 import { editors, resolveScheme } from '../editor/install';
 import { languageIdFor } from '../editor/languages';
+import { files, on, openExternal, Topics } from '../lib/api';
+import type { FsBatch } from '../lib/api';
 import { commands } from '../lib/commands';
 import { effect } from '../lib/store';
+import { insideRoots } from './links';
 import { nextMode, Preview, toMode } from './preview';
+import type { PreviewEnv } from './preview';
 import './preview.css';
 
 const previews = new WeakMap<EditorView, Preview>();
@@ -42,7 +46,26 @@ const previewPlugin = ViewPlugin.fromClass(
   },
 );
 
-export function installMarkdownPreview(_wb: Workbench): void {
+export function installMarkdownPreview(wb: Workbench): void {
+  const roots = (): string[] => {
+    const p = project.peek();
+    return p ? [p.root, ...(p.contentRoots ?? [])] : [];
+  };
+  const env: PreviewEnv = {
+    openExternal,
+    openFile: (path, anchor) => {
+      // Links never open files outside the project.
+      if (!insideRoots(path, roots())) {
+        wb.notifications.push({ id: `md-link:${path}`, level: 'warn', title: 'Link points outside the project', body: path });
+        return;
+      }
+      void editors.open(path).then((buf) => {
+        if (buf && anchor) activePreview()?.scrollToAnchor(anchor);
+      });
+    },
+    readImage: files.readImage,
+    root: () => project.peek()?.root,
+  };
   const currentScheme = () => resolveScheme(settings.peek()?.ui.scheme ?? 'auto', resolvedTheme.peek());
 
   editors.addExtension((buf) => (isMarkdown(buf) ? previewPlugin : []));
@@ -52,6 +75,7 @@ export function installMarkdownPreview(_wb: Workbench): void {
       mode: toMode(settings.peek()?.markdown?.previewMode),
       theme: resolvedTheme.peek(),
       scheme: currentScheme(),
+      env,
     });
     previews.set(view, p);
     live.add(p);
@@ -61,6 +85,11 @@ export function installMarkdownPreview(_wb: Workbench): void {
     const theme = resolvedTheme();
     const scheme = resolveScheme(settings()?.ui.scheme ?? 'auto', theme);
     for (const p of live) p.setTheme(theme, scheme);
+  });
+
+  on<FsBatch>(Topics.fsChanged, (b) => {
+    const paths = b.events.map((e) => e.path);
+    for (const p of live) p.filesChanged(paths);
   });
 
   commands.register({

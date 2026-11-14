@@ -14,11 +14,11 @@ vi.mock('../src/markdown/mermaid', () => ({ renderDiagram }));
 import { EditorView } from '@codemirror/view';
 import { EditorManager } from '../src/editor/editorManager';
 import type { FileMeta, OpenedFile } from '../src/lib/api';
-import { nextMode, parseSvg, Preview, reconcile, toMode } from '../src/markdown/preview';
-import type { Mode } from '../src/markdown/preview';
+import { nextMode, parseSvg, Preview, reconcile, scrollTarget, toMode } from '../src/markdown/preview';
+import type { Mode, PreviewEnv } from '../src/markdown/preview';
 import { renderBlocks } from '../src/markdown/render';
 
-async function setup(content: string, o: { mode?: Mode; meta?: Partial<FileMeta> } = {}) {
+async function setup(content: string, o: { mode?: Mode; meta?: Partial<FileMeta>; env?: PreviewEnv } = {}) {
   const m = new EditorManager({
     io: {
       read: async (p) => ({ meta: { path: p, size: 0, modTime: '', binary: false, eol: '\n', bom: false, finalNewline: true, mode: 'normal', ...o.meta }, content }) as OpenedFile,
@@ -32,7 +32,7 @@ async function setup(content: string, o: { mode?: Mode; meta?: Partial<FileMeta>
   // What install.ts's view plugin does.
   m.addExtension(() => EditorView.updateListener.of((u) => u.docChanged && preview.docChanged()));
   m.hooks.viewCreated.on(({ buffer, view, content: el }) => {
-    preview = new Preview(buffer, view, el, { mode: o.mode ?? 'split', theme: 'dark', scheme: 'goi-dark' });
+    preview = new Preview(buffer, view, el, { mode: o.mode ?? 'split', theme: 'dark', scheme: 'goi-dark', env: o.env });
   });
   await m.open('/p/README.md', { focus: false });
   const view = m.activeView()!;
@@ -130,6 +130,39 @@ describe('Preview', () => {
     expect(preview.body.querySelector('svg')?.getAttribute('data-theme')).toBe('light');
   });
 
+  it('routes link clicks (R1.7)', async () => {
+    const env = { openExternal: vi.fn(), openFile: vi.fn(), readImage: vi.fn(), root: () => '/p' };
+    const { preview } = await setup('[web](https://go.dev) [doc](docs/a.md#x) [top](#intro) [bad](javascript:alert(1))\n\n# Intro\n', { env });
+    const links = [...preview.body.querySelectorAll<HTMLElement>('a')];
+    const clicks = links.map((a) => a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    expect(clicks).toEqual([false, false, false, false]); // default prevented
+    expect(env.openExternal).toHaveBeenCalledWith('https://go.dev');
+    expect(env.openFile).toHaveBeenCalledWith('/p/docs/a.md', 'x');
+    expect(env.openFile).toHaveBeenCalledTimes(1);
+    expect(preview.scrollToAnchor('intro')).toBe(true);
+    expect(preview.scrollToAnchor('missing')).toBe(false);
+  });
+
+  it('loads local images through the env and falls back to alt text (R1.6)', async () => {
+    const env = {
+      openExternal: vi.fn(),
+      openFile: vi.fn(),
+      readImage: vi.fn(async (p: string) => {
+        if (p.endsWith('missing.png')) throw new Error('nope');
+        return 'data:image/png;base64,AAAA';
+      }),
+      root: () => '/p',
+    };
+    const { preview } = await setup('![logo](img/logo.png) ![gone](img/missing.png) ![x](javascript:y) ![again](img/logo.png) ![web](https://x.io/a.png)\n', { env });
+    await flush();
+    const imgs = [...preview.body.querySelectorAll('img')];
+    expect(imgs.map((i) => i.getAttribute('src'))).toEqual(['data:image/png;base64,AAAA', 'data:image/png;base64,AAAA', 'https://x.io/a.png']);
+    expect([...preview.body.querySelectorAll('.md-img-alt')].map((s) => s.textContent)).toEqual(['gone', 'x']);
+    expect(env.readImage.mock.calls.map((c) => c[0])).toEqual(['/p/img/logo.png', '/p/img/missing.png']); // cached
+    preview.filesChanged(['/p/img/logo.png']);
+    expect(env.readImage).toHaveBeenCalledTimes(3); // both logo images reload from one new read
+  });
+
   it('disposes its elements', async () => {
     const { preview, content } = await setup('x');
     preview.dispose();
@@ -149,6 +182,20 @@ describe('helpers', () => {
     expect(body.children[1]).toBe(a);
     expect(body.children[3]).toBe(b);
     expect((body.children[0] as HTMLElement).dataset.line).toBe('0');
+  });
+
+  it('scrollTarget interpolates between blocks', () => {
+    const anchors = [
+      { line: 0, top: 0 },
+      { line: 10, top: 200 },
+      { line: 20, top: 260 },
+    ];
+    expect(scrollTarget(anchors, 0)).toBe(0);
+    expect(scrollTarget(anchors, 5)).toBe(100);
+    expect(scrollTarget(anchors, 15)).toBe(230);
+    expect(scrollTarget(anchors, 40)).toBe(260);
+    expect(scrollTarget([], 3)).toBe(0);
+    expect(scrollTarget([{ line: 4, top: 50 }], 1)).toBe(0);
   });
 
   it('parseSvg returns an svg element without scripts running', () => {

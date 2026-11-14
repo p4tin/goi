@@ -26,6 +26,7 @@
 }
 
 .md-preview {
+  position: relative;
   flex: calc(1 - var(--md-ratio)) 1 0;
   min-width: 0;
   overflow: auto;
