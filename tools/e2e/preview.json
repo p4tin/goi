@@ -1,0 +1,88 @@
+{
+ "_comment": "M5 Markdown preview + Mermaid (server build). Build: go build -tags server -o bin/goi-server . ; sample: tools/e2e/preview-sample.sh /private/tmp/goi-e2e/previewsample",
+ "server": {
+  "cmd": [
+   "bin/goi-server",
+   "--project",
+   "/private/tmp/goi-e2e/previewsample/proj"
+  ],
+  "env": {
+   "GOI_HOME": "/private/tmp/goi-e2e/previewsample/home"
+  }
+ },
+ "url": "{{server}}/",
+ "out": "/tmp/goi-e2e-preview",
+ "initialWait": 5000,
+ "steps": [
+  {
+   "label": "helpers",
+   "eval": "(() => { window.__w = async (fn, ms = 30000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 100)); } return 'TIMEOUT'; }; window.__open = (name) => { const pt = [...document.querySelectorAll('.dock-tab')].find(b => b.textContent === 'Project'); if (pt && !pt.classList.contains('active')) pt.click(); const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === name); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; window.__palette = async (text) => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'a', code: 'KeyA', metaKey: true, shiftKey: true, bubbles: true})); const i = await __w(() => document.querySelector('.palette input, .pal-input, input.palette-input')); i.value = text; i.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 400)); i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return true; }; window.__view = () => { const c = [...document.querySelectorAll('.tab-content')].find(t => !t.hidden && t.offsetParent)?.querySelector('.cm-content'); return c?.cmTile?.root?.view; }; window.__text = () => __view()?.state.doc.toString(); window.__tab = () => document.querySelector('.pane-active .tab.active, .tab.active')?.textContent || ''; window.__openWait = async (name) => { await __w(() => __open(name)); return __w(() => __tab().includes(name) && __view() && name); }; window.__key = (key, mods = {}) => { const c = __view().contentDOM; c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', {key, code: 'Key' + key.toUpperCase(), bubbles: true, cancelable: true, ...mods})); }; window.__status = () => [...document.querySelectorAll('.status-item, [data-status-id], .statusbar *')].map(e => e.textContent).find(t => t && t.startsWith('Not formatted')) || ''; window.__tc = () => [...document.querySelectorAll('.tab-content')].find(t => !t.hidden && t.offsetParent); window.__pv = () => __tc()?.querySelector('.md-body'); window.__shown = (sel) => { const e = __tc()?.querySelector(sel); return !!e && e.offsetWidth > 0 && getComputedStyle(e).display !== 'none'; }; return true; })()"
+  },
+  {
+   "label": "open README.md",
+   "eval": "__openWait('README.md')"
+  },
+  {
+   "label": "AC1 editor left, preview right (split)",
+   "eval": "__w(() => { const t = __tc(); const ed = t.querySelector('.cm-editor').getBoundingClientRect(); const pv = t.querySelector('.md-preview').getBoundingClientRect(); return t.dataset.mdMode === 'split' && ed.width > 100 && pv.width > 100 && ed.right <= pv.left && __pv().textContent.includes('Intro paragraph') && `editor ${Math.round(ed.width)}px | preview ${Math.round(pv.width)}px`; })"
+  },
+  {
+   "label": "AC4 script shown as text, never run",
+   "eval": "(() => { const b = __pv(); return !b.querySelector('script') && window.__xss === undefined && b.textContent.includes('<script>window.__xss = 1</script>') && 'literal, not executed'; })()"
+  },
+  {
+   "label": "AC2 typing '# Hello' renders <h1>Hello</h1> within 300 ms",
+   "eval": "(async () => { const v = __view(); v.focus(); const t0 = performance.now(); for (const ch of '# Hello\\n\\n') v.dispatch({changes: {from: v.state.selection.main.head, insert: ch}, selection: {anchor: v.state.selection.main.head + 1}, userEvent: 'input.type'}); const t1 = performance.now(); const r = await __w(() => { const h = __pv().querySelector('h1'); return h && h.textContent === 'Hello' && performance.now(); }, 3000); return r === 'TIMEOUT' ? r : `h1 after ${Math.round(r - t1)} ms (typed in ${Math.round(t1 - t0)} ms)`; })()"
+  },
+  {
+   "label": "R1.5 Go fence highlighted",
+   "eval": "__w(() => { const c = __pv().querySelector('code[data-lang=go]'); return c && c.querySelector('span[class]') && c.querySelectorAll('span[class]').length + ' highlighted spans'; })"
+  },
+  {
+   "label": "R1.6 local image loaded, missing one shows alt",
+   "eval": "__w(() => { const img = __pv().querySelector('img'); const alt = __pv().querySelector('.md-img-alt'); return img && img.src.startsWith('data:image/png') && img.naturalWidth === 1 && alt && alt.textContent === 'missing image' && 'dot.png loaded; alt: ' + alt.textContent; })"
+  },
+  {
+   "label": "AC9 mermaid renders an SVG with nodes A and B",
+   "eval": "__w(() => { const box = __pv().querySelector('.mdp-mermaid[data-state=ok]'); const svg = box?.querySelector('svg'); const labels = svg ? [...svg.querySelectorAll('.nodeLabel, text, .label')].map(e => e.textContent.trim()).filter(Boolean) : []; return svg && labels.includes('A') && labels.includes('B') && 'svg nodes: ' + [...new Set(labels)].join(','); }, 30000)"
+  },
+  {
+   "label": "R3.7 diagram actions",
+   "eval": "[...__pv().querySelectorAll('.mdp-mermaid[data-state=ok] .md-diagram-btn')].map(b => b.textContent).join(' | ')"
+  },
+  {
+   "label": "AC10 invalid diagram: source + error, rest renders",
+   "eval": "__w(() => { const bad = __pv().querySelector('.mdp-mermaid[data-state=error]'); const last = [...__pv().children].pop(); return bad && bad.querySelector('code') && bad.querySelector('.md-error')?.textContent && last.textContent === 'After the diagrams.' && 'error: ' + bad.querySelector('.md-error').textContent.slice(0, 80); }, 30000)"
+  },
+  {
+   "label": "AC11 theme switch re-renders the diagram",
+   "eval": "(async () => { const before = __pv().querySelector('.mdp-mermaid[data-state=ok] svg'); const html = before.outerHTML; await __palette(document.documentElement.dataset.theme === 'light' ? 'Theme: Dark' : 'Theme: Light'); return __w(() => { const now = __pv().querySelector('.mdp-mermaid[data-state=ok] svg'); return now && now !== before && now.outerHTML !== html && 'theme ' + document.documentElement.dataset.theme + ', new svg'; }, 30000); })()"
+  },
+  {
+   "label": "AC3 Preview only",
+   "eval": "(() => { __tc().querySelector('.md-mode[data-mode=preview]').click(); return __tc().dataset.mdMode === 'preview' && !__shown('.cm-editor') && __shown('.md-preview') && 'only the preview'; })()"
+  },
+  {
+   "shot": "preview-only.png"
+  },
+  {
+   "label": "AC3 Editor only",
+   "eval": "(() => { __tc().querySelector('.md-mode[data-mode=editor]').click(); return __tc().dataset.mdMode === 'editor' && __shown('.cm-editor') && !__shown('.md-preview') && 'only the source'; })()"
+  },
+  {
+   "label": "R1.2 Toggle Preview command cycles to split",
+   "eval": "(async () => { await __palette('Toggle Preview'); return __w(() => __tc().dataset.mdMode === 'split' && 'split'); })()"
+  },
+  {
+   "shot": "split.png"
+  },
+  {
+   "label": "R1.7 relative link opens the file",
+   "eval": "(async () => { const a = [...__pv().querySelectorAll('a')].find(x => x.textContent === 'relative link'); a.click(); return __w(() => __tab().includes('other.md') && 'opened ' + __tab()); })()"
+  },
+  {
+   "label": "R1.7 anchor heading exists in the opened preview",
+   "eval": "__w(() => __pv()?.querySelector('#details') && 'h2#details')"
+  }
+ ]
+}

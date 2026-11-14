@@ -10,9 +10,13 @@
 
 .md-tab[data-md-mode='editor'] > .md-preview,
 .md-tab[data-md-mode='editor'] > .md-divider,
-.md-tab[data-md-mode='preview'] > .md-divider,
-.md-tab[data-md-mode='preview'] > .cm-editor {
+.md-tab[data-md-mode='preview'] > .md-divider {
   display: none;
+}
+
+/* CodeMirror's base theme makes .cm-editor display: flex !important. */
+.md-tab[data-md-mode='preview'] > .cm-editor {
+  display: none !important;
 }
 
 .md-divider {
