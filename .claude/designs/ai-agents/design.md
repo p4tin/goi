@@ -139,3 +139,12 @@ agents = {}           # id = "command line": custom agents, or overrides for cla
 - Agent adapters change quickly; the catalogue only names packages and binaries, and users can override any command in settings.
 - Real agents need their own login; Goi only relays ACP auth methods.
 - Windows: npm bins are `.cmd` shims, which `exec` can run; `SplitCommandLine` keeps backslashes.
+
+## 6. Changes during implementation
+
+- `frontend/src/agent/ports.ts` holds the real editor/disk/IDE ports; `tools.ts` only sees the port interfaces (tests use fakes).
+- `agent.Host.TerminalSpec` takes the ACP session id and cwd; agent processes get the project's Go environment (`window.runner`).
+- Session updates that arrive before `session/new` returns are buffered per ACP session and replayed when the session is registered.
+- The stdio MCP fallback passes the token in `GOI_MCP_TOKEN` (the server's `env`), not on the command line.
+- `newTerminal` returns the tab id and `runInTerminal` types a command into it (terminal auth methods).
+- The right dock widens to 380 px when the AI Agent window opens.

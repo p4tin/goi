@@ -11,6 +11,7 @@ goi/
 ├── main.go                  # entrypoint: parses args, rpc.App.Run (the Wails v3 shell lives in internal/rpc)
 ├── Taskfile.yml             # wails3 task entry (build/*/Taskfile.yml per OS; build/config.yml = product info)
 ├── tools/e2e/               # headless-Chrome CDP harness (drives the -tags server build)
+├── tools/fakeagent/         # scripted ACP agent for E2E (wraps internal/acp/acptest)
 ├── go.mod
 ├── internal/                # goi-core: all backend logic, UI-agnostic
 │   ├── events/              # Bus interface + topic constants
@@ -38,6 +39,9 @@ goi/
 │   ├── git/                 # git CLI wrapper: status, diffs/hunk patches, branches, stash, log, blame, conflicts
 │   ├── lint/                # golangci-lint v1/v2 runner and JSON → issues/fixes
 │   ├── gomod/               # module proxy versions, known modules (module cache, go.sum)
+│   ├── acp/                 # Agent Client Protocol v1 client + types (no Goi knowledge); acptest/ = scripted fake agent
+│   ├── mcp/                 # MCP server (Streamable HTTP, tools) + stdio bridge (no Goi knowledge)
+│   ├── agent/               # coding agents: catalogue, resolve, npm install, ACP client process, agent terminals
 │   └── rpc/                 # Wails-bound services; App (process) / window (per-window) / session (per-project);
 │                            # shell.go (v3 app + windows), lifecycle.go, dock.go, menu.go
 ├── frontend/                # Wails frontend (TypeScript + Vite)
@@ -56,6 +60,7 @@ goi/
 │   │   ├── git/             # status, tree colors, gutter, commit panel, diff, branches, stash, log, blame, merge editor
 │   │   ├── lint/            # golangci-lint diagnostics source, lint on save, fixes
 │   │   ├── mod/             # go.mod/go.work completion, links, module actions
+│   │   ├── agent/           # AI Agent window, transcript model, Markdown, IDE tools for agents (ACP fs + MCP), change log
 │   │   ├── palette/         # Search Everywhere (files, symbols, actions, settings), ranking, double-Shift, recent files
 │   │   ├── keymap/          # keymaps, chords, dispatcher, rebinding
 │   │   ├── theme/           # tokens, themes, editor schemes, theme commands (dark mode toggle)
@@ -74,10 +79,10 @@ goi/
 4. **Frontend never touches the filesystem or spawns processes.** Everything goes through bindings.
 5. **`frontend/bindings/` is generated.** Wrap it in `frontend/src/lib/` and import the wrappers, not the generated files.
 5a. **Features are installers** in `frontend/src/features.ts`; they extend the editor via `editors.hooks` / `editors.addExtension`, not by editing `editorManager.ts`.
-6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp` + `toolbin`, `debugger` uses `dap`, `runconfig` uses `gosyntax`, `lint` uses `toolbin`. Domain packages don't depend on each other unless the design says so.
+6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp` + `toolbin`, `debugger` uses `dap`, `runconfig` uses `gosyntax`, `lint` uses `toolbin`, `agent` uses `acp` + `process`. Domain packages don't depend on each other unless the design says so.
 
 ## Project-local state
 - `.goi/settings.toml`: project settings (shareable).
 - `.goi/runConfigurations/*.toml`: shared run configurations (local ones: `<config>/workspaces/<hash>/runConfigurations/`; benchmark history `<config>/workspaces/<hash>/bench.json`).
-- User state: `os.UserConfigDir()/Goi/<major.minor>/` (settings, recent projects, the projects open at last quit (`open-projects.json`), window layouts keyed by workspace hash).
+- User state: `os.UserConfigDir()/Goi/<major.minor>/` (settings, recent projects, the projects open at last quit (`open-projects.json`), window layouts keyed by workspace hash, the external MCP token `mcp-token`). Agents installed by Goi live in `<config>/tools/agents/<id>`.
 - Caches: `os.UserCacheDir()/Goi/<major.minor>/`.

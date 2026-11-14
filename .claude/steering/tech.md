@@ -20,6 +20,8 @@
 | Version control | `git` CLI | porcelain v2 status, `git apply --cached` for partial staging; no git library |
 | Linting | golangci-lint (v1 and v2 JSON) | Installed on demand into Goi's tools dir |
 | Packaging | `wails3 task darwin:package:universal` / `windows:package` / `linux:build`, `hdiutil` dmg, nfpm deb/rpm | `release.yml` on `v*` tags |
+| Coding agents | Agent Client Protocol v1 over stdio | Own minimal client (`internal/acp`); agents are npm packages (claude-agent-acp, gemini-cli, codex-acp) installed on demand into Goi's tools dir, or any command in `ai.agents` |
+| IDE tools for agents | MCP (Streamable HTTP, JSON responses) | Own minimal server (`internal/mcp`) on 127.0.0.1 with a bearer token; `goi mcp-bridge` for stdio-only clients |
 | Terminal | `github.com/aymanbagabas/go-pty` + `@xterm/xterm` 6 (fit, search, web-links addons) | ConPTY on Windows; zsh/bash integration via ZDOTDIR / --rcfile |
 
 ## Prerequisites (dev machine)
@@ -31,6 +33,7 @@
 - gopls (M2+): `go install golang.org/x/tools/gopls@latest`, or "Install gopls" in the app
 - dlv (M3+): `go install github.com/go-delve/delve/cmd/dlv@latest`, or "Install Delve" in the app
 - golangci-lint (M4+): "Install golangci-lint" in the app, or your own install
+- Node.js/npm: only to install agents from the AI Agent window (agents themselves bring their own runtime)
 - Releases: nfpm (`go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0`) for Linux packages; NSIS for the Windows installer
 
 ## Dependencies (as built)
