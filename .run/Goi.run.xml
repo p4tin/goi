@@ -2,9 +2,8 @@
   <configuration default="false" name="Goi" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="goi" />
     <working_directory value="$PROJECT_DIR$" />
-    <go_parameters value="-tags production" />
+    <go_parameters value="-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist" />
     <envs>
-      <env name="CGO_LDFLAGS" value="-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist" />
       <env name="GOTOOLCHAIN" value="auto" />
       <env name="GOI_HOME" value=".goi-home" />
     </envs>

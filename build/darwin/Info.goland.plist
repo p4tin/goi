@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Embedded into bare `go build` binaries (GoLand "Goi" run config) via
-  CGO_LDFLAGS=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist.
+  Embedded into bare `go build` binaries (GoLand "Goi" run config) via the
+  build flag -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist.
+  Not via CGO_LDFLAGS: Goi would inherit that variable and pass it to every
+  program it builds, whose own builds then fail on the missing file.
   Without a bundle identifier, macOS's out-of-process open panel cannot attach
   to the window and cancels the folder sheet immediately.
   Wails v3 links UniformTypeIdentifiers itself, so the v2-era
