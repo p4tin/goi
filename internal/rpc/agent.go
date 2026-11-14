@@ -575,7 +575,8 @@ func (p *agentProc) TerminalOutput(id string, data []byte, exit *acp.ExitStatus)
 
 // AgentService runs coding agents (Agent Client Protocol) for the project.
 type AgentService struct {
-	app *App
+	app        *App
+	installing sync.Map // agent id → true while npm runs
 }
 
 func (s *AgentService) manager(ctx context.Context) (*agentManager, error) {
@@ -614,8 +615,6 @@ func (s *AgentService) Agents(ctx context.Context) ([]AgentInfo, error) {
 	return out, nil
 }
 
-var installing sync.Map // agent id → true while npm runs
-
 // Install installs a catalogue agent's npm package into Goi's tools dir in
 // the background; agent.install reports progress.
 func (s *AgentService) Install(ctx context.Context, agentID string) error {
@@ -627,13 +626,13 @@ func (s *AgentService) Install(ctx context.Context, agentID string) error {
 	if err != nil {
 		return err
 	}
-	if _, busy := installing.LoadOrStore(agentID, true); busy {
+	if _, busy := s.installing.LoadOrStore(agentID, true); busy {
 		return fmt.Errorf("%s is already being installed", def.Name)
 	}
 	bus := s.app.appBus
 	bus.Emit(events.TopicAgentInstall, AgentInstallEvent{Agent: agentID, Line: "npm install " + def.Package})
 	go func() {
-		defer installing.Delete(agentID)
+		defer s.installing.Delete(agentID)
 		ictx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 		err := agent.Install(ictx, def, s.app.toolsDir(), npm, os.Environ(), func(line string) {
