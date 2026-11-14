@@ -1,7 +1,7 @@
 # nfpm configuration for the Linux .deb and .rpm packages (Wails v3 build).
 # Goi's own file: `wails3 update build-assets` regenerates build/linux/nfpm/nfpm.yaml,
 # so the packaging tasks use this one instead.
-#   GOI_VERSION=0.1.3 GOARCH=amd64 wails3 tool package -name goi -format deb -config build/package/linux/nfpm.yaml -out bin
+#   GOI_VERSION=0.2.0 GOARCH=amd64 wails3 tool package -name goi -format deb -config build/package/linux/nfpm.yaml -out bin
 # The linux:create:deb / linux:create:rpm tasks set GOI_VERSION from scripts/version.sh.
 name: goi
 arch: ${GOARCH}
