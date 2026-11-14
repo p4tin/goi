@@ -8,12 +8,15 @@ export type {
     Git,
     Go,
     Gopls,
+    $JSON,
     Lint,
+    Markdown,
     Project,
     Run,
     Save,
     Settings,
     Startup,
     Terminal,
-    UI
+    UI,
+    YAML
 } from "./models.js";

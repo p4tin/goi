@@ -69,6 +69,13 @@ export interface Gopls {
 }
 
 /**
+ * JSON configures JSON formatting.
+ */
+export interface $JSON {
+    "formatOnSave": boolean;
+}
+
+/**
  * Lint configures golangci-lint.
  */
 export interface Lint {
@@ -76,6 +83,13 @@ export interface Lint {
     "onSave": boolean;
     "golangciPath": string;
     "args": string[] | null;
+}
+
+/**
+ * Markdown configures the Markdown preview.
+ */
+export interface Markdown {
+    "previewMode": string;
 }
 
 /**
@@ -109,6 +123,9 @@ export interface Settings {
     "go": Go;
     "project": Project;
     "save": Save;
+    "markdown": Markdown;
+    "json": $JSON;
+    "yaml": YAML;
     "gopls": Gopls;
     "run": Run;
     "debug": Debug;
@@ -144,4 +161,11 @@ export interface UI {
     "theme": string;
     "scheme": string;
     "keymap": string;
+}
+
+/**
+ * YAML configures YAML formatting.
+ */
+export interface YAML {
+    "formatOnSave": boolean;
 }

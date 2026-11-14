@@ -81,6 +81,7 @@ export type SDKStatus = rpc.SDKStatus;
 export type GoEnvSummary = rpc.GoEnvSummary;
 export type Settings = Omit<settings.Settings, 'keys'> & { keys: Record<string, string[]> };
 export type SettingsLayer = 'default' | 'user' | 'project';
+export type MarkdownPreviewMode = 'editor' | 'split' | 'preview';
 export type SettingsPaths = rpc.SettingsPaths;
 export type FileMatch = index.Match;
 export type IndexStatus = rpc.IndexStatus;
@@ -270,6 +271,8 @@ export const files = {
   trash: (path: string): Promise<void> => FileService.Trash(path),
   reveal: (path: string): Promise<void> => FileService.Reveal(path),
   copyPath: (path: string): Promise<void> => FileService.CopyPath(path),
+  /** An image inside the project as a data URL (Markdown preview). */
+  readImage: (path: string): Promise<string> => FileService.ReadImage(path),
 };
 
 export const sdk = {

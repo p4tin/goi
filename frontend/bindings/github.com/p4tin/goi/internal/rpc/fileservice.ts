@@ -58,6 +58,15 @@ export function Read(path: string): $CancellablePromise<$models.OpenedFile> {
 }
 
 /**
+ * ReadImage returns an image inside the calling window's project as a data
+ * URL, for the Markdown preview. Symlinks are resolved first, so a link
+ * inside the project can't expose a file outside it.
+ */
+export function ReadImage(path: string): $CancellablePromise<string> {
+    return $Call.ByID(1017599301, path);
+}
+
+/**
  * Rename moves a file or directory within the project.
  */
 export function Rename($from: string, to: string): $CancellablePromise<void> {
