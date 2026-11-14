@@ -18,6 +18,10 @@ import { nextMode, parseSvg, Preview, reconcile, scrollTarget, toMode } from '..
 import type { Mode, PreviewEnv } from '../src/markdown/preview';
 import { renderBlocks } from '../src/markdown/render';
 
+// Disposed after each test: a pending debounce must not fire after
+// happy-dom is torn down.
+const created: Preview[] = [];
+
 async function setup(content: string, o: { mode?: Mode; meta?: Partial<FileMeta>; env?: PreviewEnv } = {}) {
   const m = new EditorManager({
     io: {
@@ -33,6 +37,7 @@ async function setup(content: string, o: { mode?: Mode; meta?: Partial<FileMeta>
   m.addExtension(() => EditorView.updateListener.of((u) => u.docChanged && preview.docChanged()));
   m.hooks.viewCreated.on(({ buffer, view, content: el }) => {
     preview = new Preview(buffer, view, el, { mode: o.mode ?? 'split', theme: 'dark', scheme: 'goi-dark', env: o.env });
+    created.push(preview);
   });
   await m.open('/p/README.md', { focus: false });
   const view = m.activeView()!;
@@ -43,6 +48,7 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('Preview', () => {
   afterEach(() => {
+    for (const p of created.splice(0)) p.dispose();
     vi.useRealTimers();
     document.body.replaceChildren();
   });
