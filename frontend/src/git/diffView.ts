@@ -19,7 +19,7 @@ import { iconButton } from '../run/icons';
 import { buildPatch, changedRange } from './patch';
 import { gitError, gitState, gitWorkbench } from './state';
 
-export type DiffMode = 'work' | 'staged' | 'head' | 'commit';
+export type DiffMode = 'work' | 'staged' | 'head' | 'commit' | 'text';
 
 export interface DiffRequest {
   path: string;
@@ -28,6 +28,10 @@ export interface DiffRequest {
   commit?: string;
   /** Old path for renames. */
   oldPath?: string;
+  /** Mode "text": the left side, and labels for both (the right side is the file as the editor has it). */
+  left?: string;
+  leftLabel?: string;
+  rightLabel?: string;
 }
 
 interface DiffTab {
@@ -56,6 +60,7 @@ const LABELS: Record<DiffMode, [string, string]> = {
   staged: ['HEAD', 'Staged (index)'],
   head: ['HEAD', 'Working tree'],
   commit: ['Parent', 'Commit'],
+  text: ['Before', 'Now'],
 };
 
 async function readWork(path: string): Promise<string> {
@@ -102,6 +107,10 @@ async function load(req: DiffRequest): Promise<{ left: string; right: string; fd
       right = await show(req.commit ?? 'HEAD', req.path);
       fds = await gitApi.diff(req.path, false, '', req.commit);
       break;
+    case 'text':
+      left = req.left ?? '';
+      right = await readWork(req.path);
+      break;
   }
   return { left, right, fd: fds[0] ?? null };
 }
@@ -126,7 +135,7 @@ async function render(t: DiffTab): Promise<void> {
       state: EditorState.create({ doc: t.right, extensions: [...ext, unifiedMergeView({ original: t.left, mergeControls: false, gutter: true })] }),
     });
   } else {
-    const [l, r] = LABELS[t.req.mode];
+    const [l, r] = t.req.mode === 'text' ? [t.req.leftLabel ?? LABELS.text[0], t.req.rightLabel ?? LABELS.text[1]] : LABELS[t.req.mode];
     t.body.append(h('div', { class: 'diff-sides' }, h('span', null, l), h('span', null, r)));
     const holder = h('div', { class: 'diff-mv' });
     t.body.append(holder);
@@ -151,8 +160,9 @@ function updateInfo(t: DiffTab): void {
   } else if (n && t.req.mode === 'staged') {
     actions.push(h('button', { class: 'btn', onClick: () => void hunkAction(t, 'unstage') }, 'Unstage Change'));
   }
+  const summary = t.req.mode === 'text' ? (t.left === t.right ? 'No differences' : '') : n ? `Change ${t.hunk + 1} of ${n}` : t.fd?.binary ? 'Binary file' : 'No differences';
   t.info.replaceChildren(
-    h('span', { class: 'diff-count' }, n ? `Change ${t.hunk + 1} of ${n}` : t.fd?.binary ? 'Binary file' : 'No differences'),
+    h('span', { class: 'diff-count' }, summary),
     ...actions,
   );
 }
@@ -282,7 +292,7 @@ export async function openDiff(req: DiffRequest): Promise<void> {
     await render(t);
     goto(t, t.hunk);
   });
-  const title = `${baseName(req.path)}${req.mode === 'commit' ? ` @ ${req.commit?.slice(0, 7)}` : req.mode === 'staged' ? ' (staged)' : ''}`;
+  const title = `${baseName(req.path)}${req.mode === 'commit' ? ` @ ${req.commit?.slice(0, 7)}` : req.mode === 'staged' ? ' (staged)' : req.mode === 'text' && req.leftLabel ? ` (${req.leftLabel})` : ''}`;
   t.el = h(
     'div',
     { class: 'diff-tab-body', tabindex: '-1' },

@@ -237,12 +237,13 @@ async function closeTab(id: string): Promise<void> {
 let hostRef: { strip: HTMLElement; body: HTMLElement } | null = null;
 const pending = new Map<string, string[]>();
 
-export async function newTerminal(wb: Workbench): Promise<void> {
-  if (!project.peek()) return;
+/** Opens a terminal tab; resolves to its id (null if none opened). */
+export async function newTerminal(wb: Workbench): Promise<string | null> {
+  if (!project.peek()) return null;
   wb.panels.show('terminal');
   // The panel renders on first show; wait a frame for the host.
   for (let i = 0; i < 10 && !hostRef; i++) await new Promise((r) => requestAnimationFrame(r));
-  if (!hostRef) return;
+  if (!hostRef) return null;
   try {
     const info = await terminalApi.open(80, 24);
     const t = createTab(info, hostRef);
@@ -251,9 +252,19 @@ export async function newTerminal(wb: Workbench): Promise<void> {
     for (const d of pending.get(info.id) ?? []) t.term.write(d);
     pending.delete(info.id);
     activate(info.id);
+    return info.id;
   } catch (err) {
     wb.notifications.push({ id: 'terminal', level: 'error', title: 'Cannot start terminal', body: err instanceof Error ? err.message : String(err) });
+    return null;
   }
+}
+
+/** Opens a terminal tab and types command into it. */
+export async function runInTerminal(wb: Workbench, command: string): Promise<boolean> {
+  const id = await newTerminal(wb);
+  if (!id) return false;
+  await terminalApi.write(id, command + '\r');
+  return true;
 }
 
 function renderTerminalPanel(wb: Workbench, container: HTMLElement): () => void {

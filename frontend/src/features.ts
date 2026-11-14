@@ -19,6 +19,7 @@ import { installRunGutter } from './editor/runGutter';
 import { installRun } from './run/install';
 import { installDebug } from './debug/install';
 import { installTerminal } from './terminal/terminal';
+import { installAgent } from './agent/install';
 import { installGit } from './git/install';
 import { installLint } from './lint/lint';
 import { installGoMod } from './mod/gomod';
@@ -53,6 +54,8 @@ export const features: Feature[] = [
   installProjectTree,
   // After the project tree, so Project stays the left dock's default tab.
   installGit,
+  // After git: agent diffs open in the git diff viewer.
+  installAgent,
   installGoStatus,
   installSettings,
   installThemeCommands,

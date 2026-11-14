@@ -43,7 +43,7 @@ export const MENUS: MenuDef[] = [
     label: 'View',
     items: [
       'view.toggleLeft', 'view.toggleBottom', 'view.toggleRight', 'tree.focus', 'view.notifications', '-',
-      'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', 'view.commit', 'view.git', '-',
+      'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', 'view.commit', 'view.git', 'agent.show', '-',
       'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', '-',
       'view.toggleDarkMode', 'view.themeDark', 'view.themeLight', 'view.themeAuto', 'view.themeHighContrast',
     ],
@@ -82,7 +82,8 @@ export const MENUS: MenuDef[] = [
     items: [
       'lint.runProject', 'lint.runPackage', 'lint.install', '-',
       'mod.tidy', 'mod.download', 'mod.vendor', 'mod.init', '-',
-      'mod.workInit', 'mod.workUse', 'mod.workSync',
+      'mod.workInit', 'mod.workUse', 'mod.workSync', '-',
+      'agent.newSession', 'agent.askSelection', 'agent.stop', 'agent.install', 'agent.copyMcpConfig',
     ],
   },
   { label: 'Help', items: ['nav.gotoAction', '-', 'help.about'] },
