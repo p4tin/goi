@@ -67,6 +67,21 @@ type Save struct {
 	Format string `toml:"format" json:"format"`
 }
 
+// Markdown configures the Markdown preview.
+type Markdown struct {
+	PreviewMode string `toml:"previewMode" json:"previewMode"`
+}
+
+// JSON configures JSON formatting.
+type JSON struct {
+	FormatOnSave bool `toml:"formatOnSave" json:"formatOnSave"`
+}
+
+// YAML configures YAML formatting.
+type YAML struct {
+	FormatOnSave bool `toml:"formatOnSave" json:"formatOnSave"`
+}
+
 // Gopls configures the Go language server.
 type Gopls struct {
 	Enabled         bool           `toml:"enabled" json:"enabled"`
@@ -136,6 +151,9 @@ type Settings struct {
 	Go       Go                  `toml:"go" json:"go"`
 	Project  Project             `toml:"project" json:"project"`
 	Save     Save                `toml:"save" json:"save"`
+	Markdown Markdown            `toml:"markdown" json:"markdown"`
+	JSON     JSON                `toml:"json" json:"json"`
+	YAML     YAML                `toml:"yaml" json:"yaml"`
 	Gopls    Gopls               `toml:"gopls" json:"gopls"`
 	Run      Run                 `toml:"run" json:"run"`
 	Debug    Debug               `toml:"debug" json:"debug"`

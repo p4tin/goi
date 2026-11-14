@@ -135,6 +135,15 @@ export const schema: SettingDescriptor[] = [
     options: opts(['auto', 'Auto'], ['on', 'On'], ['off', 'Off']),
     layers: both,
   },
+  {
+    key: 'markdown.previewMode',
+    title: 'Markdown Preview',
+    section: 'Editor',
+    description: 'How Markdown files open: source only, source and preview side by side, or preview only.',
+    type: 'enum',
+    options: opts(['split', 'Split'], ['editor', 'Editor'], ['preview', 'Preview']),
+    layers: both,
+  },
   { key: 'project.excludes', title: 'Excluded Folders', section: 'Project', description: 'Glob patterns hidden from the tree, search and watcher.', type: 'stringList', layers: both },
   { key: 'project.contentRoots', title: 'Additional Content Roots', section: 'Project', description: 'Extra folders shown alongside the project.', type: 'stringList', layers: ['project'] },
   {
@@ -146,6 +155,8 @@ export const schema: SettingDescriptor[] = [
     options: opts(['goimports', 'goimports (format + imports)'], ['gofmt', 'gofmt'], ['none', 'None']),
     layers: both,
   },
+  { key: 'json.formatOnSave', title: 'Format JSON on Save', section: 'Save Actions', description: 'Pretty-print JSON files when saving them.', type: 'bool', layers: both },
+  { key: 'yaml.formatOnSave', title: 'Format YAML on Save', section: 'Save Actions', description: 'Reformat YAML files when saving them.', type: 'bool', layers: both },
   {
     key: 'ui.keymap',
     title: 'Keymap',

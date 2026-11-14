@@ -28,6 +28,15 @@ excludes = [".git", "node_modules", ".idea", ".goi/cache"]
 [save]
 format = "goimports"        # goimports | gofmt | none
 
+[markdown]
+previewMode = "split"       # editor | split | preview: how Markdown files open
+
+[json]
+formatOnSave = false        # pretty-print JSON files when saving
+
+[yaml]
+formatOnSave = false        # reformat YAML files when saving
+
 [gopls]
 enabled = true
 path = ""                   # empty: $PATH, $GOBIN, $GOPATH/bin, then Goi's tools dir

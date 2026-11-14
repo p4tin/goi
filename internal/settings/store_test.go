@@ -54,7 +54,8 @@ func TestEffectiveLayering(t *testing.T) {
 				if !s.Startup.ReopenLastProject || s.Editor.FontSize != 13 || s.Editor.TabSize != 4 ||
 					s.Editor.MaxHighlightSizeKB != 2500 || s.Editor.MaxOpenSizeKB != 20000 ||
 					s.Go.Vendor != "auto" || s.Save.Format != "goimports" || s.UI.Theme != "auto" ||
-					s.UI.Scheme != "auto" || s.UI.Keymap != "goi-default" {
+					s.UI.Scheme != "auto" || s.UI.Keymap != "goi-default" || s.Markdown.PreviewMode != "split" ||
+					s.JSON.FormatOnSave || s.YAML.FormatOnSave {
 					t.Errorf("unexpected defaults: %+v", s)
 				}
 				want := []string{".git", "node_modules", ".idea", ".goi/cache"}
@@ -82,6 +83,16 @@ func TestEffectiveLayering(t *testing.T) {
 			check: func(t *testing.T, s Settings) {
 				if s.Save.Format != "none" {
 					t.Errorf("format = %q", s.Save.Format)
+				}
+			},
+		},
+		{
+			name:    "markdown and formatting tables",
+			user:    "[markdown]\npreviewMode = \"preview\"\n[json]\nformatOnSave = true\n",
+			project: "[yaml]\nformatOnSave = true\n",
+			check: func(t *testing.T, s Settings) {
+				if s.Markdown.PreviewMode != "preview" || !s.JSON.FormatOnSave || !s.YAML.FormatOnSave {
+					t.Errorf("got %+v %+v %+v", s.Markdown, s.JSON, s.YAML)
 				}
 			},
 		},
