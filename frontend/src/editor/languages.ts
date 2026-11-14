@@ -1,7 +1,7 @@
 // Language detection and lazily loaded syntax support per buffer (R6.2).
 // Must be installed after installEditor (it uses the editors manager).
 
-import { indentUnit, StreamLanguage } from '@codemirror/language';
+import { indentUnit, Language, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import type { StreamParser } from '@codemirror/language';
 import { Compartment, Prec } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
@@ -165,6 +165,61 @@ export function loadLanguage(id: LangId): Promise<Extension> {
     cache.set(id, p);
   }
   return p;
+}
+
+/** The Language (parser) for an id, or null for plain text. */
+export async function languageFor(id: LangId): Promise<Language | null> {
+  const ext = await loadLanguage(id);
+  if (ext instanceof LanguageSupport) return ext.language;
+  if (ext instanceof Language) return ext;
+  return null;
+}
+
+const FENCE_ALIASES: Record<string, LangId> = {
+  go: 'go',
+  golang: 'go',
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
+  shell: 'shell',
+  console: 'shell',
+  yml: 'yaml',
+  yaml: 'yaml',
+  json: 'json',
+  jsonc: 'json',
+  js: 'javascript',
+  javascript: 'javascript',
+  jsx: 'javascript',
+  ts: 'typescript',
+  typescript: 'typescript',
+  tsx: 'typescript',
+  html: 'html',
+  xml: 'xml',
+  css: 'css',
+  sql: 'sql',
+  toml: 'toml',
+  proto: 'protobuf',
+  protobuf: 'protobuf',
+  dockerfile: 'dockerfile',
+  docker: 'dockerfile',
+  make: 'makefile',
+  makefile: 'makefile',
+  md: 'markdown',
+  markdown: 'markdown',
+  gomod: 'gomod',
+  'go.mod': 'gomod',
+  ini: 'properties',
+  properties: 'properties',
+  tmpl: 'gotmpl',
+  gotmpl: 'gotmpl',
+};
+
+/** The language of a Markdown code fence tag ("go", "sh", "yml"…). */
+export function langIdForFence(tag: string): LangId | null {
+  const t = tag.trim().toLowerCase();
+  if (!t) return null;
+  const id = FENCE_ALIASES[t] ?? languageIdFor(`x.${t}`);
+  return id === 'plaintext' ? null : id;
 }
 
 /** Languages whose files are indented with tabs. */
