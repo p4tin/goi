@@ -1,0 +1,93 @@
+{
+ "_comment": "M5 JSON/YAML formatting (server build). Build: go build -tags server -o bin/goi-server . ; sample: tools/e2e/format-sample.sh /private/tmp/goi-e2e/formatsample",
+ "server": {
+  "cmd": [
+   "bin/goi-server",
+   "--project",
+   "/private/tmp/goi-e2e/formatsample/proj"
+  ],
+  "env": {
+   "GOI_HOME": "/private/tmp/goi-e2e/formatsample/home"
+  }
+ },
+ "url": "{{server}}/",
+ "out": "/tmp/goi-e2e-format",
+ "initialWait": 5000,
+ "steps": [
+  {
+   "label": "helpers",
+   "eval": "(() => { window.__w = async (fn, ms = 30000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 100)); } return 'TIMEOUT'; }; window.__open = (name) => { const pt = [...document.querySelectorAll('.dock-tab')].find(b => b.textContent === 'Project'); if (pt && !pt.classList.contains('active')) pt.click(); const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === name); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; window.__palette = async (text) => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'a', code: 'KeyA', metaKey: true, shiftKey: true, bubbles: true})); const i = await __w(() => document.querySelector('.palette input, .pal-input, input.palette-input')); i.value = text; i.dispatchEvent(new Event('input', {bubbles: true})); await new Promise(r => setTimeout(r, 400)); i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return true; }; window.__view = () => { const c = [...document.querySelectorAll('.tab-content')].find(t => !t.hidden && t.offsetParent)?.querySelector('.cm-content'); return c?.cmTile?.root?.view; }; window.__text = () => __view()?.state.doc.toString(); window.__tab = () => document.querySelector('.pane-active .tab.active, .tab.active')?.textContent || ''; window.__openWait = async (name) => { await __w(() => __open(name)); return __w(() => __tab().includes(name) && __view() && name); }; window.__key = (key, mods = {}) => { const c = __view().contentDOM; c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', {key, code: 'Key' + key.toUpperCase(), bubbles: true, cancelable: true, ...mods})); }; window.__status = () => [...document.querySelectorAll('.status-item, [data-status-id], .statusbar *')].map(e => e.textContent).find(t => t && t.startsWith('Not formatted')) || ''; return true; })()"
+  },
+  {
+   "label": "open data.json",
+   "eval": "__openWait('data.json')"
+  },
+  {
+   "label": "AC5 Reformat File pretty-prints JSON, big int kept",
+   "eval": "(async () => { await __palette('Reformat File'); return __w(() => __text() === \"{\\n  \\\"a\\\": 1,\\n  \\\"b\\\": [\\n    1,\\n    2,\\n    {\\n      \\\"c\\\": 12345678901234567890\\n    }\\n  ],\\n  \\\"d\\\": {}\\n}\" && 'formatted as expected'); })()"
+  },
+  {
+   "label": "AC8 one undo restores the JSON",
+   "eval": "(async () => { __key('z', {metaKey: true}); return __w(() => __text() === \"{\\\"a\\\":1,\\\"b\\\":[1,2,{\\\"c\\\":12345678901234567890}],\\\"d\\\":{}}\" && 'restored'); })()"
+  },
+  {
+   "label": "open broken.json",
+   "eval": "__openWait('broken.json')"
+  },
+  {
+   "label": "AC6 syntax error: unchanged, diagnostic, status",
+   "eval": "(async () => { await __palette('Reformat File'); return __w(() => __text() === '{\"a\": }' && document.querySelector('.tab-content:not([hidden]) .cm-lintRange-error') && __status()); })()"
+  },
+  {
+   "label": "open settings.jsonc",
+   "eval": "__openWait('settings.jsonc')"
+  },
+  {
+   "label": "AC7 JSONC comments kept",
+   "eval": "(async () => { const before = __text(); await __palette('Reformat File'); return __w(() => { const t = __text(); return t !== before && ['// editor settings', '// trailing note', '/* block */', '// after list'].every(c => t.includes(c)) && t; }); })()"
+  },
+  {
+   "label": "open app.yaml",
+   "eval": "__openWait('app.yaml')"
+  },
+  {
+   "label": "AC12 YAML reindented to 2, comments/anchor/block scalar kept",
+   "eval": "(async () => { await __palette('Reformat File'); return __w(() => __text() === \"# app config\\ndefaults: &defaults\\n  adapter: postgres # db\\n  script: |\\n    echo one\\n      two\\ndev:\\n  <<: *defaults\\n  hosts:\\n    - a\\n    - b\\n\" && 'formatted as expected', 15000); })()"
+  },
+  {
+   "label": "AC8 one undo restores the YAML",
+   "eval": "(async () => { __key('z', {metaKey: true}); return __w(() => __text().includes('    adapter: postgres   # db') && 'restored'); })()"
+  },
+  {
+   "label": "open values.yaml",
+   "eval": "__openWait('values.yaml')"
+  },
+  {
+   "label": "AC13 yes and 1.10 unchanged",
+   "eval": "(async () => { await __palette('Reformat File'); await new Promise(r => setTimeout(r, 800)); return __text() === 'enabled: yes\\nversion: 1.10\\n' ? 'unchanged' : __text(); })()"
+  },
+  {
+   "label": "open bad.yaml",
+   "eval": "__openWait('bad.yaml')"
+  },
+  {
+   "label": "AC14 invalid YAML: unchanged, diagnostic",
+   "eval": "(async () => { await __palette('Reformat File'); return __w(() => __text() === 'a: [1, 2\\n' && document.querySelector('.tab-content:not([hidden]) .cm-lintRange-error, .tab-content:not([hidden]) .cm-lintPoint-error') && __status()); })()"
+  },
+  {
+   "label": "open onsave.json",
+   "eval": "__openWait('onsave.json')"
+  },
+  {
+   "label": "R2.6 json.formatOnSave formats before writing",
+   "eval": "(async () => { const v = __view(); v.dispatch({changes: {from: v.state.doc.length - 1, insert: ',\"y\":2'}}); __key('s', {metaKey: true}); return __w(() => __text() === '{\\n  \"x\": 1,\\n  \"y\": 2\\n}' && !document.querySelector('.tab.active.dirty, .tab.active .dirty') && 'formatted and saved'); })()"
+  },
+  {
+   "label": "on disk",
+   "eval": "(async () => { const info = await window.go?.rpc?.AppService?.Info?.(); return info ? 'project ' + info.projectPath : 'n/a'; })()"
+  },
+  {
+   "shot": "format.png"
+  }
+ ]
+}
