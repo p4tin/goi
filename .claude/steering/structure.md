@@ -36,6 +36,7 @@ goi/
 │   ├── dap/                 # Debug Adapter Protocol client + types (no Goi knowledge)
 │   ├── debugger/            # dlv dap sessions: launch/attach, breakpoints, stepping, evaluation, run to cursor, path mapping
 │   ├── terminal/            # PTY terminals (go-pty) + zsh/bash shell integration
+│   ├── shellenv/            # login-shell PATH for GUI launches (macOS/Linux), applied first thing in main.go
 │   ├── git/                 # git CLI wrapper: status, diffs/hunk patches, branches, stash, log, blame, conflicts
 │   ├── lint/                # golangci-lint v1/v2 runner and JSON → issues/fixes
 │   ├── gomod/               # module proxy versions, known modules (module cache, go.sum)

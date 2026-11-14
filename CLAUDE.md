@@ -23,6 +23,7 @@ go build -o bin/fakeagent ./tools/fakeagent && tools/e2e/agent-sample.sh /privat
 node tools/e2e/cdp.mjs tools/e2e/agent.json   # AI agent session against the scripted fake ACP agent (server build)
 node tools/e2e/cdp.mjs tools/e2e/format.json  # JSON/YAML formatting (server build; sample: tools/e2e/format-sample.sh /private/tmp/goi-e2e/formatsample)
 node tools/e2e/cdp.mjs tools/e2e/preview.json # Markdown preview + Mermaid (server build; sample: tools/e2e/preview-sample.sh /private/tmp/goi-e2e/previewsample)
+GOI_REAL_SHELL=1 go test -run RealShell -v ./internal/shellenv  # your login shell's PATH must yield npm/node
 GOI_REAL_AGENT="gemini --acp" go test -run RealAgent -v ./internal/agent  # protocol check with a real agent (no model call; add GOI_REAL_AGENT_PROMPT=1 for one prompt)
 scripts/version.sh [tag]                      # product version from build/config.yml (checks a release tag)
 scripts/icons.sh                              # regenerate build/appicon.png and build/windows/icon.ico from build/appicon.svg (macOS, needs Chrome)
@@ -97,4 +98,5 @@ After merging to `main`, watch CI (`gh run watch`) before starting new work. Win
 - `agent/agent.css` styles `.md-code` and `.md-table` globally. The Markdown preview uses `mdp-*` classes under `.md-body` to stay clear of them.
 - happy-dom tests that import `editor/languages.ts` (or anything reaching `editor/install.ts` / `lib/api.ts`) must `vi.mock('../src/editor/install', () => ({ editors: undefined }))` and mock `../src/lib/api`. Otherwise `@wailsio/runtime` loads and tries to connect to localhost:3000.
 - A formatter syntax error at the start of an empty line is a zero-width diagnostic. CodeMirror draws it as `.cm-lintPoint-error`, not `.cm-lintRange-error`; E2E checks should accept both.
+- Apps started from the Dock/Finder get launchd's `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`), without Homebrew/nvm/gvm. `main.go` merges in the login shell's `PATH` (`internal/shellenv`, only when `TERM` is unset, 5 s timeout) before anything else. Terminal launches (`wails3 dev`, the E2E server build) already have the full `PATH`, so tests never see this. To reproduce a Dock launch, start Goi with `env -u TERM PATH=/usr/bin:/bin:/usr/sbin:/sbin …`.
 - Don't rebuild DOM from `mousedown`/`pointerdown` handlers. If the pressed element is replaced, the browser sends `click`/`dblclick` to the common ancestor and row handlers never run. Update the existing nodes instead. CDP-dispatched synthetic events don't catch this; tests should dispatch to the common ancestor (see `test/projectTree.test.ts`).
