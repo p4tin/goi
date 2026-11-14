@@ -138,7 +138,7 @@ class Renderer {
       }
       case 'Paragraph': {
         const p = el(tight ? 'span' : 'p');
-        if (tight) p.className = 'md-tight';
+        if (tight) p.className = 'mdp-tight';
         this.inline(n, p, n.from, n.to);
         trim(p);
         return p;
@@ -163,7 +163,7 @@ class Renderer {
         return this.table(n);
       case 'HTMLBlock':
       case 'ProcessingInstructionBlock': {
-        const pre = el('pre', 'md-raw');
+        const pre = el('pre', 'mdp-raw');
         pre.textContent = this.text(n.from, n.to);
         return pre;
       }
@@ -196,13 +196,13 @@ class Renderer {
       for (const c of children(it)) {
         if (c.name === 'ListMark') continue;
         if (c.name === 'Task') {
-          li.classList.add('md-task');
+          li.classList.add('mdp-task');
           const marker = c.getChild('TaskMarker');
           const box = el('input');
           box.type = 'checkbox';
           box.disabled = true;
           box.checked = !!marker && /x/i.test(this.text(marker.from, marker.to));
-          const span = el('span', 'md-tight');
+          const span = el('span', 'mdp-tight');
           this.inline(c, span, marker ? marker.to : c.from, c.to);
           trim(span);
           li.append(box, ' ', span);
@@ -222,13 +222,13 @@ class Renderer {
     const texts = n.getChildren('CodeText');
     let code = texts.length ? this.text(texts[0].from, texts[texts.length - 1].to) : '';
     if (n.name === 'CodeBlock') code = code.replace(/^ {1,4}/gm, '');
-    const pre = el('pre', 'md-code');
+    const pre = el('pre', 'mdp-code');
     const c = el('code');
     if (lang) c.dataset.lang = lang;
     if (lang === 'mermaid') {
       c.textContent = code;
       pre.append(c);
-      const box = el('div', 'md-mermaid');
+      const box = el('div', 'mdp-mermaid');
       box.dataset.source = code;
       box.append(pre);
       return box;
@@ -241,7 +241,7 @@ class Renderer {
   }
 
   private table(n: SyntaxNode): HTMLElement {
-    const table = el('table', 'md-table');
+    const table = el('table', 'mdp-table');
     const delim = children(n).find((c) => c.name === 'TableDelimiter');
     const aligns = delim
       ? this.text(delim.from, delim.to)

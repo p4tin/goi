@@ -75,7 +75,7 @@ describe('renderBlocks', () => {
       ['', 'center'],
     ]);
     const code = one('```go\nfunc x() {}\n```');
-    expect(code.outerHTML).toBe('<pre class="md-code" data-line="0"><code data-lang="go">func x() {}</code></pre>');
+    expect(code.outerHTML).toBe('<pre class="mdp-code" data-line="0"><code data-lang="go">func x() {}</code></pre>');
     expect(one('    indented\n      more').textContent).toBe('indented\n  more');
   });
 
@@ -93,7 +93,7 @@ describe('renderBlocks', () => {
 
   it('turns mermaid fences into placeholders', () => {
     const m = one('```mermaid\ngraph TD; A-->B\n```');
-    expect(m.className).toBe('md-mermaid');
+    expect(m.className).toBe('mdp-mermaid');
     expect(m.dataset.source).toBe('graph TD; A-->B');
     expect(m.querySelector('pre code')?.textContent).toBe('graph TD; A-->B');
   });

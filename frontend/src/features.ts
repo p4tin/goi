@@ -11,6 +11,7 @@ import { installCloseGuard } from './editor/closeGuard';
 import { installDiskSync } from './editor/diskSync';
 import { installJournal } from './editor/journal';
 import { installLanguages } from './editor/languages';
+import { installMarkdownPreview } from './markdown/install';
 import { installLang } from './lang/install';
 import { installKeymaps } from './keymap/install';
 import { installPalette } from './palette/palette';
@@ -41,6 +42,7 @@ export const features: Feature[] = [
   installFormatters,
   installJournal,
   installLanguages,
+  installMarkdownPreview,
   installRunGutter,
   installDiskSync,
   installCloseGuard,

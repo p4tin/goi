@@ -44,7 +44,7 @@ export const MENUS: MenuDef[] = [
     items: [
       'view.toggleLeft', 'view.toggleBottom', 'view.toggleRight', 'tree.focus', 'view.notifications', '-',
       'view.problems', 'view.usages', 'view.find', 'view.run', 'view.debug', 'terminal.toggle', 'terminal.new', 'view.commit', 'view.git', 'agent.show', '-',
-      'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', '-',
+      'editor.splitRight', 'editor.splitDown', 'editor.closePane', 'editor.focusNextPane', 'editor.focusPrevPane', 'markdown.togglePreview', '-',
       'view.toggleDarkMode', 'view.themeDark', 'view.themeLight', 'view.themeAuto', 'view.themeHighContrast',
     ],
   },
