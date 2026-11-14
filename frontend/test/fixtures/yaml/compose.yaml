@@ -1,0 +1,19 @@
+x-common: &common
+  restart: unless-stopped
+  environment:
+    TZ: UTC
+    DEBUG: no
+services:
+  db:
+    <<: *common
+    image: postgres:16
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 10s
+  app:
+    <<: *common
+    build: .
+    depends_on: [db]
+    command: >
+      ./app
+      --listen :8080

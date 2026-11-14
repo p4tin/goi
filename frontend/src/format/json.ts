@@ -115,6 +115,8 @@ function format(text: string, indent: string): string {
   const stack: ('{' | '[')[] = [];
   let expect: Expect = 'value';
   let closeOk = false;
+  // Compared through is(): closures mutate expect, which defeats narrowing.
+  const is = (e: Expect): boolean => expect === e;
   const afterValue = (): void => {
     expect = stack.length ? 'commaOrClose' : 'end';
     closeOk = false;
@@ -156,7 +158,7 @@ function format(text: string, indent: string): string {
           else if (!brk) sep = ' ';
         } else {
           brk = true;
-          const open = afterOpen;
+          const open: boolean = afterOpen;
           place(t.text, depth, t.nl);
           afterOpen = open;
           if (t.type === 'lc' || !next || next.nl > 0) brk = true;
@@ -184,7 +186,7 @@ function format(text: string, indent: string): string {
       }
       case '}':
       case ']': {
-        if ((expect !== 'commaOrClose' && !closeOk) || stack[depth - 1] !== (t.type === '}' ? '{' : '[')) unexpected(t);
+        if ((!is('commaOrClose') && !closeOk) || stack[depth - 1] !== (t.type === '}' ? '{' : '[')) unexpected(t);
         stack.pop();
         brk = true;
         place(t.text, depth - 1, 0);
@@ -212,7 +214,7 @@ function format(text: string, indent: string): string {
         sep = ' ';
         continue;
       case ',':
-        if (expect !== 'commaOrClose') unexpected(t);
+        if (!is('commaOrClose')) unexpected(t);
         expect = stack[depth - 1] === '{' ? 'key' : 'value';
         closeOk = true;
         place(',', depth, 0);
@@ -220,7 +222,7 @@ function format(text: string, indent: string): string {
         continue;
     }
   }
-  if (expect !== 'end') throw new SyntaxErr(text.trimEnd().length, 'unexpected end of input');
+  if (!is('end')) throw new SyntaxErr(text.trimEnd().length, 'unexpected end of input');
   const out = lines.join('\n');
   return text.endsWith('\n') ? out + '\n' : out;
 }

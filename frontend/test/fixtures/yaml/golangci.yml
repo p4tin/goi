@@ -1,0 +1,15 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  default: standard
+  enable:
+    - gocritic   # style
+    - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+issues:
+  max-same-issues: 0
