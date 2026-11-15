@@ -1,11 +1,13 @@
 # Runs Goi from inside Goi (or Pyi can't: it has no Go run type). The child
 # gets its own GOI_HOME, so it doesn't hand its arguments to the Goi running
 # it (one process per profile).
+# go build runs in the package directory (apps/goi), so the -sectcreate
+# plist path is relative to it, not to the repository root.
 name = "Goi"
 type = "app"
 kind = "package"
 package = "./apps/goi"
-buildFlags = "-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,apps/goi/build/darwin/Info.goland.plist"
+buildFlags = "-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist"
 
 [env]
 GOI_HOME = ".goi-home"

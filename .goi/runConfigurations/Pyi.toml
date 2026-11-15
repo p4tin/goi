@@ -1,9 +1,11 @@
 # Builds and runs Pyi from inside Goi (Delve can debug it too).
+# go build runs in the package directory (apps/pyi), so the -sectcreate
+# plist path is relative to it, not to the repository root.
 name = "Pyi"
 type = "app"
 kind = "package"
 package = "./apps/pyi"
-buildFlags = "-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,apps/pyi/build/darwin/Info.goland.plist"
+buildFlags = "-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist"
 
 [env]
 PYI_HOME = ".pyi-home"

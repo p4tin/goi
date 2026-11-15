@@ -2,7 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Embedded into bare `go build` binaries (GoLand "Pyi" run config) via the
-  build flag -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,apps/pyi/build/darwin/Info.goland.plist.
+  build flag -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,<path>,
+  where <path> is relative to the directory go build runs in (apps/pyi/build/darwin/
+  Info.goland.plist from the repo root, build/darwin/Info.goland.plist from apps/pyi).
   Not via CGO_LDFLAGS: Pyi would inherit that variable and pass it to every
   program it builds, whose own builds then fail on the missing file.
   Without a bundle identifier, macOS's out-of-process open panel cannot attach
