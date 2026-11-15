@@ -26,8 +26,9 @@ func TestDirsFollowIdentity(t *testing.T) {
 	if filepath.Base(d) != "2.3" || filepath.Base(filepath.Dir(d)) != "Zed" {
 		t.Fatalf("ConfigDir = %q, want …/Zed/2.3", d)
 	}
-	t.Setenv("ZED_HOME", "/tmp/zed")
-	if d, _ := CacheDir(); d != filepath.Join("/tmp/zed", "cache") {
+	zedHome := t.TempDir() // absolute on every OS ("/tmp/zed" isn't on Windows)
+	t.Setenv("ZED_HOME", zedHome)
+	if d, _ := CacheDir(); d != filepath.Join(zedHome, "cache") {
 		t.Fatalf("CacheDir with ZED_HOME = %q", d)
 	}
 	product.Set(product.Identity{})
