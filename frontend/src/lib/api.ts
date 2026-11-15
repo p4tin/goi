@@ -12,17 +12,14 @@ import {
   LangService,
   LintService,
   MenuService,
-  ModService,
   RecentService,
   RunService,
-  SDKService,
   SearchService,
   SettingsService,
   TerminalService,
   WorkspaceService,
 } from '../../bindings/github.com/p4tin/goi/internal/rpc';
-import type * as gopls from '../../bindings/github.com/p4tin/goi/internal/gopls/models';
-import type * as gosdk from '../../bindings/github.com/p4tin/goi/internal/gosdk/models';
+import type * as langserver from '../../bindings/github.com/p4tin/goi/internal/langserver/models';
 import type * as index from '../../bindings/github.com/p4tin/goi/internal/index/models';
 import type * as journal from '../../bindings/github.com/p4tin/goi/internal/journal/models';
 import type * as lsp from '../../bindings/github.com/p4tin/goi/internal/lsp/models';
@@ -38,8 +35,6 @@ import type * as workspace from '../../bindings/github.com/p4tin/goi/internal/wo
 // non-null.
 type NonNullFields<T> = { [K in keyof T]: Exclude<T[K], null> };
 const list = <T>(p: Promise<T[] | null>): Promise<T[]> => p.then((v) => v ?? []);
-const dict = <T>(p: Promise<{ [k: string]: T | undefined } | null>): Promise<Record<string, T>> =>
-  p.then((v) => (v ?? {}) as Record<string, T>);
 
 // Wails v2 exposed the bindings as window.go.rpc.<Service>.<Method>; the E2E
 // specs and devtools sessions still call them that way.
@@ -54,10 +49,8 @@ const dict = <T>(p: Promise<{ [k: string]: T | undefined } | null>): Promise<Rec
     LangService,
     LintService,
     MenuService,
-    ModService,
     RecentService,
     RunService,
-    SDKService,
     SearchService,
     SettingsService,
     TerminalService,
@@ -76,9 +69,6 @@ export type FileMeta = Omit<vfs.FileMeta, 'mode'> & { mode: `${vfs.OpenMode}` };
 export type OpenedFile = Omit<rpc.OpenedFile, 'meta'> & { meta: FileMeta };
 export type RecentEntry = recent.Entry;
 export type JournalEntry = journal.Entry;
-export type SDK = gosdk.SDK;
-export type SDKStatus = rpc.SDKStatus;
-export type GoEnvSummary = rpc.GoEnvSummary;
 export type Settings = Omit<settings.Settings, 'keys'> & { keys: Record<string, string[]> };
 export type SettingsLayer = 'default' | 'user' | 'project';
 export type MarkdownPreviewMode = 'editor' | 'split' | 'preview';
@@ -224,9 +214,6 @@ export const app = {
   confirmClose: (): Promise<void> => AppService.ConfirmClose(),
   cancelClose: (): Promise<void> => AppService.CancelClose(),
   newWindow: (): Promise<void> => AppService.NewWindow(),
-  /** Creates parentDir/name with go.mod + main.go; resolves to the new dir. */
-  newProject: (parentDir: string, name: string, modulePath: string): Promise<string> =>
-    AppService.NewProject(parentDir, name, modulePath),
 };
 
 export interface MenuItemSpec {
@@ -255,9 +242,6 @@ export const workspaceApi = {
   addContentRoot: (path: string): Promise<void> => WorkspaceService.AddContentRoot(path),
   removeContentRoot: (path: string): Promise<void> => WorkspaceService.RemoveContentRoot(path),
   setExcludes: (globs: string[]): Promise<void> => WorkspaceService.SetExcludes(globs),
-  sdkStatus: (): Promise<SDKStatus> => WorkspaceService.SDKStatus(),
-  goEnv: (): Promise<Record<string, string>> => dict(WorkspaceService.GoEnv()),
-  goEnvSummary: (): Promise<GoEnvSummary> => WorkspaceService.GoEnvSummary(),
 };
 
 export const files = {
@@ -273,12 +257,6 @@ export const files = {
   copyPath: (path: string): Promise<void> => FileService.CopyPath(path),
   /** An image inside the project as a data URL (Markdown preview). */
   readImage: (path: string): Promise<string> => FileService.ReadImage(path),
-};
-
-export const sdk = {
-  discover: (): Promise<SDK[]> => list(SDKService.Discover()),
-  validate: (goroot: string): Promise<SDK> => SDKService.Validate(goroot),
-  select: (goroot: string): Promise<void> => SDKService.Select(goroot),
 };
 
 export const settingsApi = {
@@ -468,7 +446,7 @@ const cast = <T>(p: P): Promise<T> => p as Promise<T>;
 export const lang = {
   status: (): Promise<LangStatus> => cast(LangService.Status()),
   restart: (): Promise<void> => LangService.Restart(),
-  install: (): Promise<void> => LangService.InstallGopls(),
+  install: (): Promise<void> => LangService.InstallServer(),
   didOpen: (path: string, version: number, text: string): Promise<void> => LangService.DidOpen(path, version, text),
   didChange: (path: string, version: number, text: string): Promise<void> => LangService.DidChange(path, version, text),
   didSave: (path: string): Promise<void> => LangService.DidSave(path),
@@ -490,7 +468,7 @@ export const lang = {
   codeActions: (path: string, range: Range, diags: Diagnostic[]): Promise<CodeAction[]> =>
     cast(LangService.CodeActions(path, range as unknown as lsp.Range, diags as unknown as lsp.Diagnostic[])),
   runCodeAction: (a: CodeAction): Promise<FileEdit[]> => cast(LangService.RunCodeAction(a as unknown as lsp.CodeAction)),
-  applyFileEdits: (edits: FileEdit[]): Promise<void> => LangService.ApplyFileEdits(edits as unknown as gopls.FileEdit[]),
+  applyFileEdits: (edits: FileEdit[]): Promise<void> => LangService.ApplyFileEdits(edits as unknown as langserver.FileEdit[]),
 };
 
 export type FormatResult = rpc.FormatResult;
@@ -514,7 +492,7 @@ export interface RunMarker {
 
 // ---- Run configurations and runs (M3)
 
-export type RunConfigType = 'app' | 'test' | 'remote' | 'shell' | 'make';
+export type RunConfigType = 'app' | 'test' | 'remote' | 'shell' | 'make' | 'python';
 export type RunTaskType = 'config' | 'generate' | 'command';
 export interface RunTask {
   type: RunTaskType;
@@ -956,13 +934,6 @@ export const lintApi = {
   status: (): Promise<LintStatus> => cast(LintService.Status()),
   install: (): Promise<void> => LintService.Install(),
   run: (scope: 'package' | 'project', path: string): Promise<LintResult> => cast(LintService.Run(scope, path)),
-};
-
-// ---- go.mod support (M4)
-
-export const modApi = {
-  versions: (module: string): Promise<string[]> => list(ModService.Versions(module)),
-  modules: (prefix: string): Promise<string[]> => list(ModService.Modules(prefix)),
 };
 
 // ---- AI agents (Agent Client Protocol) and the IDE tools served to them.

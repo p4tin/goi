@@ -12,6 +12,7 @@ import (
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/runconfig"
 	"github.com/p4tin/goi/internal/settings"
+	"github.com/p4tin/goi/packs/golang/gorun"
 )
 
 // runModule is a module with an interactive main package and tests.
@@ -122,7 +123,7 @@ func waitOutput(t *testing.T, bus *events.Recorder, id, stream, text string) {
 func TestRunConfigCRUDAndEvents(t *testing.T) {
 	root := runModule(t)
 	a, bus := started(t, root)
-	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Kind: runconfig.KindPackage, Package: "./cmd/app", Shared: true}
+	c := runconfig.Config{Name: "App", Type: gorun.TypeApp, Kind: gorun.KindPackage, Package: "./cmd/app", Shared: true}
 	if _, err := a.runSvc.SaveConfig(context.Background(), c, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +136,7 @@ func TestRunConfigCRUDAndEvents(t *testing.T) {
 	if len(bus.Events(events.TopicRunConfigs)) == 0 {
 		t.Fatal("no run.configs event")
 	}
-	if errs := a.runSvc.Validate(context.Background(), runconfig.Config{Name: "x", Type: runconfig.TypeApp}); len(errs) == 0 {
+	if errs := a.runSvc.Validate(context.Background(), runconfig.Config{Name: "x", Type: gorun.TypeApp}); len(errs) == 0 {
 		t.Fatal("Validate should report a missing package")
 	}
 	// A configuration file added on disk is picked up by the watcher.
@@ -154,7 +155,7 @@ func TestRunConfigCRUDAndEvents(t *testing.T) {
 
 func TestRunAppWithInputAndExitCode(t *testing.T) {
 	a, bus := started(t, runModule(t))
-	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Kind: runconfig.KindPackage, Package: "./cmd/app",
+	c := runconfig.Config{Name: "App", Type: gorun.TypeApp, Kind: gorun.KindPackage, Package: "./cmd/app",
 		Args: "one two", Env: map[string]string{"GREETING": "world"}}
 	if _, err := a.runSvc.SaveConfig(context.Background(), c, ""); err != nil {
 		t.Fatal(err)
@@ -188,7 +189,7 @@ func TestRunTestsStreamsEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Name != "go test ./calc" || !cfg.Temporary || cfg.Kind != runconfig.KindDirectory {
+	if cfg.Name != "go test ./calc" || !cfg.Temporary || cfg.Kind != gorun.KindDirectory {
 		t.Fatalf("context config = %+v", cfg)
 	}
 	id, err := a.runSvc.Run(context.Background(), cfg.Name, false)
@@ -216,7 +217,7 @@ func TestRunTestsStreamsEvents(t *testing.T) {
 
 	// Rerun only the failed subtest, in the same run.
 	rerun := cfg
-	rerun.Kind, rerun.Packages, rerun.Pattern, rerun.Directory = runconfig.KindFunction, []string{"example.com/m/calc"}, runconfig.TestRunPattern([]string{"TestAdd/broken_case"}), ""
+	rerun.Kind, rerun.Packages, rerun.Pattern, rerun.Directory = gorun.KindFunction, []string{"example.com/m/calc"}, gorun.TestRunPattern([]string{"TestAdd/broken_case"}), ""
 	before := len(bus.Events(events.TopicRunTest))
 	since := len(bus.Events(events.TopicRunState))
 	if _, err := a.runSvc.RunConfig(context.Background(), rerun, id, false); err != nil {
@@ -241,7 +242,7 @@ func TestRunBeforeLaunchFailureAborts(t *testing.T) {
 		t.Skip("uses a POSIX false command")
 	}
 	a, bus := started(t, runModule(t))
-	c := runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app",
+	c := runconfig.Config{Name: "App", Type: gorun.TypeApp, Package: "./cmd/app",
 		BeforeLaunch: []runconfig.Task{{Type: runconfig.TaskCommand, Command: "false"}}}
 	a.runSvc.SaveConfig(context.Background(), c, "")
 	id, err := a.runSvc.Run(context.Background(), "App", false)
@@ -259,7 +260,7 @@ func TestRunBeforeLaunchFailureAborts(t *testing.T) {
 
 func TestRunStop(t *testing.T) {
 	a, bus := started(t, runModule(t))
-	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: gorun.TypeApp, Package: "./cmd/app"}, "")
 	id, _ := a.runSvc.Run(context.Background(), "App", false)
 	waitOutput(t, bus, id, "stdout", "hello")
 	if a.runSvc.Active(context.Background()) != 1 {

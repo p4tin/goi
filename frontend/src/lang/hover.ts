@@ -10,7 +10,7 @@ import { lang } from '../lib/api';
 import { h } from '../lib/dom';
 import { editors } from '../editor/install';
 import { client, info } from './context';
-import { keywordDoc } from './keywords';
+import { keywordDoc } from '../pack';
 import { renderMarkdown } from './markdown';
 import { toOffsets, toPos, wordAt } from './positions';
 

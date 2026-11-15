@@ -3,6 +3,9 @@
 
 /**
  * Config is one run configuration. Fields not used by its type are ignored.
+ * It is a superset of every type's fields; the Go target, build and test
+ * fields are used by Goi's types, Script/Interpreter by Shell (and Pyi's
+ * Python type).
  */
 export interface Config {
     "name": string;
@@ -108,9 +111,9 @@ export enum Type {
      */
     $zero = "",
 
-    TypeApp = "app",
-    TypeTest = "test",
-    TypeRemote = "remote",
+    /**
+     * Built-in configuration types.
+     */
     TypeShell = "shell",
     TypeMake = "make",
 };

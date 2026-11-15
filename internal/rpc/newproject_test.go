@@ -6,13 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/p4tin/goi/packs/golang/services"
 )
 
 func TestNewProject(t *testing.T) {
 	a, _ := started(t, "")
 	parent := t.TempDir()
 
-	dir, err := a.appSvc.NewProject(context.Background(), parent, "hello", "example.com/hello")
+	dir, err := services.NewProjectService(host{a}).NewProject(context.Background(), parent, "hello", "example.com/hello")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,26 +33,18 @@ func TestNewProject(t *testing.T) {
 		t.Errorf("main.go = %q", main)
 	}
 
-	if _, err := a.appSvc.NewProject(context.Background(), parent, "hello", "example.com/hello"); err == nil {
+	if _, err := services.NewProjectService(host{a}).NewProject(context.Background(), parent, "hello", "example.com/hello"); err == nil {
 		t.Error("existing dir: want error")
 	}
 	for _, bad := range []string{"", "a/b", `a\b`, "..", "."} {
-		if _, err := a.appSvc.NewProject(context.Background(), parent, bad, "example.com/x"); err == nil {
+		if _, err := services.NewProjectService(host{a}).NewProject(context.Background(), parent, bad, "example.com/x"); err == nil {
 			t.Errorf("name %q: want error", bad)
 		}
 	}
-	if _, err := a.appSvc.NewProject(context.Background(), parent, "ok", "bad path"); err == nil {
+	if _, err := services.NewProjectService(host{a}).NewProject(context.Background(), parent, "ok", "bad path"); err == nil {
 		t.Error("module path with space: want error")
 	}
-	if _, err := a.appSvc.NewProject(context.Background(), filepath.Join(parent, "missing"), "x", "x"); err == nil {
+	if _, err := services.NewProjectService(host{a}).NewProject(context.Background(), filepath.Join(parent, "missing"), "x", "x"); err == nil {
 		t.Error("missing parent: want error")
-	}
-}
-
-func TestGoMajorMinor(t *testing.T) {
-	for in, want := range map[string]string{"go1.26.0": "1.26", "go1.27rc1": "1.27", "go1.25": "1.25", "devel abc": "1.26"} {
-		if got := goMajorMinor(in); got != want {
-			t.Errorf("goMajorMinor(%q) = %q, want %q", in, got, want)
-		}
 	}
 }

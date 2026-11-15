@@ -6,6 +6,7 @@ import { editorApi, lang, run } from '../lib/api';
 import type { ContextKind, ContextRequest, DocumentSymbol, RunMarker } from '../lib/api';
 import { launch } from './launch';
 import { configs, notifyError, workbench } from './state';
+import { runFiles, runHint } from '../pack';
 
 /** Gutter marker kind → context kind. */
 export function markerContext(path: string, m: Pick<RunMarker, 'kind' | 'name'>): ContextRequest {
@@ -51,12 +52,12 @@ export function pickContext(path: string, markers: RunMarker[], line: number, en
   return null;
 }
 
-/** Runs or debugs whatever is at the cursor in the active Go editor. */
+/** Runs or debugs whatever is at the cursor in the active editor. */
 export async function runAtCursor(debug: boolean): Promise<void> {
   const buf = editors.activeBuffer();
   const view = editors.activeView();
-  if (!buf || !view || !buf.path.endsWith('.go')) {
-    workbench().notifications.push({ id: 'run-context', level: 'info', title: 'Nothing to run here', body: 'Open a Go file with a main function or tests.' });
+  if (!buf || !view || !runFiles(buf.path)) {
+    workbench().notifications.push({ id: 'run-context', level: 'info', title: 'Nothing to run here', body: runHint });
     return;
   }
   const line = view.state.doc.lineAt(view.state.selection.main.head).number;

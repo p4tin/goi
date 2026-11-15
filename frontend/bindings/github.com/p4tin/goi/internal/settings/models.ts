@@ -135,6 +135,12 @@ export interface Settings {
     "ai": AI;
     "ui": UI;
     "keys": { [_ in string]?: string[] | null } | null;
+
+    /**
+     * Extra holds the merged top-level sections the struct doesn't model:
+     * the app pack's own (Pyi: [python]). Read them with Value.
+     */
+    "extra": { [_ in string]?: any } | null;
 }
 
 /**

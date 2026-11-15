@@ -49,7 +49,7 @@ type window struct {
 // addWindow registers a window that delivers its events through bus, with its
 // own settings store.
 func (a *App) addWindow(handle windowHandle, bus events.Bus) (*window, error) {
-	st, err := settings.Load(filepath.Join(a.configDir, "settings.toml"), "", bus)
+	st, err := settings.Load(filepath.Join(a.configDir, "settings.toml"), "", bus, a.pack.SettingsDefaults)
 	if err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
 	}

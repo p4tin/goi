@@ -12,7 +12,7 @@ import { Notifications, renderNotificationsPanel } from './notifications';
 import { PanelRegistry, renderDock, splitter } from './panels';
 import type { DockId, PanelsState } from './panels';
 import { project } from './state';
-import { product } from '../pack';
+import { product } from '../product';
 import { StatusBar } from './statusbar';
 
 export interface Workbench {

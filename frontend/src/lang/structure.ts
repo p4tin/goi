@@ -12,6 +12,7 @@ import { activeTarget, client, info, warn } from './context';
 import { openAt } from './navigation';
 import { showListPopup } from './popup';
 import { toOffsets, toPos } from './positions';
+import { isLangPath } from './client';
 
 export interface FlatSymbol {
   sym: DocumentSymbol;
@@ -184,5 +185,5 @@ function crumbsPanel(buf: Buffer) {
 }
 
 export function breadcrumbsExtension(buf: Buffer): Extension {
-  return buf.path.endsWith('.go') ? showPanel.of(crumbsPanel(buf)) : [];
+  return isLangPath(buf.path) ? showPanel.of(crumbsPanel(buf)) : [];
 }

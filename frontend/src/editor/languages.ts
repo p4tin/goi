@@ -31,6 +31,7 @@ export type LangId =
   | 'typescript'
   | 'xml'
   | 'properties'
+  | 'python'
   | 'plaintext';
 
 export const languageNames: Record<LangId, string> = {
@@ -53,6 +54,7 @@ export const languageNames: Record<LangId, string> = {
   typescript: 'TypeScript',
   xml: 'XML',
   properties: 'Properties',
+  python: 'Python',
   plaintext: 'Plain Text',
 };
 
@@ -110,6 +112,9 @@ const BY_EXT: Record<string, LangId> = {
   plist: 'xml',
   ini: 'properties',
   properties: 'properties',
+  py: 'python',
+  pyi: 'python',
+  pyw: 'python',
 };
 
 /** Picks the language for a path: exact file name first, then extension. */
@@ -148,6 +153,7 @@ const loaders: Record<LangId, () => Promise<Extension>> = {
   typescript: async () => (await import('@codemirror/lang-javascript')).javascript({ typescript: true, jsx: true }),
   xml: async () => (await import('@codemirror/lang-xml')).xml(),
   properties: () => legacy(import('@codemirror/legacy-modes/mode/properties'), 'properties'),
+  python: async () => (await import('@codemirror/lang-python')).python(),
   plaintext: async () => [],
 };
 
@@ -178,6 +184,8 @@ export async function languageFor(id: LangId): Promise<Language | null> {
 const FENCE_ALIASES: Record<string, LangId> = {
   go: 'go',
   golang: 'go',
+  py: 'python',
+  python: 'python',
   sh: 'shell',
   bash: 'shell',
   zsh: 'shell',

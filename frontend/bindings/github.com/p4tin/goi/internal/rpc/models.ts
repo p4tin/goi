@@ -6,19 +6,16 @@
 import * as acp$0 from "../acp/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as format$0 from "../format/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as git$0 from "../git/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as gosdk$0 from "../gosdk/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as index$0 from "../index/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as lsp$0 from "../lsp/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as pack$0 from "../pack/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as process$0 from "../process/models.js";
@@ -100,6 +97,17 @@ export interface AppInfo {
     "arch": string;
     "projectPath": string;
     "logPath": string;
+
+    /**
+     * ProjectDir is the app's project state directory (".goi").
+     */
+    "projectDir": string;
+
+    /**
+     * Capabilities are what the app's pack provides; the frontend hides
+     * the UI of the others.
+     */
+    "capabilities": Capabilities;
 }
 
 /**
@@ -111,25 +119,36 @@ export interface BufferText {
 }
 
 /**
+ * Capabilities describe the pack's tooling. Names are display names, ""
+ * when the pack has none.
+ */
+export interface Capabilities {
+    "languageServer": string;
+    "linter": string;
+    "debugger": string;
+    "formatter": boolean;
+
+    /**
+     * Run reports pack configuration types (gutter markers, context runs).
+     */
+    "run": boolean;
+
+    /**
+     * RunTypes are the pack's configuration type ids.
+     */
+    "runTypes": string[] | null;
+
+    /**
+     * RunTasks are the pack's before-launch task types.
+     */
+    "runTasks": string[] | null;
+}
+
+/**
  * ContextRequest asks for a temporary configuration for a gutter marker or
  * editor/tree context.
  */
-export interface ContextRequest {
-    /**
-     * Path is the file (or directory for kind "dir").
-     */
-    "path": string;
-
-    /**
-     * Kind is main, test, bench, fuzz, example, file or dir.
-     */
-    "kind": string;
-
-    /**
-     * Name is the function name for main/test/bench/fuzz/example.
-     */
-    "name": string;
-}
+export type ContextRequest = pack$0.ContextRequest;
 
 /**
  * DlvStatus describes the Delve installation.
@@ -186,7 +205,7 @@ export interface FindResult {
 export interface FormatResult {
     "content": string;
     "changed": boolean;
-    "syntaxError": format$0.SyntaxError | null;
+    "syntaxError": pack$0.SyntaxError | null;
 }
 
 /**
@@ -204,16 +223,6 @@ export interface FunctionBreakpoint {
 export interface GitState {
     "repo": boolean;
     "status": git$0.Status;
-}
-
-/**
- * GoEnvSummary is the effective target shown in the status bar.
- */
-export interface GoEnvSummary {
-    "goos": string;
-    "goarch": string;
-    "goversion": string;
-    "cross": boolean;
 }
 
 /**
@@ -339,15 +348,6 @@ export interface RunInfo {
     "message": string;
     "command": string;
     "test": boolean;
-}
-
-/**
- * SDKStatus reports which Go SDK the project uses.
- */
-export interface SDKStatus {
-    "ok": boolean;
-    "sdk": gosdk$0.SDK;
-    "problem": string;
 }
 
 /**

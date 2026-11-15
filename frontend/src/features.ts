@@ -4,7 +4,7 @@
 // pack (src/pack.ts) adds its own features after named core features.
 
 import type { Workbench } from './app/workbench';
-import { packFeatures, type PackFeature } from './pack';
+import { composeFeatures, packFeatures } from './pack';
 import { installAbout } from './app/about';
 import { installMenuBar } from './app/menuBar';
 import { installWindowCommands } from './app/windowCommands';
@@ -25,10 +25,8 @@ import { installTerminal } from './terminal/terminal';
 import { installAgent } from './agent/install';
 import { installGit } from './git/install';
 import { installLint } from './lint/lint';
-import { installGoMod } from './mod/gomod';
 import { installSaveFlow } from './editor/saveFlow';
 import { installFormatters } from './format/install';
-import { installGoStatus } from './views/goStatus';
 import { installSettings } from './views/settings/settingsView';
 import { installThemeCommands } from './theme/commands';
 import { installProjectTree } from './views/projectTree';
@@ -54,7 +52,6 @@ export const coreFeatures: Array<[id: string, install: Feature]> = [
   ['debug', installDebug],
   ['terminal', installTerminal],
   ['lint', installLint],
-  ['goMod', installGoMod],
   ['palette', installPalette],
   ['keymaps', installKeymaps],
   ['keyHints', installKeyHints],
@@ -63,24 +60,11 @@ export const coreFeatures: Array<[id: string, install: Feature]> = [
   ['git', installGit],
   // After git: agent diffs open in the git diff viewer.
   ['agent', installAgent],
-  ['goStatus', installGoStatus],
   ['settings', installSettings],
   ['themeCommands', installThemeCommands],
   ['about', installAbout],
   ['menuBar', installMenuBar],
 ];
-
-/** Inserts each pack feature right after the feature named by its `after`
- * (core or an earlier pack feature). An unknown anchor is a build mistake. */
-export function composeFeatures(core: Array<[string, Feature]>, extra: PackFeature[]): Array<[string, Feature]> {
-  const out = [...core];
-  for (const f of extra) {
-    const i = out.findIndex(([id]) => id === f.after);
-    if (i < 0) throw new Error(`pack feature ${f.id}: no feature "${f.after}" to follow`);
-    out.splice(i + 1, 0, [f.id, f.install]);
-  }
-  return out;
-}
 
 export const featureOrder = composeFeatures(coreFeatures, packFeatures);
 export const features: Feature[] = featureOrder.map(([, install]) => install);

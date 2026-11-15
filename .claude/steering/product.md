@@ -22,6 +22,7 @@ macOS (arm64, amd64), Windows (amd64, arm64), Linux (amd64, arm64). All three ar
 **M4: Git + Lint + Modules → v0.1** — implemented (see `.claude/designs/m4-git-lint-modules/acceptance.md`): git status/gutter/commit/diff/partial staging/branches/stash/log/blame/3-way merge, push/pull/fetch, golangci-lint diagnostics and fixes, go.mod completion and module actions, installers (dmg, NSIS, deb/rpm/tar.gz) and a release workflow. Pending: the first release-workflow run on GitHub, signing certificates.
 **Wails v3 / multi-window** — one process owns every project window; macOS shows one Dock icon with a project list (see `.claude/designs/wails-v3/`).
 **AI agents (pulled forward from v0.3)** — ACP agent host (Claude Code, Gemini CLI, Codex, custom) in an AI Agent window with permission prompts and diff/revert of agent edits, plus Goi's IDE tools served to agents over MCP (see `.claude/designs/ai-agents/`).
+**App packs + Pyi** — the core/pack split: Goi and **Pyi** (a Python IDE: basedpyright, interpreter/venv, Python run configurations) ship as separate apps from one repository (see `.claude/designs/app-packs/`). Python test runner, debugpy, ruff and pyproject tooling are the follow-up `python-app` spec.
 **Next: M5 — v0.2** (generators/intentions, refactorings, coverage, fuzz, HTTP client, protobuf, inspection batch run, local history).
 
 ## Principles
@@ -30,3 +31,4 @@ macOS (arm64, amd64), Windows (amd64, arm64), Linux (amd64, arm64). All three ar
 - Project state lives in `.goi/`, is shareable through VCS, and is human-readable (TOML).
 - Untrusted folders never auto-execute anything (no `go generate`, tasks or watchers).
 - Original identity: no third-party IDE names, icons, color schemes or branding.
+- One core, several apps: language- and product-specific code lives in packs; the core never names a language or a product.

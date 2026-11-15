@@ -1,28 +1,24 @@
-// LangClient keeps gopls's view of open Go buffers current: didOpen on
-// open, debounced full-text didChange on edits, didSave, didClose. Every
-// intelligence request first calls flush() so it sees the current text.
+// LangClient keeps the language server's view of open buffers current:
+// didOpen on open, debounced full-text didChange on edits, didSave,
+// didClose. Every intelligence request first calls flush() so it sees the
+// current text. Which files go to the server is the pack's (langFiles).
 
 import type { Buffer } from '../editor/buffer';
-import { baseName } from '../editor/buffer';
 import { lang } from '../lib/api';
+import { langFiles } from '../pack';
 import type { LangState, LangStatus } from '../lib/api';
 import { signal } from '../lib/store';
 
 export const SYNC_DEBOUNCE_MS = 150;
 
-/** Files gopls understands. */
+/** Files the language server understands. */
 export function isLangPath(path: string): boolean {
-  const base = baseName(path);
-  return base.endsWith('.go') || base === 'go.mod' || base === 'go.work';
+  return langFiles(path);
 }
 
-/** Buffers sent to gopls: Go-family files in normal (not large-file) mode. */
+/** Buffers sent to the server: its files in normal (not large-file) mode. */
 export function isLangBuffer(buf: Buffer): boolean {
   return isLangPath(buf.path) && buf.highlight && !buf.binary;
-}
-
-export function isGoFile(path: string): boolean {
-  return path.endsWith('.go');
 }
 
 const LIVE: LangState[] = ['ready', 'indexing'];

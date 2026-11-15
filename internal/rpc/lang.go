@@ -2,23 +2,23 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/gopls"
+	"github.com/p4tin/goi/internal/langserver"
 	"github.com/p4tin/goi/internal/lsp"
+	"github.com/p4tin/goi/internal/pack"
 	"github.com/p4tin/goi/internal/settings"
+	"github.com/p4tin/goi/internal/toolbin"
 	"github.com/p4tin/goi/internal/vfs"
 )
 
-// Lang states beyond gopls.State.
+// Lang states beyond langserver.State.
 const (
 	LangMissing    = "missing"
 	LangDisabled   = "disabled"
@@ -40,21 +40,21 @@ type DiagnosticsEvent struct {
 
 // ApplyEditEvent is the payload of lang.applyEdit.
 type ApplyEditEvent struct {
-	Label string           `json:"label"`
-	Edits []gopls.FileEdit `json:"edits"`
+	Label string                `json:"label"`
+	Edits []langserver.FileEdit `json:"edits"`
 }
 
-var errLangNotRunning = errors.New("gopls is not running")
+var errLangNotRunning = errors.New("the language server is not running")
 
-// langSession owns the project's gopls server.
+// langSession owns the project's language server.
 type langSession struct {
 	app      *App
 	win      *window
 	root     string // as opened (may contain symlinks)
-	realRoot string // symlinks resolved, as gopls may report paths
+	realRoot string // symlinks resolved, as servers may report paths
 
 	mu         sync.Mutex
-	srv        *gopls.Server
+	srv        *langserver.Server
 	status     LangStatus
 	cfgKey     string
 	installing bool
@@ -89,104 +89,76 @@ func (ls *langSession) currentStatus() LangStatus {
 	return ls.status
 }
 
-func (ls *langSession) server() *gopls.Server {
+func (ls *langSession) server() *langserver.Server {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	return ls.srv
 }
 
-// configKey summarizes the settings that require a gopls restart.
-func configKey(s settings.Settings) string {
-	b, _ := json.Marshal(struct {
-		Go    settings.Go
-		Gopls settings.Gopls
-	}{s.Go, s.Gopls})
-	return string(b)
-}
+// spec is the pack's language server (nil: none).
+func (ls *langSession) spec() pack.LanguageServer { return ls.app.pack.Server }
 
 type langConfig struct {
-	bin        string
-	env        []string
-	buildFlags []string
-	settings   map[string]any
+	cmd      pack.ServerCommand
+	env      []string
+	settings map[string]any
 }
 
-// resolveConfig computes the gopls binary and environment from settings.
+// resolveConfig locates the server and computes its environment and
+// settings.
 func (ls *langSession) resolveConfig() (langConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	s := ls.win.settings.Effective()
-	opts := gopls.ResolveOptions{Setting: s.Gopls.Path, ToolsDir: ls.app.toolsDir()}
-	var env []string
-	if r, err := ls.win.runner(ctx); err == nil {
-		env = r.Environ()
-		if ge, err := r.GoEnv(ctx); err == nil {
-			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
-		}
-	} else {
-		env = os.Environ()
-	}
-	bin, err := gopls.Resolve(opts)
+	sp := ls.spec()
+	p := ls.win.projectEnv()
+	env := ls.win.toolEnv(ctx)
+	cmd, err := sp.Command(ctx, p, env, ls.app.toolsDir())
 	if err != nil {
 		return langConfig{}, err
 	}
-	cfg := map[string]any{
-		"usePlaceholders":    s.Gopls.UsePlaceholders,
-		"staticcheck":        s.Gopls.Staticcheck,
-		"completeUnimported": true,
-		"deepCompletion":     true,
-		"matcher":            "Fuzzy",
-		"linksInHover":       true,
-		"hoverKind":          "FullDocumentation",
-	}
-	for k, v := range s.Gopls.Settings {
-		cfg[k] = v
-	}
-	var flags []string
-	if len(s.Go.Tags) > 0 {
-		flags = append(flags, "-tags="+strings.Join(s.Go.Tags, ","))
-	}
-	switch s.Go.Vendor {
-	case "on":
-		flags = append(flags, "-mod=vendor")
-	case "off":
-		flags = append(flags, "-mod=mod")
-	}
-	return langConfig{bin: bin, env: env, buildFlags: flags, settings: cfg}, nil
+	return langConfig{cmd: cmd, env: env, settings: sp.Settings(p)}, nil
 }
 
 func (ls *langSession) start() {
+	sp := ls.spec()
+	if sp == nil {
+		ls.setStatus(LangStatus{State: LangDisabled, Message: "No language server"})
+		return
+	}
 	s := ls.win.settings.Effective()
 	ls.mu.Lock()
-	ls.cfgKey = configKey(s)
+	ls.cfgKey = sp.RestartKey(s)
 	ls.mu.Unlock()
-	if !s.Gopls.Enabled {
-		ls.setStatus(LangStatus{State: LangDisabled, Message: "gopls is disabled in settings"})
+	if !sp.Enabled(s) {
+		ls.setStatus(LangStatus{State: LangDisabled, Message: sp.Name() + " is disabled in settings"})
 		return
 	}
 	cfg, err := ls.resolveConfig()
-	if errors.Is(err, gopls.ErrNotFound) {
+	if errors.Is(err, toolbin.ErrNotFound) {
 		ls.setStatus(LangStatus{State: LangMissing, Message: err.Error()})
 		return
 	}
 	if err != nil {
-		ls.setStatus(LangStatus{State: string(gopls.StateError), Message: err.Error()})
+		ls.setStatus(LangStatus{State: string(langserver.StateError), Message: err.Error()})
 		return
 	}
-	srv := gopls.New(gopls.Config{
-		Bin:        cfg.bin,
+	srv := langserver.New(langserver.Config{
+		Name:       sp.Name(),
+		Bin:        cfg.cmd.Bin,
+		Args:       cfg.cmd.Args,
 		Root:       ls.root,
 		Env:        cfg.env,
-		BuildFlags: cfg.buildFlags,
 		Settings:   cfg.settings,
+		Section:    sp.Section,
+		LanguageID: sp.LanguageID,
 		Log:        ls.app.log,
-		OnStatus: func(st gopls.Status) {
-			ls.setStatus(LangStatus{State: string(st.State), Message: st.Message, Bin: cfg.bin})
+		OnStatus: func(st langserver.Status) {
+			ls.setStatus(LangStatus{State: string(st.State), Message: st.Message, Bin: cfg.cmd.Bin})
 		},
 		OnDiagnostics: func(path string, d []lsp.Diagnostic) {
 			ls.win.bus.Emit(events.TopicLangDiagnostics, DiagnosticsEvent{Path: ls.toEditor(path), Items: d})
 		},
-		OnApplyEdit: func(label string, edits []gopls.FileEdit) bool {
+		OnApplyEdit: func(label string, edits []langserver.FileEdit) bool {
 			ls.win.bus.Emit(events.TopicLangApplyEdit, ApplyEditEvent{Label: label, Edits: ls.mapEdits(edits)})
 			return true
 		},
@@ -198,14 +170,18 @@ func (ls *langSession) start() {
 	}
 	ls.srv = srv
 	ls.mu.Unlock()
-	ls.app.log.Info("gopls starting", "bin", cfg.bin, "root", ls.root)
+	ls.app.log.Info("language server starting", "name", sp.Name(), "bin", cfg.cmd.Bin, "root", ls.root)
 	srv.Start()
 }
 
-// reconfigure restarts gopls when relevant settings changed.
+// reconfigure restarts the server when relevant settings changed.
 func (ls *langSession) reconfigure() {
+	sp := ls.spec()
+	if sp == nil {
+		return
+	}
 	s := ls.win.settings.Effective()
-	key := configKey(s)
+	key := sp.RestartKey(s)
 	ls.mu.Lock()
 	if key == ls.cfgKey {
 		ls.mu.Unlock()
@@ -214,7 +190,7 @@ func (ls *langSession) reconfigure() {
 	ls.cfgKey = key
 	srv := ls.srv
 	ls.mu.Unlock()
-	if srv == nil || !s.Gopls.Enabled {
+	if srv == nil || !sp.Enabled(s) {
 		if srv != nil {
 			srv.Close()
 			ls.mu.Lock()
@@ -233,8 +209,8 @@ func (ls *langSession) reconfigure() {
 		ls.start()
 		return
 	}
-	srv.Reconfigure(func(c *gopls.Config) {
-		c.Bin, c.Env, c.BuildFlags, c.Settings = cfg.bin, cfg.env, cfg.buildFlags, cfg.settings
+	srv.Reconfigure(func(c *langserver.Config) {
+		c.Bin, c.Args, c.Env, c.Settings = cfg.cmd.Bin, cfg.cmd.Args, cfg.env, cfg.settings
 	})
 }
 
@@ -246,8 +222,12 @@ func (ls *langSession) restart() {
 	ls.start()
 }
 
-// install runs `go install gopls` into the tools dir, then starts gopls.
+// install installs the server into the tools dir, then starts it.
 func (ls *langSession) install() error {
+	sp := ls.spec()
+	if sp == nil {
+		return errors.New("no language server")
+	}
 	ls.mu.Lock()
 	if ls.installing {
 		ls.mu.Unlock()
@@ -256,29 +236,24 @@ func (ls *langSession) install() error {
 	ls.installing = true
 	ls.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	r, err := ls.win.runner(ctx)
-	if err != nil {
-		cancel()
-		ls.mu.Lock()
-		ls.installing = false
-		ls.mu.Unlock()
-		return err
-	}
-	ls.setStatus(LangStatus{State: LangInstalling, Message: "Installing gopls (go install " + gopls.Module + ")…"})
+	p := ls.win.projectEnv()
+	env := ls.win.toolEnv(ctx)
+	ls.setStatus(LangStatus{State: LangInstalling, Message: "Installing " + sp.Name() + " (" + sp.InstallHint() + ")…"})
 	go func() {
 		defer cancel()
-		bin, err := gopls.Install(ctx, r.SDK.GoBin, r.Environ(), ls.app.toolsDir())
+		bin, err := sp.Install(ctx, p, env, ls.app.toolsDir())
 		ls.mu.Lock()
 		ls.installing = false
 		ls.mu.Unlock()
+		id := "lang.install"
 		if err != nil {
-			ls.app.log.Warn("gopls install", "err", err)
+			ls.app.log.Warn("language server install", "name", sp.Name(), "err", err)
 			ls.setStatus(LangStatus{State: LangMissing, Message: err.Error()})
-			ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "error", Title: "Could not install gopls", Body: err.Error()})
+			ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: id, Level: "error", Title: "Could not install " + sp.Name(), Body: err.Error()})
 			return
 		}
-		ls.app.log.Info("gopls installed", "bin", bin)
-		ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: "gopls.install", Level: "info", Title: "gopls installed", Body: bin})
+		ls.app.log.Info("language server installed", "name", sp.Name(), "bin", bin)
+		ls.win.bus.Emit(events.TopicNotify, events.Notification{ID: id, Level: "info", Title: sp.Name() + " installed", Body: bin})
 		if srv := ls.server(); srv != nil {
 			srv.Close()
 		}
@@ -306,7 +281,7 @@ func (ls *langSession) close() {
 	}
 }
 
-// onFiles forwards Go-relevant disk changes to gopls.
+// onFiles forwards Go-relevant disk changes to langserver.
 func (ls *langSession) onFiles(evs []vfs.Event) {
 	srv := ls.server()
 	if srv == nil {
@@ -324,7 +299,7 @@ func (ls *langSession) onFiles(evs []vfs.Event) {
 		case vfs.OpRemove, vfs.OpRename:
 			t = lsp.FileDeleted
 		}
-		out = append(out, lsp.FileEvent{URI: gopls.PathToURI(e.Path), Type: t})
+		out = append(out, lsp.FileEvent{URI: langserver.PathToURI(e.Path), Type: t})
 	}
 	srv.WatchedFilesChanged(out)
 }
@@ -334,7 +309,7 @@ func watchedByGopls(p string) bool {
 	return strings.HasSuffix(base, ".go") || base == "go.mod" || base == "go.sum" || base == "go.work" || base == "go.work.sum"
 }
 
-// toEditor maps a path reported by gopls (possibly symlink-resolved) back
+// toEditor maps a path reported by the server (possibly symlink-resolved) back
 // under the root the editor uses.
 func (ls *langSession) toEditor(p string) string {
 	if ls.realRoot == ls.root {
@@ -349,9 +324,9 @@ func (ls *langSession) toEditor(p string) string {
 	return p
 }
 
-func (ls *langSession) mapLocs(locs []gopls.Location) []gopls.Location {
+func (ls *langSession) mapLocs(locs []langserver.Location) []langserver.Location {
 	if locs == nil {
-		return []gopls.Location{}
+		return []langserver.Location{}
 	}
 	for i := range locs {
 		locs[i].Path = ls.toEditor(locs[i].Path)
@@ -359,9 +334,9 @@ func (ls *langSession) mapLocs(locs []gopls.Location) []gopls.Location {
 	return locs
 }
 
-func (ls *langSession) mapEdits(edits []gopls.FileEdit) []gopls.FileEdit {
+func (ls *langSession) mapEdits(edits []langserver.FileEdit) []langserver.FileEdit {
 	if edits == nil {
-		return []gopls.FileEdit{}
+		return []langserver.FileEdit{}
 	}
 	for i := range edits {
 		edits[i].Path = ls.toEditor(edits[i].Path)
@@ -369,12 +344,12 @@ func (ls *langSession) mapEdits(edits []gopls.FileEdit) []gopls.FileEdit {
 	return edits
 }
 
-// toolsDir is where Goi installs gopls and other Go tools.
+// toolsDir is where the app installs its tools (language server, debugger, linter).
 func (a *App) toolsDir() string {
 	return filepath.Join(a.configDir, "tools", "bin")
 }
 
-// LangService exposes gopls-backed code intelligence for the open project.
+// LangService exposes language-server code intelligence for the open project.
 type LangService struct {
 	app *App
 }
@@ -396,7 +371,7 @@ func (s *LangService) lang(ctx context.Context) (*langSession, error) {
 	return sess.lang, nil
 }
 
-func (s *LangService) srv(ctx context.Context) (*langSession, *gopls.Server, error) {
+func (s *LangService) srv(ctx context.Context) (*langSession, *langserver.Server, error) {
 	ls, err := s.lang(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -418,16 +393,16 @@ func reqCtx(ctx context.Context, d time.Duration) (context.Context, context.Canc
 
 func pos(line, char int) lsp.Position { return lsp.Position{Line: line, Character: char} }
 
-// Status returns the gopls status.
+// Status returns the language server status.
 func (s *LangService) Status(ctx context.Context) LangStatus {
 	ls, err := s.lang(ctx)
 	if err != nil {
-		return LangStatus{State: string(gopls.StateStopped), Message: "No project open"}
+		return LangStatus{State: string(langserver.StateStopped), Message: "No project open"}
 	}
 	return ls.currentStatus()
 }
 
-// Restart restarts gopls.
+// Restart restarts langserver.
 func (s *LangService) Restart(ctx context.Context) error {
 	ls, err := s.lang(ctx)
 	if err != nil {
@@ -437,8 +412,8 @@ func (s *LangService) Restart(ctx context.Context) error {
 	return nil
 }
 
-// InstallGopls installs gopls into Goi's tools directory and starts it.
-func (s *LangService) InstallGopls(ctx context.Context) error {
+// InstallServer installs the language server into the tools directory and starts it.
+func (s *LangService) InstallServer(ctx context.Context) error {
 	ls, err := s.lang(ctx)
 	if err != nil {
 		return err
@@ -448,19 +423,19 @@ func (s *LangService) InstallGopls(ctx context.Context) error {
 
 // DidOpen tracks an editor buffer.
 func (s *LangService) DidOpen(ctx context.Context, path string, version int, text string) {
-	if _, srv, err := s.srv(ctx); err == nil && gopls.LanguageID(path) != "" {
+	if _, srv, err := s.srv(ctx); err == nil && srv.LanguageID(path) != "" {
 		srv.Open(path, version, text)
 	}
 }
 
 // DidChange sends a buffer's full text.
 func (s *LangService) DidChange(ctx context.Context, path string, version int, text string) {
-	if _, srv, err := s.srv(ctx); err == nil && gopls.LanguageID(path) != "" {
+	if _, srv, err := s.srv(ctx); err == nil && srv.LanguageID(path) != "" {
 		srv.Change(path, version, text)
 	}
 }
 
-// DidSave notifies gopls that a buffer was saved.
+// DidSave notifies the server that a buffer was saved.
 func (s *LangService) DidSave(ctx context.Context, path string) {
 	if _, srv, err := s.srv(ctx); err == nil {
 		srv.Save(path)
@@ -511,12 +486,12 @@ func (s *LangService) SignatureHelp(ctx context.Context, path string, line, char
 	return srv.SignatureHelp(rctx, path, pos(line, char))
 }
 
-type locFunc func(*gopls.Server, context.Context, string, lsp.Position) ([]gopls.Location, error)
+type locFunc func(*langserver.Server, context.Context, string, lsp.Position) ([]langserver.Location, error)
 
-func (s *LangService) locations(ctx context.Context, f locFunc, path string, line, char int, timeout time.Duration) ([]gopls.Location, error) {
+func (s *LangService) locations(ctx context.Context, f locFunc, path string, line, char int, timeout time.Duration) ([]langserver.Location, error) {
 	ls, srv, err := s.srv(ctx)
 	if err != nil {
-		return []gopls.Location{}, err
+		return []langserver.Location{}, err
 	}
 	rctx, cancel := reqCtx(ctx, timeout)
 	defer cancel()
@@ -525,23 +500,23 @@ func (s *LangService) locations(ctx context.Context, f locFunc, path string, lin
 }
 
 // Definition returns the declaration(s) of the symbol at a position.
-func (s *LangService) Definition(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
-	return s.locations(ctx, (*gopls.Server).Definition, path, line, char, 15*time.Second)
+func (s *LangService) Definition(ctx context.Context, path string, line, char int) ([]langserver.Location, error) {
+	return s.locations(ctx, (*langserver.Server).Definition, path, line, char, 15*time.Second)
 }
 
 // TypeDefinition returns the declaration of the symbol's type.
-func (s *LangService) TypeDefinition(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
-	return s.locations(ctx, (*gopls.Server).TypeDefinition, path, line, char, 15*time.Second)
+func (s *LangService) TypeDefinition(ctx context.Context, path string, line, char int) ([]langserver.Location, error) {
+	return s.locations(ctx, (*langserver.Server).TypeDefinition, path, line, char, 15*time.Second)
 }
 
 // Implementation returns implementations or implemented interfaces.
-func (s *LangService) Implementation(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
-	return s.locations(ctx, (*gopls.Server).Implementation, path, line, char, 30*time.Second)
+func (s *LangService) Implementation(ctx context.Context, path string, line, char int) ([]langserver.Location, error) {
+	return s.locations(ctx, (*langserver.Server).Implementation, path, line, char, 30*time.Second)
 }
 
 // References returns the usages of the symbol at a position.
-func (s *LangService) References(ctx context.Context, path string, line, char int) ([]gopls.Location, error) {
-	return s.locations(ctx, (*gopls.Server).References, path, line, char, 60*time.Second)
+func (s *LangService) References(ctx context.Context, path string, line, char int) ([]langserver.Location, error) {
+	return s.locations(ctx, (*langserver.Server).References, path, line, char, 60*time.Second)
 }
 
 // DocumentHighlight returns the occurrences of the symbol in its file.
@@ -567,10 +542,10 @@ func (s *LangService) DocumentSymbols(ctx context.Context, path string) ([]lsp.D
 }
 
 // WorkspaceSymbols searches symbols across the project.
-func (s *LangService) WorkspaceSymbols(ctx context.Context, query string) ([]gopls.Symbol, error) {
+func (s *LangService) WorkspaceSymbols(ctx context.Context, query string) ([]langserver.Symbol, error) {
 	ls, srv, err := s.srv(ctx)
 	if err != nil {
-		return []gopls.Symbol{}, err
+		return []langserver.Symbol{}, err
 	}
 	rctx, cancel := reqCtx(ctx, 10*time.Second)
 	defer cancel()
@@ -593,10 +568,10 @@ func (s *LangService) PrepareRename(ctx context.Context, path string, line, char
 }
 
 // Rename computes the edits that rename the symbol at a position.
-func (s *LangService) Rename(ctx context.Context, path string, line, char int, newName string) ([]gopls.FileEdit, error) {
+func (s *LangService) Rename(ctx context.Context, path string, line, char int, newName string) ([]langserver.FileEdit, error) {
 	ls, srv, err := s.srv(ctx)
 	if err != nil {
-		return []gopls.FileEdit{}, err
+		return []langserver.FileEdit{}, err
 	}
 	rctx, cancel := reqCtx(ctx, 60*time.Second)
 	defer cancel()
@@ -617,23 +592,23 @@ func (s *LangService) CodeActions(ctx context.Context, path string, rng lsp.Rang
 
 // RunCodeAction returns a code action's edits, resolving them first if
 // needed, and runs its command (whose edits arrive as lang.applyEdit).
-func (s *LangService) RunCodeAction(ctx context.Context, action lsp.CodeAction) ([]gopls.FileEdit, error) {
+func (s *LangService) RunCodeAction(ctx context.Context, action lsp.CodeAction) ([]langserver.FileEdit, error) {
 	ls, srv, err := s.srv(ctx)
 	if err != nil {
-		return []gopls.FileEdit{}, err
+		return []langserver.FileEdit{}, err
 	}
 	rctx, cancel := reqCtx(ctx, 60*time.Second)
 	defer cancel()
 	if action.Edit == nil && action.Command == nil && action.Data != nil {
 		resolved, err := srv.ResolveCodeAction(rctx, action)
 		if err != nil {
-			return []gopls.FileEdit{}, err
+			return []langserver.FileEdit{}, err
 		}
 		action = resolved
 	}
-	edits := []gopls.FileEdit{}
+	edits := []langserver.FileEdit{}
 	if action.Edit != nil {
-		edits = ls.mapEdits(gopls.FileEdits(*action.Edit))
+		edits = ls.mapEdits(langserver.FileEdits(*action.Edit))
 	}
 	if action.Command != nil {
 		if err := srv.ExecuteCommand(rctx, *action.Command); err != nil {
@@ -645,7 +620,7 @@ func (s *LangService) RunCodeAction(ctx context.Context, action lsp.CodeAction) 
 
 // ApplyFileEdits applies edits to files on disk (files not open in the
 // editor), preserving their line endings and BOM.
-func (s *LangService) ApplyFileEdits(edits []gopls.FileEdit) error {
+func (s *LangService) ApplyFileEdits(edits []langserver.FileEdit) error {
 	var errs []error
 	for _, fe := range edits {
 		meta, text, err := vfs.ReadText(fe.Path, vfs.Limits{})
@@ -657,7 +632,7 @@ func (s *LangService) ApplyFileEdits(edits []gopls.FileEdit) error {
 			errs = append(errs, fmt.Errorf("%s is binary", fe.Path))
 			continue
 		}
-		out, err := gopls.ApplyEdits(text, fe.Edits)
+		out, err := langserver.ApplyEdits(text, fe.Edits)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", fe.Path, err))
 			continue

@@ -9,7 +9,7 @@ vi.mock('../src/lib/api', () => ({
 }));
 
 const { middleEllipsis, moveSelection, relativeTime } = await import('../src/views/welcome');
-const { validateNewProject } = await import('../src/views/newProject');
+const { validateNewProject } = await import('../src/packs/go/newProject');
 
 describe('relativeTime', () => {
   const now = new Date('2026-11-06T12:00:00Z');

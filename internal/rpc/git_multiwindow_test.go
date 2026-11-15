@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/packs/golang/services"
 )
 
 // isolateGit keeps the user's git config, hooks and signing out of a test.
@@ -116,7 +117,7 @@ func TestLintAndModCallsResolveTheCallingWindow(t *testing.T) {
 	if _, err := app.lintSvc.Run(ctxB, "project", ""); !errors.Is(err, errNoProject) {
 		t.Errorf("lint run in B: err = %v, want errNoProject", err)
 	}
-	if _, err := app.modSvc.Versions(ctxB, "example.com/x"); !errors.Is(err, errNoProject) {
+	if _, err := services.NewModService(host{app}).Versions(ctxB, "example.com/x"); !errors.Is(err, errNoProject) {
 		t.Errorf("mod versions in B: err = %v, want errNoProject", err)
 	}
 	if st := app.lintSvc.Status(ctxA); st.Message == errNoProject.Error() {

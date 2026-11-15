@@ -1,6 +1,7 @@
-// Package runconfig models run configurations (Go Build, Go Test, Go Remote,
-// Shell script, Makefile), stores them as TOML files, validates them and
-// turns them into concrete command plans and Delve launch arguments.
+// Package runconfig models run configurations, stores them as TOML files,
+// validates them and turns them into concrete command plans. Shell script
+// and Makefile configurations are built in; the app pack adds its own types
+// (Goi: Go Build, Go Test, Go Remote) through TypeHandler.
 package runconfig
 
 import (
@@ -10,27 +11,16 @@ import (
 // Type is a run configuration type.
 type Type string
 
+// Built-in configuration types.
 const (
-	TypeApp    Type = "app"
-	TypeTest   Type = "test"
-	TypeRemote Type = "remote"
-	TypeShell  Type = "shell"
-	TypeMake   Type = "make"
+	TypeShell Type = "shell"
+	TypeMake  Type = "make"
 )
 
-// Kinds of Go targets.
+// Built-in before-launch task types. Packs may add more (Goi: "generate").
 const (
-	KindPackage   = "package"
-	KindFile      = "file"
-	KindDirectory = "directory"
-	KindFunction  = "function"
-)
-
-// Before-launch task types.
-const (
-	TaskConfig   = "config"
-	TaskGenerate = "generate"
-	TaskCommand  = "command"
+	TaskConfig  = "config"
+	TaskCommand = "command"
 )
 
 // Task runs before a configuration launches.
@@ -42,6 +32,9 @@ type Task struct {
 }
 
 // Config is one run configuration. Fields not used by its type are ignored.
+// It is a superset of every type's fields; the Go target, build and test
+// fields are used by Goi's types, Script/Interpreter by Shell (and Pyi's
+// Python type).
 type Config struct {
 	Name string `toml:"name" json:"name"`
 	Type Type   `toml:"type" json:"type"`
@@ -103,11 +96,6 @@ type Config struct {
 
 // RunsAfterBuild reports whether an app configuration executes the binary.
 func (c Config) RunsAfterBuild() bool { return c.RunAfterBuild == nil || *c.RunAfterBuild }
-
-// Debuggable reports whether the configuration type can be debugged.
-func (c Config) Debuggable() bool {
-	return c.Type == TypeApp || c.Type == TypeTest || c.Type == TypeRemote
-}
 
 // Normalize fills nil slices and maps (bound DTOs must not carry nil) and
 // trims names.

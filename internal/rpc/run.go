@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/pack"
 	"github.com/p4tin/goi/internal/process"
 	"github.com/p4tin/goi/internal/runconfig"
 	"github.com/p4tin/goi/internal/vfs"
+	"github.com/p4tin/goi/internal/workspace"
 )
 
 // Run states (run.state).
@@ -71,14 +73,7 @@ type RunTestEvent struct {
 
 // ContextRequest asks for a temporary configuration for a gutter marker or
 // editor/tree context.
-type ContextRequest struct {
-	// Path is the file (or directory for kind "dir").
-	Path string `json:"path"`
-	// Kind is main, test, bench, fuzz, example, file or dir.
-	Kind string `json:"kind"`
-	// Name is the function name for main/test/bench/fuzz/example.
-	Name string `json:"name"`
-}
+type ContextRequest = pack.ContextRequest
 
 var errNoRun = errors.New("no such run")
 
@@ -123,7 +118,7 @@ type runInstance struct {
 func startRuns(win *window, s *session, w vfs.Watcher) *runManager {
 	a := win.app
 	hash := s.manager.Project().Hash
-	shared := filepath.Join(s.root, ".goi", "runConfigurations")
+	shared := filepath.Join(workspace.StateDir(s.root), "runConfigurations")
 	local := filepath.Join(a.configDir, "workspaces", hash, "runConfigurations")
 	store, err := runconfig.Open(shared, local)
 	if err != nil {
@@ -191,58 +186,62 @@ func (m *runManager) close() {
 	}
 }
 
-// planContext gathers what runconfig needs from the project SDK and settings.
+// types are the pack's configuration types (none without run support).
+func (m *runManager) types() runconfig.Types {
+	if r := m.app.pack.Run; r != nil {
+		return r.Types()
+	}
+	return runconfig.Types{}
+}
+
+// tasks are the pack's before-launch task types.
+func (m *runManager) tasks() map[string]runconfig.TaskHandler {
+	if r := m.app.pack.Run; r != nil {
+		return r.Tasks()
+	}
+	return map[string]runconfig.TaskHandler{}
+}
+
+// planContext gathers what runconfig needs from the pack's toolchain and
+// the project settings.
 func (m *runManager) planContext() (runconfig.Context, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	r, err := m.win.runner(ctx)
-	if err != nil {
-		return runconfig.Context{}, fmt.Errorf("Go SDK: %w", err)
+	if r := m.app.pack.Run; r != nil {
+		pctx, err := r.Context(ctx, m.win.projectEnv(), m.tempDir)
+		if err != nil {
+			return runconfig.Context{}, err
+		}
+		pctx.Types = r.Types()
+		return pctx, nil
 	}
-	g := m.win.settings.Effective().Go
-	mod := ""
-	switch g.Vendor {
-	case "on":
-		mod = "-mod=vendor"
-	case "off":
-		mod = "-mod=mod"
-	}
-	r.Dir = m.root
-	return runconfig.Context{
-		Root:    m.root,
-		GoBin:   r.SDK.GoBin,
-		Env:     r.Environ(),
-		Tags:    g.Tags,
-		ModFlag: mod,
-		TempDir: m.tempDir,
-		PackageDir: func(pkg string) (string, error) {
-			c, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			defer cancel()
-			out, err := r.Command(c, "list", "-f", "{{.Dir}}", pkg).Output()
-			if err != nil {
-				return "", err
-			}
-			return strings.TrimSpace(string(out)), nil
-		},
-	}, nil
+	return runconfig.Context{Root: m.root, Env: m.win.toolEnv(ctx), TempDir: m.tempDir, Types: runconfig.Types{}}, nil
+}
+
+// validate checks cfg against the project and the pack's types and tasks.
+func (m *runManager) validate(cfg runconfig.Config) []string {
+	return cfg.Validate(runconfig.Context{Root: m.root, Types: m.types()}, m.tasks())
 }
 
 // launch starts cfg in a new run, or in the run reuseID (rerun in place).
 func (m *runManager) launch(cfg runconfig.Config, debug bool, reuseID string) (string, error) {
 	cfg = cfg.Normalize()
-	if errs := cfg.Validate(m.root); len(errs) > 0 {
+	if errs := m.validate(cfg); len(errs) > 0 {
 		return "", fmt.Errorf("%s: %s", cfg.Name, strings.Join(errs, "; "))
 	}
-	if debug && !cfg.Debuggable() {
+	types := m.types()
+	if debug && (m.app.pack.Debug == nil || !types.Debuggable(cfg)) {
 		return "", fmt.Errorf("%s configurations can't be debugged", cfg.Type)
 	}
-	if !debug && cfg.Type == runconfig.TypeRemote {
-		return "", errors.New("Go Remote configurations can only be debugged")
+	if !debug && !types.Runnable(cfg) {
+		return "", fmt.Errorf("%s configurations can only be debugged", cfg.Type)
 	}
-	if debug && cfg.Type != runconfig.TypeRemote {
-		// Fail fast so the UI can offer to install Delve.
-		if _, err := m.win.resolveDlv(); err != nil {
-			return "", err
+	if debug {
+		if _, attach := m.app.pack.Debug.Attach(cfg); !attach {
+			// Fail fast so the UI can offer to install the debugger.
+			if _, err := m.win.resolveDebugger(); err != nil {
+				return "", err
+			}
 		}
 	}
 	m.mu.Lock()
@@ -264,7 +263,7 @@ func (m *runManager) launch(cfg runconfig.Config, debug bool, reuseID string) (s
 
 	inst.mu.Lock()
 	inst.cfg, inst.debug = cfg, debug
-	inst.state, inst.exit, inst.message, inst.command, inst.test = RunStarting, nil, "", "", cfg.Type == runconfig.TypeTest
+	inst.state, inst.exit, inst.message, inst.command, inst.test = RunStarting, nil, "", "", m.isTest(cfg)
 	inst.started, inst.ended = time.Now(), time.Time{}
 	inst.proc, inst.stopped, inst.stopHook = nil, false, nil
 	inst.done = make(chan struct{})
@@ -545,22 +544,6 @@ func (r *runInstance) runTasks(cfg runconfig.Config, pctx runconfig.Context, vis
 					return fmt.Errorf("%s (%s) failed with exit code %d", label, sub.Name, info.Code)
 				}
 			}
-		case runconfig.TaskGenerate:
-			pkg := t.Package
-			if pkg == "" {
-				pkg = "./..."
-			}
-			args := []string{"generate"}
-			if len(pctx.Tags) > 0 {
-				args = append(args, "-tags="+strings.Join(pctx.Tags, ","))
-			}
-			info, err := r.step(&runconfig.Cmd{Path: pctx.GoBin, Args: append(args, pkg), Dir: r.m.root, Env: pctx.Env}, false)
-			if err != nil {
-				return fmt.Errorf("%s: %w", label, err)
-			}
-			if info.Code != 0 {
-				return fmt.Errorf("%s: go generate failed with exit code %d", label, info.Code)
-			}
 		case runconfig.TaskCommand:
 			args, err := runconfig.SplitArgs(t.Command)
 			if err != nil || len(args) == 0 {
@@ -573,43 +556,48 @@ func (r *runInstance) runTasks(cfg runconfig.Config, pctx runconfig.Context, vis
 			if info.Code != 0 {
 				return fmt.Errorf("%s: command failed with exit code %d", label, info.Code)
 			}
+		default:
+			h := r.m.tasks()[t.Type]
+			if h == nil {
+				return fmt.Errorf("%s: unknown task type %q", label, t.Type)
+			}
+			c, err := h(t, pctx)
+			if err != nil {
+				return fmt.Errorf("%s: %w", label, err)
+			}
+			info, err := r.step(c, false)
+			if err != nil {
+				return fmt.Errorf("%s: %w", label, err)
+			}
+			if info.Code != 0 {
+				return fmt.Errorf("%s: %s failed with exit code %d", label, filepath.Base(c.Path)+" "+strings.Join(c.Args, " "), info.Code)
+			}
 		}
 	}
 	return nil
 }
 
+// isTest reports whether cfg's output is a test event stream.
+func (m *runManager) isTest(cfg runconfig.Config) bool {
+	r := m.app.pack.Run
+	return r != nil && r.IsTest(cfg)
+}
+
 // contextConfig builds the temporary configuration for a context request.
 func (m *runManager) contextConfig(req ContextRequest) (runconfig.Config, error) {
-	path := req.Path
-	if path == "" {
-		return runconfig.Config{}, errors.New("no file")
+	r := m.app.pack.Run
+	if r == nil {
+		return runconfig.Config{}, errors.New("this app has no context runs")
 	}
-	dir := path
-	if req.Kind != "dir" {
-		dir = filepath.Dir(path)
+	rel := func(p string) string {
+		if st, err := os.Stat(p); err == nil && st.IsDir() {
+			return m.relDir(p)
+		}
+		return m.relPath(p)
 	}
-	rel := m.relDir(dir)
-	c := runconfig.Config{Type: runconfig.TypeTest, Kind: runconfig.KindFunction, Directory: rel}
-	switch req.Kind {
-	case "main":
-		c = runconfig.Config{Name: "go build " + rel, Type: runconfig.TypeApp, Kind: runconfig.KindPackage, Package: rel}
-	case "test", "example", "fuzz":
-		c.Name = req.Name + " in " + rel
-		c.Pattern = "^" + req.Name + "$"
-	case "bench":
-		c.Name = req.Name + " in " + rel
-		c.Pattern = "^$"
-		c.Bench = "^" + req.Name + "$"
-	case "file":
-		c.Name = filepath.Base(path)
-		c.Kind = runconfig.KindFile
-		c.Files = []string{m.relPath(path)}
-		c.Directory = ""
-	case "dir":
-		c.Name = "go test " + rel
-		c.Kind = runconfig.KindDirectory
-	default:
-		return runconfig.Config{}, fmt.Errorf("unknown context kind %q", req.Kind)
+	c, err := r.ContextConfig(req, rel)
+	if err != nil {
+		return runconfig.Config{}, err
 	}
 	return m.store.AddTemporary(c)
 }
@@ -754,7 +742,7 @@ func (s *RunService) Validate(ctx context.Context, c runconfig.Config) []string 
 	if err != nil {
 		return []string{err.Error()}
 	}
-	errs := c.Validate(m.root)
+	errs := m.validate(c)
 	if errs == nil {
 		errs = []string{}
 	}

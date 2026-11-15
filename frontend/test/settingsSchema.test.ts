@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { installGoSettings } from '../src/packs/go/settings';
 import { descriptor, filterSchema, getByKey, parseIntInput, schema, sections, validate } from '../src/views/settings/schema';
+
+// The schema as Goi shows it: core settings plus the Go pack's.
+installGoSettings();
 
 describe('settings schema', () => {
   it('covers every M1 key once, in a known section', () => {
@@ -14,6 +18,12 @@ describe('settings schema', () => {
     }
     for (const d of schema) expect(sections).toContain(d.section);
     expect(descriptor('ui.theme')!.layers).toEqual(['user']);
+    expect(sections.indexOf('Go')).toBe(sections.indexOf('Editor') + 1);
+  });
+
+  it('lists each pack section once', () => {
+    expect(sections.filter((s) => s === 'Go')).toHaveLength(1);
+    expect(sections.filter((s) => s === 'Linting')).toHaveLength(1);
   });
 
   it('getByKey reads dotted paths', () => {

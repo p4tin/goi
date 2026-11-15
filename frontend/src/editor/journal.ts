@@ -13,7 +13,7 @@ import type { Buffer } from './buffer';
 import { baseName } from './buffer';
 import type { EditorManager } from './editorManager';
 import { editors } from './install';
-import { product } from '../pack';
+import { product } from '../product';
 
 export const JOURNAL_INTERVAL_MS = 2000;
 

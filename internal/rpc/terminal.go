@@ -2,10 +2,8 @@ package rpc
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/terminal"
@@ -105,11 +103,8 @@ func (s *TerminalService) Open(ctx context.Context, cols, rows int) (TermInfo, e
 	}
 	cfg := w.settings.Effective().Terminal
 	shell := terminal.DefaultShell(cfg.Shell)
-	env := os.Environ()
-	ectx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if r, err := w.runner(ectx); err == nil {
-		env = r.Environ()
-	}
+	ectx, cancel := context.WithTimeout(context.Background(), toolEnvTimeout)
+	env := w.toolEnv(ectx)
 	cancel()
 	args := terminal.LoginArgs(shell)
 	if cfg.ShellIntegration {

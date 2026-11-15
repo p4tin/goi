@@ -14,6 +14,8 @@ import { commands } from '../lib/commands';
 import type { RunMarker } from '../lib/api';
 import type { Buffer } from './buffer';
 import { editors } from './install';
+import { markerLabel, runFiles } from '../pack';
+import { capabilities } from '../app/state';
 
 export const MARKER_DEBOUNCE_MS = 300;
 
@@ -77,10 +79,10 @@ function runGutterExtension(onRefresh: (buf: Buffer) => void, buf: Buffer): Exte
           if (!marker) return false;
           const e = event as MouseEvent;
           const target = { path: buf.path, kind: marker.kind, name: marker.name };
-          const label = marker.kind === 'main' ? `'go build'` : `'${marker.name}'`;
+          const label = `'${markerLabel(marker)}'`;
           showMenu(e.clientX, e.clientY, [
             { label: `Run ${label}`, run: () => void commands.run('run.marker', target, false) },
-            { label: `Debug ${label}`, run: () => void commands.run('run.marker', target, true) },
+            ...(capabilities().debugger ? [{ label: `Debug ${label}`, run: () => void commands.run('run.marker', target, true) }] : []),
             { separator: true },
             { label: 'Modify Run Configuration…', run: () => void commands.run('run.editMarker', target) },
           ]);
@@ -122,7 +124,7 @@ export function installRunGutter(_wb: Workbench): void {
     );
   };
 
-  m.addExtension((buf) => (buf.path.endsWith('.go') && !buf.binary ? runGutterExtension(refresh, buf) : []));
+  m.addExtension((buf) => (runFiles(buf.path) && !buf.binary ? runGutterExtension(refresh, buf) : []));
   m.hooks.closed.on((buf) => {
     clearTimeout(timers.get(buf.path));
     timers.delete(buf.path);

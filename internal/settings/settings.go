@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 )
 
 //go:embed defaults.toml
@@ -163,6 +165,54 @@ type Settings struct {
 	AI       AI                  `toml:"ai" json:"ai"`
 	UI       UI                  `toml:"ui" json:"ui"`
 	Keys     map[string][]string `toml:"keys" json:"keys"`
+
+	// Extra holds the merged top-level sections the struct doesn't model:
+	// the app pack's own (Pyi: [python]). Read them with Value.
+	Extra map[string]any `toml:"-" json:"extra"`
+}
+
+// Value returns the effective value at a dotted key of a pack section
+// ("python.interpreter"), or nil.
+func (s Settings) Value(key string) any {
+	var cur any = s.Extra
+	for _, part := range strings.Split(key, ".") {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil
+		}
+		cur = m[part]
+	}
+	return cur
+}
+
+// String returns Value(key) as a string ("" when unset or not a string).
+func (s Settings) String(key string) string {
+	v, _ := s.Value(key).(string)
+	return v
+}
+
+// modelled are the top-level keys of Settings' fields.
+var modelled = func() map[string]bool {
+	out := map[string]bool{}
+	t := reflect.TypeOf(Settings{})
+	for i := range t.NumField() {
+		if tag := t.Field(i).Tag.Get("toml"); tag != "" && tag != "-" {
+			out[strings.Split(tag, ",")[0]] = true
+		}
+	}
+	return out
+}()
+
+// extraSections returns the top-level sections of doc Settings doesn't
+// model.
+func extraSections(doc map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range doc {
+		if !modelled[k] {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // ChangedEvent is the payload of events.TopicSettingsChanged.
@@ -189,6 +239,7 @@ func decode(doc map[string]any) (Settings, error) {
 	if err := json.Unmarshal(b, &s); err != nil {
 		return Settings{}, fmt.Errorf("settings: invalid value: %w", err)
 	}
+	s.Extra = extraSections(doc)
 	if s.Go.Env == nil {
 		s.Go.Env = map[string]string{}
 	}

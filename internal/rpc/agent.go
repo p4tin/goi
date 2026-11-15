@@ -194,14 +194,12 @@ func definition(id string, overrides map[string]string) (agent.Definition, bool)
 	return agent.Definition{}, false
 }
 
-// env is the project's Go environment for agent processes and commands.
+// env is the project's toolchain environment for agent processes and
+// commands.
 func (m *agentManager) env() []string {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), toolEnvTimeout)
 	defer cancel()
-	if r, err := m.win.runner(ctx); err == nil {
-		return r.Environ()
-	}
-	return os.Environ()
+	return m.win.toolEnv(ctx)
 }
 
 // proc returns the running process for def, starting and initializing it

@@ -1,0 +1,85 @@
+{
+ "url": "http://localhost:34115/",
+ "out": "/tmp/goi-e2e-pyi",
+ "initialWait": 5000,
+ "steps": [
+  {
+   "label": "helpers",
+   "eval": "(() => { window.__w = async (fn, ms = 60000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch (e) {} await new Promise(r => setTimeout(r, 150)); } return 'TIMEOUT'; }; window.__open = (name) => { const r = [...document.querySelectorAll('.tree-row')].find(e => e.querySelector('.tree-name')?.textContent === name); if (!r) return false; r.dispatchEvent(new MouseEvent('dblclick', {bubbles: true})); return true; }; return true; })()"
+  },
+  {
+   "label": "window title",
+   "eval": "document.title"
+  },
+  {
+   "label": "tree shows main.py",
+   "eval": "__w(() => [...document.querySelectorAll('.tree-name')].some(e => e.textContent === 'main.py'))"
+  },
+  {
+   "label": "capabilities",
+   "eval": "go.rpc.AppService.Info().then(i => ({name: i.name, projectDir: i.projectDir, ...i.capabilities}))"
+  },
+  {
+   "label": "open main.py",
+   "eval": "__open('main.py')"
+  },
+  {
+   "wait": 1500
+  },
+  {
+   "label": "python highlighting (styled spans)",
+   "eval": "__w(() => document.querySelectorAll('.cm-content span[class]').length > 5 && document.querySelectorAll('.cm-content span[class]').length)"
+  },
+  {
+   "label": "language name in status bar",
+   "eval": "[...document.querySelectorAll('.statusbar *')].map(e => e.textContent).find(t => t === 'Python') ?? null"
+  },
+  {
+   "label": "basedpyright status",
+   "eval": "__w(() => { const t = document.querySelector('[data-state]')?.textContent; return t && /basedpyright/.test(t) && !/starting|indexing/.test(t) && t; }, 90000)"
+  },
+  {
+   "label": "interpreter status item",
+   "eval": "__w(() => [...document.querySelectorAll('.statusbar *')].map(e => e.textContent).find(t => /^(Python \\d|\u26a0 No Python)/.test(t || '')))"
+  },
+  {
+   "label": "run gutter marker",
+   "eval": "__w(() => document.querySelectorAll('.cm-run-gutter .cm-gutterElement').length > 1 && document.querySelector('.cm-run-gutter .cm-gutterElement [title]')?.title)"
+  },
+  {
+   "label": "run markers (backend)",
+   "eval": "(async () => { const p = (await go.rpc.AppService.Info()).projectPath + '/main.py'; return (await go.rpc.EditorService.RunMarkers(p, 'import os\\n\\nif __name__ == \"__main__\":\\n    pass\\n')).map(m => m.kind + '@' + m.line); })()"
+  },
+  {
+   "label": "go to definition of double",
+   "eval": "(async () => { const p = (await go.rpc.AppService.Info()).projectPath + '/main.py'; const locs = await go.rpc.LangService.Definition(p, 6, 30); return (locs || []).map(l => l.path.split('/').slice(-2).join('/') + ':' + l.range.start.line); })()"
+  },
+  {
+   "label": "completion after os.pa",
+   "eval": "(async () => { const p = (await go.rpc.AppService.Info()).projectPath + '/main.py'; await go.rpc.LangService.DidChange(p, 50, 'import os\\nos.pa\\n'); const r = await go.rpc.LangService.Completion(p, 1, 5); await go.rpc.LangService.DidChange(p, 51, (await go.rpc.FileService.Read(p)).content); return (r.items || []).map(i => i.label).filter(l => l.startsWith('pa')).slice(0, 5); })()"
+  },
+  {
+   "label": "run main.py",
+   "eval": "(async () => { const p = (await go.rpc.AppService.Info()).projectPath + '/main.py'; const cfg = await go.rpc.RunService.ContextConfig({path: p, kind: 'main', name: 'main.py'}); await go.rpc.RunService.RunConfig(cfg, '', false); return cfg.type + ' ' + cfg.script; })()"
+  },
+  {
+   "label": "program output in the console",
+   "eval": "__w(() => { const t = document.querySelector('.run-window, .run-console, .xterm, .console')?.closest('.dock, .panel, body')?.textContent ?? document.body.textContent; return /hello from pyi 42/.test(t) && 'hello from pyi 42'; }, 30000)"
+  },
+  {
+   "label": "exit line",
+   "eval": "__w(() => (document.body.textContent.match(/Process finished with exit code \\d+/) || [])[0], 20000)"
+  },
+  {
+   "label": "no Go UI: status items",
+   "eval": "[...document.querySelectorAll('.statusbar *')].map(e => e.textContent).filter(t => /^Go \\d|gopls|darwin\\/|linux\\//.test(t || ''))"
+  },
+  {
+   "label": "no Go UI: debug button hidden, no Debug/Lint panels",
+   "eval": "({debugButtonHidden: document.querySelector('.rw-debug')?.hidden ?? null, tabs: [...document.querySelectorAll('.dock-tab')].map(t => t.textContent)})"
+  },
+  {
+   "shot": "pyi.png"
+  }
+ ]
+}

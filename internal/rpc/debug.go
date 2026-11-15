@@ -5,23 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/p4tin/goi/internal/dap"
 	"github.com/p4tin/goi/internal/debugger"
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/pack"
 	"github.com/p4tin/goi/internal/process"
 	"github.com/p4tin/goi/internal/runconfig"
-	"github.com/p4tin/goi/internal/toolbin"
 )
-
-// DlvModule is what "Install Delve" installs.
-const DlvModule = "github.com/go-delve/delve/cmd/dlv@latest"
 
 // Debug states (debug.state).
 const (
@@ -130,17 +125,18 @@ func (m *debugManager) close() {
 	}
 }
 
-// resolveDlv finds Delve with the window's debug.dlvPath setting and SDK.
-func (w *window) resolveDlv() (string, error) {
+var errNoDebugger = errors.New("this app has no debugger")
+
+// resolveDebugger finds the pack's debug adapter with the window's settings
+// and toolchain.
+func (w *window) resolveDebugger() (pack.ServerCommand, error) {
+	d := w.app.pack.Debug
+	if d == nil {
+		return pack.ServerCommand{}, errNoDebugger
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	opts := toolbin.Options{Name: "dlv", Setting: w.settings.Effective().Debug.DlvPath, ToolsDir: w.app.toolsDir()}
-	if r, err := w.runner(ctx); err == nil {
-		if ge, err := r.GoEnv(ctx); err == nil {
-			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
-		}
-	}
-	return toolbin.Resolve(opts)
+	return d.Resolve(ctx, w.projectEnv(), w.app.toolsDir())
 }
 
 func (s *debugSession) emit(ev DebugStateEvent) {
@@ -331,7 +327,12 @@ func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
 	r.mu.Lock()
 	cfg := r.cfg
 	r.mu.Unlock()
-	remote := cfg.Type == runconfig.TypeRemote
+	adapter := a.pack.Debug
+	if adapter == nil {
+		r.finish(RunFailed, errNoDebugger.Error(), nil)
+		return
+	}
+	attachAddr, remote := adapter.Attach(cfg)
 	ds := &debugSession{m: m, id: r.id, run: r, remote: remote, state: DebugStarting}
 	m.mu.Lock()
 	m.sessions[ds.id] = ds
@@ -349,7 +350,7 @@ func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
 		r.finish(RunFailed, msg, nil)
 	}
 
-	dc := debugger.Config{Env: pctx.Env, Dir: r.m.root, Log: a.log.With("src", "dlv"), OnEvent: ds.onEvent,
+	dc := debugger.Config{Env: pctx.Env, Dir: r.m.root, AdapterID: adapter.ID(), Log: a.log.With("src", "dap"), OnEvent: ds.onEvent,
 		OnOutput: func(stream, text string) {
 			r.mu.Lock()
 			out := r.out
@@ -358,21 +359,21 @@ func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
 		}}
 	var launch map[string]any
 	if remote {
-		dc.Addr = net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+		dc.Addr = attachAddr
 		r.system("Connecting to " + dc.Addr + "\n")
 	} else {
-		dlv, err := r.m.win.resolveDlv()
+		cmd, err := r.m.win.resolveDebugger()
 		if err != nil {
 			fail(err.Error())
 			return
 		}
-		dc.Dlv = dlv
+		dc.Adapter, dc.AdapterArgs = cmd.Bin, cmd.Args
 		if err := r.m.ensureTempDir(); err != nil {
 			fail(err.Error())
 			return
 		}
 		bin := filepath.Join(r.m.tempDir, "debug_"+runconfig.Slug(cfg.Name))
-		if launch, err = cfg.DebugLaunch(pctx, bin); err != nil {
+		if launch, err = adapter.LaunchArgs(cfg, pctx, bin); err != nil {
 			fail(err.Error())
 			return
 		}
@@ -429,7 +430,7 @@ func (a *App) startDebug(r *runInstance, pctx runconfig.Context) {
 		return
 	}
 	r.mu.Lock()
-	r.command = "dlv dap"
+	r.command = adapter.Name()
 	r.mu.Unlock()
 	r.setState(RunRunning, "")
 	ds.emit(DebugStateEvent{State: DebugRunning})
@@ -502,11 +503,11 @@ func (s *DebugService) DlvStatus(ctx context.Context) DlvStatus {
 		installing = m.installing
 		m.mu.Unlock()
 	}
-	p, err := w.resolveDlv()
+	c, err := w.resolveDebugger()
 	if err != nil {
 		return DlvStatus{Installing: installing, Message: err.Error()}
 	}
-	return DlvStatus{Path: p, Found: true, Installing: installing}
+	return DlvStatus{Path: c.Bin, Found: true, Installing: installing}
 }
 
 // InstallDlv installs Delve into Goi's tools dir (go install …@latest) in
@@ -524,6 +525,10 @@ func (s *DebugService) InstallDlv(ctx context.Context) error {
 	if m == nil {
 		return errNoProject
 	}
+	d := s.app.pack.Debug
+	if d == nil {
+		return errNoDebugger
+	}
 	m.mu.Lock()
 	if m.installing {
 		m.mu.Unlock()
@@ -532,28 +537,21 @@ func (s *DebugService) InstallDlv(ctx context.Context) error {
 	m.installing = true
 	m.mu.Unlock()
 	ictx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	r, err := w.runner(ictx)
-	if err != nil {
-		cancel()
-		m.mu.Lock()
-		m.installing = false
-		m.mu.Unlock()
-		return err
-	}
-	s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Installing: true, Message: "Installing Delve (go install " + DlvModule + ")…"})
+	p := w.projectEnv()
+	s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Installing: true, Message: "Installing " + d.Name() + " (" + d.InstallHint() + ")…"})
 	go func() {
 		defer cancel()
-		p, err := toolbin.Install(ictx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), DlvModule, "dlv")
+		path, err := d.Install(ictx, p, s.app.toolsDir())
 		m.mu.Lock()
 		m.installing = false
 		m.mu.Unlock()
 		if err != nil {
-			s.app.log.Warn("install dlv", "err", err)
+			s.app.log.Warn("install debugger", "name", d.Name(), "err", err)
 			s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Message: err.Error()})
 			return
 		}
-		s.app.log.Info("dlv installed", "path", p)
-		s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Path: p, Found: true, Message: "Delve installed"})
+		s.app.log.Info("debugger installed", "name", d.Name(), "path", path)
+		s.app.appBus.Emit(events.TopicDebugInstall, DlvStatus{Path: path, Found: true, Message: d.Name() + " installed"})
 	}()
 	return nil
 }

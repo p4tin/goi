@@ -7,6 +7,7 @@ import type { EditorView } from '@codemirror/view';
 import type { Pos } from '../lib/api';
 import { LangClient } from './client';
 import { toPos } from './positions';
+import { serverName } from './status';
 
 export const client = new LangClient();
 
@@ -40,7 +41,7 @@ export async function activeTarget(quiet = false): Promise<{ buf: Buffer; view: 
   if (!client.live()) {
     if (!quiet) {
       const st = client.status.peek();
-      info('lang.notReady', st.state === 'missing' ? 'gopls is not installed' : 'gopls is not ready', st.message || undefined);
+      info('lang.notReady', st.state === 'missing' ? `${serverName()} is not installed` : `${serverName()} is not ready`, st.message || undefined);
     }
     return null;
   }

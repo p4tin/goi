@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,45 @@ import (
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
 )
+
+// KindModule is what markerDetector reports for a root with a go.mod.
+const KindModule Kind = "module"
+
+// markerDetector is a minimal Detector for manager tests: a root go.mod
+// makes a "module" project, one without a module line is a parse error.
+type markerDetector struct{}
+
+func (markerDetector) Detect(_ context.Context, root string, _ vfs.Matcher) (Project, error) {
+	p, err := NewProject(root)
+	if err != nil {
+		return p, err
+	}
+	b, err := os.ReadFile(filepath.Join(p.Root, "go.mod"))
+	if err != nil {
+		return p, nil
+	}
+	if !strings.HasPrefix(string(b), "module ") {
+		p.ParseErrors = append(p.ParseErrors, ParseError{File: filepath.Join(p.Root, "go.mod"), Line: 1, Msg: "missing module directive"})
+		return p, nil
+	}
+	p.Kind = KindModule
+	return p, nil
+}
+
+func (markerDetector) Watches(name string) bool { return name == "go.mod" }
+
+func write(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for name, content := range files {
+		p := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
 
 func eventually(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Helper()
@@ -47,7 +87,7 @@ func open(t *testing.T, files map[string]string) *fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { w.Close() })
-	m, err := Open(context.Background(), Options{Root: root, Settings: st, Watcher: w, Bus: bus})
+	m, err := Open(context.Background(), Options{Root: root, Detector: markerDetector{}, Settings: st, Watcher: w, Bus: bus})
 	if err != nil {
 		t.Fatal(err)
 	}

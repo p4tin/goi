@@ -36,7 +36,7 @@ export const MENUS: MenuDef[] = [
       'lang.contextActions', 'lang.quickDoc', 'lang.parameterInfo', '-',
       'lang.findUsages', 'lang.rename', '-',
       'editor.reformat', 'editor.toggleSoftWrap', '-',
-      'lang.restart', 'lang.installGopls',
+      'lang.restart', 'lang.installServer',
     ],
   },
   {

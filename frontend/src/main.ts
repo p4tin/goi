@@ -1,7 +1,7 @@
 import './theme/tokens.css';
 import './style.css';
 import './app/workbench.css';
-import { resolvedTheme, settings, startState } from './app/state';
+import { appInfo, resolvedTheme, settings, startState } from './app/state';
 import { createWorkbench, routeWorkbench } from './app/workbench';
 import { features } from './features';
 import { app, waitForWindow } from './lib/api';
@@ -14,6 +14,12 @@ async function boot(): Promise<void> {
   const theme = initTheme('auto', (t) => void app.setAppearance(t).catch(() => {}));
   effect(() => resolvedTheme.set(theme.resolved()));
   await startState();
+  // The bundle is built per app (vite --mode <app>); refuse to run one app's
+  // UI against another app's backend (e.g. a stale dev server).
+  const running = appInfo.peek()?.name;
+  if (running && running !== __PRODUCT_NAME__) {
+    throw new Error(`this window's UI was built for ${__PRODUCT_NAME__}, but the app is ${running}`);
+  }
   effect(() => {
     const t = settings()?.ui.theme as ThemeSetting | undefined;
     if (t) theme.set(t);

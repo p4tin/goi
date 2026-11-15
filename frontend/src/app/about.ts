@@ -1,6 +1,6 @@
 // Help → About <product>: product version, build, platform and log location.
 
-import { product } from '../pack';
+import { product } from '../product';
 import { app, openExternal } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';

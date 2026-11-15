@@ -187,3 +187,20 @@ Pack services are plain structs whose methods take `ctx` first (the same convent
 | `workspace.Project` shape change breaks the frontend | Keep the JSON field names Goi uses; the Go pack maps any Go-only fields |
 | Windows-only build or path breakage (history) | CI matrix covers both apps on Windows before merge |
 | macOS keeps permissions per bundle id | Goi keeps `dev.goi.goi` (R3.2) |
+
+## 10. Spike findings and deviations (as built)
+
+**Spikes.**
+- **S1:** `wails3 generate bindings -ts -i ./apps/...` takes several main packages and writes one tree: core services plus each app's own (20 services). Pack services must be wrapped with `application.NewService(&T)` where `T` is concrete, so the wrapping happens in `apps/<app>/pack.go` (main packages may import Wails) and reaches rpc as `[]any`.
+- **S2:** Instead of per-app Taskfiles with include vars, the root Taskfile derives everything from one `APP` var (`APP_DIR`, `MAIN_PKG`, `BIN_DIR=bin/<app>`, `PRODUCT_NAME` read by `scripts/app-info.sh`). A task that calls `task: build` with different vars would not re-derive the global vars, so namespaced `goi:`/`pyi:` tasks were dropped. Use `wails3 build APP=pyi` and `wails3 task <task> APP=pyi`.
+- **S3:** `wails3 dev -config apps/<app>/build/config.yml` works; `dev_mode.root_path` is relative to the working directory (the repo root), and each app's `dev_mode.executes` passes `APP=<app>`.
+
+**Deviations from §1–§7.**
+- **Pack code locations.** Language packs are `packs/golang` and `packs/python`, not `apps/<app>/internal`. Core rpc tests import the Go pack (in `_test.go` files only) to keep exercising Go projects. `TestPackBoundaries` enforces the boundary instead of the compiler. `apps/<app>` holds identity, assets and service binding.
+- **Identity.** It lives in `internal/product`, a process-wide value set once by `boot.Main`, rather than `App.id`: protocol clients, the MCP bridge and terminal integration read it without new parameters. Goi keeps `InstanceID: dev.goi.app`, so single-instance locks still work across versions.
+- **Language server.** There is one per app (`Pack.Server`), not a list.
+- **Settings.** Goi's `go`/`gopls`/`debug.dlvPath`/`lint.*` stay typed fields of `settings.Settings`, and only Goi reads them. Pack sections the struct doesn't model (Pyi's `[python]`) are kept in `Settings.Extra` and read with `Value(key)`. Packs add defaults through `Pack.SettingsDefaults`. In the frontend, setting descriptors are per pack (`registerSettings`).
+- **Workspace model.** `workspace.Project` keeps its fields, `Module` included. Pyi reports one module per `pyproject.toml`.
+- **Go run configuration forms.** The Go Build/Test/Remote forms are still in `run/configDialog.ts`. Pyi never shows them: the add menu lists `capabilities.runTypes` plus Shell/Makefile.
+- **Frontend product.** The product (name, tagline, icon) is `src/product.ts`, built from defines and `virtual:pack-icon`, not `pack.product`. Reading it from `pack.ts` at module load caused a TDZ error in the bundle: the pack imports core modules that read the product while loading.
+- **Guards.** `vite build` refuses to run without `--mode goi|pyi`, and boot refuses to start when the bundle's product name differs from `AppInfo.name`.

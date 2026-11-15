@@ -22,6 +22,7 @@ import { createTestView } from './testView';
 import { configs, notifyError, selectedConfig, selectedName, setRunWorkbench, TYPE_LABEL } from './state';
 import { launch, runHooks } from './launch';
 import './run.css';
+import { capabilities } from '../app/state';
 
 /** Runs or debugs the selected configuration, asking to pick one first. */
 async function launchSelected(debug: boolean): Promise<void> {
@@ -81,6 +82,8 @@ function installWidget(wb: Workbench): void {
   const debugBtn = iconButton('debug', 'Debug', () => void launchSelected(true), 'rw-debug');
   const stopBtn = iconButton('stop', 'Stop', () => void stopAny(), 'rw-stop');
   el.classList.add('run-widget');
+  // Apps without a debugger (the pack's) have no Debug button.
+  debugBtn.hidden = !capabilities().debugger;
   el.append(pick, runBtn, debugBtn, stopBtn);
   effect(() => {
     const p = project();

@@ -12,7 +12,7 @@ import (
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/vfs"
-	"github.com/p4tin/goi/internal/workspace"
+	"github.com/p4tin/goi/packs/golang/godetect"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -75,7 +75,7 @@ func TestStartupOpensProjectAndRecordsRecent(t *testing.T) {
 	a, bus := started(t, root)
 
 	p := a.workspaceSvc.Project(context.Background())
-	if p == nil || p.Kind != workspace.KindModule || p.Root != root {
+	if p == nil || p.Kind != godetect.KindModule || p.Root != root {
 		t.Fatalf("project = %+v", p)
 	}
 	if info := a.appSvc.Info(context.Background()); info.ProjectPath != root || info.Name != "Goi" {

@@ -281,7 +281,7 @@ export async function gotoTest(): Promise<void> {
   if (!buf || !view) return;
   const target = counterpartPath(buf.path);
   if (!target) {
-    info('lang.gotoTest', 'Go to Test works in Go files');
+    info('lang.gotoTest', 'Go to Test works in Go files (foo.go ⇄ foo_test.go)');
     return;
   }
   const inTest = buf.path.endsWith('_test.go');

@@ -10,10 +10,8 @@ import * as GitService from "./gitservice.js";
 import * as LangService from "./langservice.js";
 import * as LintService from "./lintservice.js";
 import * as MenuService from "./menuservice.js";
-import * as ModService from "./modservice.js";
 import * as RecentService from "./recentservice.js";
 import * as RunService from "./runservice.js";
-import * as SDKService from "./sdkservice.js";
 import * as SearchService from "./searchservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as TerminalService from "./terminalservice.js";
@@ -28,10 +26,8 @@ export {
     LangService,
     LintService,
     MenuService,
-    ModService,
     RecentService,
     RunService,
-    SDKService,
     SearchService,
     SettingsService,
     TerminalService,
@@ -44,6 +40,7 @@ export type {
     AgentTerminal,
     AppInfo,
     BufferText,
+    Capabilities,
     ContextRequest,
     DlvStatus,
     FileSearchResult,
@@ -52,7 +49,6 @@ export type {
     FormatResult,
     FunctionBreakpoint,
     GitState,
-    GoEnvSummary,
     HoverResult,
     IndexStatus,
     LangStatus,
@@ -65,7 +61,6 @@ export type {
     OpenedFile,
     PromptBlock,
     RunInfo,
-    SDKStatus,
     SettingsPaths,
     ShowResult,
     TermInfo

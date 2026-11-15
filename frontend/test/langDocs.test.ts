@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { KEYWORD_DOCS, keywordDoc } from '../src/lang/keywords';
+import { KEYWORD_DOCS, keywordDoc } from '../src/packs/go/keywords';
 import { signatureDom, splitSignature } from '../src/lang/signature';
 import type { SignatureInfo } from '../src/lib/api';
 

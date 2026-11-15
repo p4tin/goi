@@ -25,6 +25,24 @@ export async function startState(): Promise<void> {
   settings.set(eff);
 }
 
+export type Capabilities = AppInfo['capabilities'];
+
+/** What the app's pack provides (language server, linter, debugger…). Before
+ * the app info arrives (unit tests) everything counts as present. */
+export function capabilities(): Capabilities {
+  return (
+    appInfo.peek()?.capabilities ?? {
+      languageServer: 'language server',
+      linter: 'linter',
+      debugger: 'debugger',
+      formatter: true,
+      run: true,
+      runTypes: [],
+      runTasks: [],
+    }
+  );
+}
+
 /** True on macOS, used for Cmd vs Ctrl labels. */
 export function isMac(): boolean {
   return (appInfo.peek()?.os ?? navigator.platform.toLowerCase()).startsWith('darwin') || /mac/i.test(navigator.platform);

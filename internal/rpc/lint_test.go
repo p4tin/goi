@@ -8,6 +8,7 @@ import (
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/settings"
+	"github.com/p4tin/goi/packs/golang/services"
 )
 
 func TestLintRunEmitsDiagnostics(t *testing.T) {
@@ -53,21 +54,11 @@ func TestLintMissingBinary(t *testing.T) {
 	}
 }
 
-func TestModuleDirFor(t *testing.T) {
-	root := runModule(t)
-	if got := moduleDirFor(filepath.Join(root, "calc", "calc.go"), root); got != root {
-		t.Fatalf("moduleDirFor = %q", got)
-	}
-	if got := moduleDirFor(t.TempDir(), root); got != "" {
-		t.Fatalf("outside = %q", got)
-	}
-}
-
 func TestModServiceModulesFromGoSum(t *testing.T) {
 	root := runModule(t)
 	os.WriteFile(filepath.Join(root, "go.sum"), []byte("github.com/stretchr/testify v1.9.0 h1:x=\n"), 0o644)
 	a, _ := started(t, root)
-	got := a.modSvc.Modules(context.Background(), "github.com/stre")
+	got := services.NewModService(host{a}).Modules(context.Background(), "github.com/stre")
 	found := false
 	for _, m := range got {
 		if m == "github.com/stretchr/testify" {

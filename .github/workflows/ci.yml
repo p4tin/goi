@@ -18,6 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-24.04]
+    # Tests run once per OS; both apps (Goi, Pyi) are built on every OS.
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +48,7 @@ jobs:
         working-directory: frontend
         run: npm test
 
-      - name: Frontend build (populates frontend/dist for go:embed)
+      - name: Frontend build (apps/goi/dist and apps/pyi/dist for go:embed)
         working-directory: frontend
         run: npm run build
 
@@ -60,21 +61,25 @@ jobs:
 
       - name: go vet (E2E server build)
         if: runner.os != 'Linux'
-        run: go vet -tags server ./internal/rpc
+        run: go vet -tags server ./internal/rpc ./apps/...
 
       - name: go test
-        run: go test ./internal/...
+        run: go test ./internal/... ./packs/...
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
-      - name: Wails build
+      - name: Wails build (Goi)
         shell: bash
-        run: wails3 build
+        run: wails3 build APP=goi
+
+      - name: Wails build (Pyi)
+        shell: bash
+        run: wails3 build APP=pyi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: goi-${{ matrix.os }}
+          name: apps-${{ matrix.os }}
           path: bin/
           retention-days: 7
 
@@ -92,15 +97,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Frontend build (populates frontend/dist for go:embed)
+      - name: Frontend build (apps/*/dist for go:embed)
         working-directory: frontend
         run: npm ci && npm run build
 
       - name: Core packages (linux/arm64, windows/arm64)
         run: |
           # rpc and dockmenu need cgo on Linux (Wails, GTK); the rest must stay cgo-free.
-          GOOS=linux GOARCH=arm64 go build $(go list ./internal/... | grep -v -e /internal/rpc -e /internal/dockmenu)
-          GOOS=windows GOARCH=arm64 go build ./internal/...
+          GOOS=linux GOARCH=arm64 go build $(go list ./internal/... ./packs/... | grep -v -e /internal/rpc -e /internal/dockmenu -e /internal/boot)
+          GOOS=windows GOARCH=arm64 go build ./internal/... ./packs/...
 
-      - name: App binary (windows/arm64, cgo-free)
-        run: GOOS=windows GOARCH=arm64 go build -o /tmp/goi-arm64.exe .
+      - name: App binaries (windows/arm64, cgo-free)
+        run: |
+          GOOS=windows GOARCH=arm64 go build -o /tmp/goi-arm64.exe ./apps/goi
+          GOOS=windows GOARCH=arm64 go build -o /tmp/pyi-arm64.exe ./apps/pyi

@@ -3,17 +3,15 @@ package rpc
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/gopls"
+	"github.com/p4tin/goi/internal/langserver"
 	"github.com/p4tin/goi/internal/lint"
 	"github.com/p4tin/goi/internal/lsp"
-	"github.com/p4tin/goi/internal/toolbin"
+	"github.com/p4tin/goi/internal/pack"
 )
 
 // LintStatus is the payload of lint.status and the result of Status.
@@ -37,7 +35,7 @@ type LintDiagnosticsEvent struct {
 
 // LintFix is the data attached to a fixable lint diagnostic.
 type LintFix struct {
-	GoiLintFix []gopls.FileEdit `json:"goiLintFix"`
+	GoiLintFix []langserver.FileEdit `json:"goiLintFix"`
 }
 
 // lintSession tracks runs for the open project.
@@ -45,7 +43,6 @@ type lintSession struct {
 	mu         sync.Mutex
 	running    map[string]context.CancelFunc
 	installing bool
-	major      int
 	version    string
 	bin        string
 }
@@ -60,68 +57,69 @@ func (ls *lintSession) close() {
 	}
 }
 
-// LintService runs golangci-lint for the open project.
+// LintService runs the pack's linter (Goi: golangci-lint) for the open
+// project.
 type LintService struct {
 	app *App
 }
 
-func (s *LintService) session(ctx context.Context) (*session, *lintSession, error) {
+var errNoLinter = errors.New("this app has no linter")
+
+func (s *LintService) session(ctx context.Context) (*session, *lintSession, pack.Linter, error) {
+	l := s.app.pack.Linter
+	if l == nil {
+		return nil, nil, nil, errNoLinter
+	}
 	sess, err := s.app.sessionFor(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if sess.lint == nil {
-		return nil, nil, errNoProject
+		return nil, nil, nil, errNoProject
 	}
-	return sess, sess.lint, nil
+	return sess, sess.lint, l, nil
 }
 
-// resolveGolangci finds golangci-lint with the window's settings and SDK.
-func (w *window) resolveGolangci() (string, error) {
+// resolveLinter finds the linter with the window's settings and toolchain.
+func (w *window) resolveLinter(l pack.Linter) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	opts := toolbin.Options{Setting: w.settings.Effective().Lint.GolangciPath, ToolsDir: w.app.toolsDir()}
-	if r, err := w.runner(ctx); err == nil {
-		if ge, err := r.GoEnv(ctx); err == nil {
-			opts.GOBIN, opts.GOPATH = ge["GOBIN"], ge["GOPATH"]
-		}
-	}
-	return lint.Resolve(opts)
+	return l.Resolve(ctx, w.projectEnv(), w.app.toolsDir())
 }
 
-// version caches the golangci-lint version per binary.
-func (s *LintService) version(ls *lintSession, bin string) (int, string, error) {
+// version caches the linter version per binary.
+func (s *LintService) version(ls *lintSession, l pack.Linter, bin string) (string, error) {
 	ls.mu.Lock()
-	if ls.bin == bin && ls.major > 0 {
-		m, v := ls.major, ls.version
+	if ls.bin == bin && ls.version != "" {
+		v := ls.version
 		ls.mu.Unlock()
-		return m, v, nil
+		return v, nil
 	}
 	ls.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	m, v, err := lint.Version(ctx, bin)
+	v, err := l.Version(ctx, bin)
 	if err != nil {
-		return 0, "", err
+		return "", err
 	}
 	ls.mu.Lock()
-	ls.bin, ls.major, ls.version = bin, m, v
+	ls.bin, ls.version = bin, v
 	ls.mu.Unlock()
-	return m, v, nil
+	return v, nil
 }
 
-// status reports golangci-lint as resolved for window w.
-func (s *LintService) status(w *window, ls *lintSession) LintStatus {
+// status reports the linter as resolved for window w.
+func (s *LintService) status(w *window, ls *lintSession, l pack.Linter) LintStatus {
 	ls.mu.Lock()
 	st := LintStatus{Installing: ls.installing, Running: len(ls.running)}
 	ls.mu.Unlock()
-	bin, err := w.resolveGolangci()
+	bin, err := w.resolveLinter(l)
 	if err != nil {
 		st.Message = err.Error()
 		return st
 	}
 	st.Found, st.Bin = true, bin
-	if _, v, err := s.version(ls, bin); err == nil {
+	if v, err := s.version(ls, l, bin); err == nil {
 		st.Version = v
 	} else {
 		st.Message = err.Error()
@@ -130,22 +128,22 @@ func (s *LintService) status(w *window, ls *lintSession) LintStatus {
 }
 
 // emitStatus sends lint.status to window w.
-func (s *LintService) emitStatus(w *window, ls *lintSession) {
-	w.bus.Emit(events.TopicLintStatus, s.status(w, ls))
+func (s *LintService) emitStatus(w *window, ls *lintSession, l pack.Linter) {
+	w.bus.Emit(events.TopicLintStatus, s.status(w, ls, l))
 }
 
-// Status reports whether golangci-lint is available.
+// Status reports whether the linter is available.
 func (s *LintService) Status(ctx context.Context) LintStatus {
-	sess, ls, err := s.session(ctx)
+	sess, ls, l, err := s.session(ctx)
 	if err != nil {
 		return LintStatus{Message: err.Error()}
 	}
-	return s.status(sess.win, ls)
+	return s.status(sess.win, ls, l)
 }
 
-// Install installs golangci-lint into Goi's tools dir in the background.
+// Install installs the linter into the tools dir in the background.
 func (s *LintService) Install(ctx context.Context) error {
-	sess, ls, err := s.session(ctx)
+	sess, ls, l, err := s.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -157,48 +155,23 @@ func (s *LintService) Install(ctx context.Context) error {
 	ls.installing = true
 	ls.mu.Unlock()
 	ictx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	r, err := sess.win.runner(ictx)
-	if err != nil {
-		cancel()
-		ls.mu.Lock()
-		ls.installing = false
-		ls.mu.Unlock()
-		return err
-	}
-	s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Installing: true, Message: "Installing golangci-lint (go install " + lint.Module + ")…"})
+	p := sess.win.projectEnv()
+	s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Installing: true, Message: "Installing " + l.Name() + " (" + l.InstallHint() + ")…"})
 	go func() {
 		defer cancel()
-		_, err := toolbin.Install(ictx, r.SDK.GoBin, r.Environ(), s.app.toolsDir(), lint.Module, lint.Name)
+		_, err := l.Install(ictx, p, s.app.toolsDir())
 		ls.mu.Lock()
 		ls.installing = false
-		ls.bin, ls.major = "", 0
+		ls.bin, ls.version = "", ""
 		ls.mu.Unlock()
 		if err != nil {
-			s.app.log.Warn("install golangci-lint", "err", err)
+			s.app.log.Warn("install linter", "name", l.Name(), "err", err)
 			s.app.appBus.Emit(events.TopicLintStatus, LintStatus{Message: err.Error()})
 			return
 		}
-		s.emitStatus(sess.win, ls)
+		s.emitStatus(sess.win, ls, l)
 	}()
 	return nil
-}
-
-// moduleDirFor finds the module directory containing path (nearest go.mod).
-func moduleDirFor(path, root string) string {
-	d := path
-	if st, err := os.Stat(path); err != nil || !st.IsDir() {
-		d = filepath.Dir(path)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
-			return d
-		}
-		parent := filepath.Dir(d)
-		if parent == d || !within(root, parent) && parent != root {
-			return ""
-		}
-		d = parent
-	}
 }
 
 // LintResult summarizes a run.
@@ -208,62 +181,31 @@ type LintResult struct {
 	Error  string `json:"error"`
 }
 
-// Run lints the package containing path ("package") or every module of the
-// project ("project"), then emits lint.diagnostics. A newer run of the same
-// scope cancels the older one.
+// Run lints the unit containing path ("package") or the whole project
+// ("project"), then emits lint.diagnostics. A newer run of the same scope
+// cancels the older one.
 func (s *LintService) Run(ctx context.Context, scope, path string) (LintResult, error) {
-	sess, ls, err := s.session(ctx)
+	sess, ls, l, err := s.session(ctx)
 	if err != nil {
 		return LintResult{}, err
 	}
 	w := sess.win
-	if !w.settings.Effective().Lint.Enabled {
-		return LintResult{}, errors.New("golangci-lint is disabled in settings (lint.enabled)")
+	st := w.settings.Effective()
+	if !l.Enabled(st) {
+		return LintResult{}, errors.New(l.Name() + " is disabled in settings (lint.enabled)")
 	}
-	bin, err := w.resolveGolangci()
+	bin, err := w.resolveLinter(l)
 	if err != nil {
 		return LintResult{}, err
 	}
-	major, _, err := s.version(ls, bin)
+	if _, err := s.version(ls, l, bin); err != nil {
+		return LintResult{}, err
+	}
+	jobs, err := l.Jobs(scope, path, sess.manager.Project())
 	if err != nil {
 		return LintResult{}, err
 	}
-	type job struct {
-		dir     string
-		targets []string
-		covered string
-		recurse bool
-	}
-	var jobs []job
-	if scope == "project" {
-		for _, m := range sess.manager.Project().Modules {
-			jobs = append(jobs, job{dir: m.Dir, targets: []string{"./..."}, covered: m.Dir, recurse: true})
-		}
-		if len(jobs) == 0 {
-			if md := moduleDirFor(sess.root, sess.root); md != "" {
-				jobs = append(jobs, job{dir: md, targets: []string{"./..."}, covered: md, recurse: true})
-			}
-		}
-	} else {
-		pkgDir := path
-		if st, err := os.Stat(path); err != nil || !st.IsDir() {
-			pkgDir = filepath.Dir(path)
-		}
-		md := moduleDirFor(pkgDir, sess.root)
-		if md == "" {
-			return LintResult{}, errors.New("no go.mod above " + pkgDir)
-		}
-		rel, _ := filepath.Rel(md, pkgDir)
-		target := "./" + filepath.ToSlash(rel)
-		if rel == "." {
-			target = "."
-		}
-		jobs = append(jobs, job{dir: md, targets: []string{target}, covered: pkgDir})
-	}
-	if len(jobs) == 0 {
-		return LintResult{}, errors.New("no Go module in the project")
-	}
-	key := scope + ":" + jobs[0].covered
+	key := scope + ":" + jobs[0].Covered
 	rctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	ls.mu.Lock()
 	if prev := ls.running[key]; prev != nil {
@@ -271,24 +213,20 @@ func (s *LintService) Run(ctx context.Context, scope, path string) (LintResult, 
 	}
 	ls.running[key] = cancel
 	ls.mu.Unlock()
-	s.emitStatus(w, ls)
+	s.emitStatus(w, ls, l)
 	defer func() {
 		ls.mu.Lock()
 		delete(ls.running, key)
 		ls.mu.Unlock()
 		cancel()
-		s.emitStatus(w, ls)
+		s.emitStatus(w, ls, l)
 	}()
 
-	env := os.Environ()
-	if r, err := w.runner(rctx); err == nil {
-		env = r.Environ()
-	}
-	extra := w.settings.Effective().Lint.Args
+	env := w.toolEnv(rctx)
 	ev := LintDiagnosticsEvent{Files: map[string][]lsp.Diagnostic{}, Recursive: scope == "project"}
 	res := LintResult{}
 	for _, j := range jobs {
-		issues, err := lint.Run(rctx, lint.Spec{Bin: bin, Major: major, Dir: j.dir, Env: env, Targets: j.targets, Extra: extra})
+		issues, err := l.Run(rctx, bin, j, env, st)
 		if errors.Is(err, context.Canceled) {
 			return LintResult{Error: "cancelled"}, nil
 		}
@@ -296,14 +234,14 @@ func (s *LintService) Run(ctx context.Context, scope, path string) (LintResult, 
 			res.Error = err.Error()
 			continue
 		}
-		ev.Dirs = append(ev.Dirs, j.covered)
+		ev.Dirs = append(ev.Dirs, j.Covered)
 		for _, is := range issues {
 			// Package runs report only that package; keep them, and drop
 			// anything outside the project.
 			if !within(sess.root, is.Path) && is.Path != sess.root {
 				continue
 			}
-			ev.Files[is.Path] = append(ev.Files[is.Path], lintDiagnostic(is))
+			ev.Files[is.Path] = append(ev.Files[is.Path], lintDiagnostic(l.Name(), is))
 			res.Issues++
 		}
 	}
@@ -315,7 +253,7 @@ func (s *LintService) Run(ctx context.Context, scope, path string) (LintResult, 
 	return res, nil
 }
 
-func lintDiagnostic(is lint.Issue) lsp.Diagnostic {
+func lintDiagnostic(linter string, is lint.Issue) lsp.Diagnostic {
 	sev := 2 // warning
 	switch strings.ToLower(is.Severity) {
 	case "error":
@@ -328,7 +266,7 @@ func lintDiagnostic(is lint.Issue) lsp.Diagnostic {
 	d := lsp.Diagnostic{
 		Range:    lsp.Range{Start: lsp.Position{Line: is.Start.Line, Character: is.Start.Character}, End: lsp.Position{Line: is.End.Line, Character: is.End.Character}},
 		Severity: sev,
-		Source:   "golangci-lint (" + is.Linter + ")",
+		Source:   linter + " (" + is.Linter + ")",
 		Message:  is.Message,
 	}
 	if len(is.Fix) > 0 {
@@ -336,7 +274,7 @@ func lintDiagnostic(is lint.Issue) lsp.Diagnostic {
 		for i, e := range is.Fix {
 			edits[i] = lsp.TextEdit{Range: lsp.Range{Start: lsp.Position{Line: e.Start.Line, Character: e.Start.Character}, End: lsp.Position{Line: e.End.Line, Character: e.End.Character}}, NewText: e.NewText}
 		}
-		d.Data = LintFix{GoiLintFix: []gopls.FileEdit{{Path: is.Path, Edits: edits}}}
+		d.Data = LintFix{GoiLintFix: []langserver.FileEdit{{Path: is.Path, Edits: edits}}}
 	}
 	return d
 }

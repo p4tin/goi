@@ -8,38 +8,42 @@ goi/
 ├── .claude/
 │   ├── steering/            # product.md, structure.md, tech.md
 │   └── designs/<feature>/   # requirements.md, design.md, tasks.md, retro.md
-├── main.go                  # entrypoint: parses args, rpc.App.Run (the Wails v3 shell lives in internal/rpc)
-├── Taskfile.yml             # wails3 task entry (build/*/Taskfile.yml per OS; build/config.yml = product info)
+├── apps/<app>/              # one directory per app (goi, pyi): main.go (embeds dist/, build/config.yml, icon;
+│                            # calls boot.Main), pack.go (identity + pack + bound pack services), build/ (config.yml,
+│                            # icons, darwin/windows/linux assets, package/), dist/ (GENERATED: vite --mode <app>)
+├── packs/<lang>/            # language packs: golang (godetect, gosdk, gopls, gofmt, golangci, gorun, gosyntax, gomod,
+│                            # services) and python (pyenv, pyright, pyrun, services); implement internal/pack
+├── Taskfile.yml             # wails3 task entry; APP=goi|pyi picks apps/<app> (build/*/Taskfile.yml shared per OS)
 ├── tools/e2e/               # headless-Chrome CDP harness (drives the -tags server build)
 ├── tools/fakeagent/         # scripted ACP agent for E2E (wraps internal/acp/acptest)
 ├── go.mod
 ├── internal/                # goi-core: all backend logic, UI-agnostic
+│   ├── product/             # the running app's identity (set by boot.Main)
+│   ├── pack/                # Pack + capability interfaces + Host (the core/pack contract)
+│   ├── boot/                # shared main: identity, mcp-bridge, shellenv, rpc.App.Run
 │   ├── events/              # Bus interface + topic constants
 │   ├── applog/              # rotating JSON log
 │   ├── paths/               # version-scoped config/cache dirs (GOI_HOME override)
 │   ├── workspace/           # project detection + Manager (roots, excludes, re-detect)
 │   ├── vfs/                 # text I/O (EOL/BOM), tree ops, matcher, watcher, trash, reveal
-│   ├── gosdk/               # SDK discovery/validation, go command Runner
+
 │   ├── settings/            # layered TOML settings + hot reload
-│   ├── format/              # gofmt / goimports
-│   ├── gosyntax/            # go/parser run markers
 │   ├── index/               # file index + fuzzy search
 │   ├── journal/             # crash journal for unsaved buffers
 │   ├── recent/              # recent projects (flock-shared)
 │   ├── dockmenu/            # macOS Dock icon menu (cgo; no-op elsewhere)
 │   ├── lsp/                 # LSP JSON-RPC client + protocol types (no Goi knowledge)
-│   ├── gopls/               # gopls resolve/install, supervised server, sync, requests, UTF-16 edits
+│   ├── langserver/          # the pack's language server: supervised process, sync, requests, UTF-16 edits
 │   ├── textsearch/          # Find/Replace in Path engine (line-based Go regexp)
-│   ├── toolbin/             # resolve/install Go tools (gopls, dlv): setting → PATH → GOBIN → GOPATH/bin → tools dir
-│   ├── runconfig/           # run configurations: model, TOML store (shared/local/temporary), validate, plans, dlv launch args
+│   ├── toolbin/             # resolve/install tools: setting → PATH → GOBIN → GOPATH/bin → tools dir
+│   ├── runconfig/           # run configurations: model, TOML store (shared/local/temporary), validate, Shell/Makefile plans, type registry
 │   ├── process/             # user processes: process groups, stdin, interrupt-then-kill stop
 │   ├── dap/                 # Debug Adapter Protocol client + types (no Goi knowledge)
-│   ├── debugger/            # dlv dap sessions: launch/attach, breakpoints, stepping, evaluation, run to cursor, path mapping
+│   ├── debugger/            # DAP sessions with the pack's adapter: launch/attach, breakpoints, stepping, evaluation, run to cursor
 │   ├── terminal/            # PTY terminals (go-pty) + zsh/bash shell integration
 │   ├── shellenv/            # login-shell PATH for GUI launches (macOS/Linux), applied first thing in main.go
 │   ├── git/                 # git CLI wrapper: status, diffs/hunk patches, branches, stash, log, blame, conflicts
-│   ├── lint/                # golangci-lint v1/v2 runner and JSON → issues/fixes
-│   ├── gomod/               # module proxy versions, known modules (module cache, go.sum)
+│   ├── lint/                # lint issue model (the pack's Linter produces issues)
 │   ├── acp/                 # Agent Client Protocol v1 client + types (no Goi knowledge); acptest/ = scripted fake agent
 │   ├── mcp/                 # MCP server (Streamable HTTP, tools) + stdio bridge (no Goi knowledge)
 │   ├── agent/               # coding agents: catalogue, resolve, npm install, ACP client process, agent terminals
@@ -47,7 +51,9 @@ goi/
 │                            # shell.go (v3 app + windows), lifecycle.go, dock.go, menu.go
 ├── frontend/                # Wails frontend (TypeScript + Vite)
 │   ├── src/
-│   │   ├── features.ts      # installer list (one entry per feature)
+│   │   ├── features.ts      # core installer list (pack features insert at named anchors)
+│   │   ├── pack.ts          # the app's frontend pack ('virtual:pack' → packs/<pack>/index.ts); product.ts: name/icon
+│   │   ├── packs/<pack>/    # go (gomod, SDK status/picker, new project, keyword docs, settings), python (interpreter, new project, settings)
 │   │   ├── app/             # state, workbench shell, docks, layout, status, dialogs, context menus,
 │   │   │                    # native menu bar definition (menuBar.ts)
 │   │   ├── editor/          # manager, panes/splits, tabs, languages, save flow, disk sync,
@@ -60,7 +66,6 @@ goi/
 │   │   ├── terminal/        # xterm.js terminal tabs
 │   │   ├── git/             # status, tree colors, gutter, commit panel, diff, branches, stash, log, blame, merge editor
 │   │   ├── lint/            # golangci-lint diagnostics source, lint on save, fixes
-│   │   ├── mod/             # go.mod/go.work completion, links, module actions
 │   │   ├── agent/           # AI Agent window, transcript model, Markdown, IDE tools for agents (ACP fs + MCP), change log
 │   │   ├── markdown/        # Markdown preview: renderer (@lezer/markdown + GFM), code highlighting, Mermaid, links/images, scroll sync
 │   │   ├── format/          # JSON (hand-written) and YAML (`yaml` library) formatters for Reformat File / format on save
@@ -85,7 +90,8 @@ goi/
 6. Packages depend downward only: `rpc` → domain packages; `workspace` uses `settings` + `vfs`, `index` uses `vfs`, `gopls` uses `lsp` + `toolbin`, `debugger` uses `dap`, `runconfig` uses `gosyntax`, `lint` uses `toolbin`, `agent` uses `acp` + `process`. Domain packages don't depend on each other unless the design says so.
 
 ## Project-local state
+- Project state lives in the app's project dir: `.goi/` for Goi, `.pyi/` for Pyi (`product.Identity.ProjectDir`).
 - `.goi/settings.toml`: project settings (shareable).
 - `.goi/runConfigurations/*.toml`: shared run configurations (local ones: `<config>/workspaces/<hash>/runConfigurations/`; benchmark history `<config>/workspaces/<hash>/bench.json`).
-- User state: `os.UserConfigDir()/Goi/<major.minor>/` (settings, recent projects, the projects open at last quit (`open-projects.json`), window layouts keyed by workspace hash, the external MCP token `mcp-token`). Agents installed by Goi live in `<config>/tools/agents/<id>`.
+- User state: `os.UserConfigDir()/<App>/<major.minor>/` (Goi/0.1, Pyi/0.1; `GOI_HOME` / `PYI_HOME` redirect it) (settings, recent projects, the projects open at last quit (`open-projects.json`), window layouts keyed by workspace hash, the external MCP token `mcp-token`). Agents installed by Goi live in `<config>/tools/agents/<id>`.
 - Caches: `os.UserCacheDir()/Goi/<major.minor>/`.

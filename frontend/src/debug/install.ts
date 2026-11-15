@@ -15,7 +15,8 @@ import { actions, addWatch, installDebugWindow, renderDebugWindow, targetTab, wa
 import { openEvaluate } from './evaluate';
 import { installDebugDecorations } from './inline';
 import './debug.css';
-import { product } from '../pack';
+import { product } from '../product';
+import { capabilities } from '../app/state';
 
 /** Offers to install Delve when a debug launch fails because it's missing,
  * then retries the launch. */
@@ -49,6 +50,8 @@ async function offerInstall(wb: Workbench, cfg: RunConfig, err: unknown): Promis
 }
 
 export function installDebug(wb: Workbench): void {
+  // Apps without a debugger (the pack's) get no breakpoints or Debug window.
+  if (!capabilities().debugger) return;
   installBreakpoints(wb);
   installDebugDecorations();
 

@@ -30,14 +30,22 @@ var _ Provider = (*Store)(nil)
 
 // Load reads defaults, the user file and (optionally) the project file.
 // Missing files are treated as empty layers; an invalid user or project file
-// is reported through a notification and treated as empty.
-func Load(userPath, projectPath string, bus events.Bus) (*Store, error) {
+// is reported through a notification and treated as empty. packDefaults are
+// the app pack's default sections (TOML), merged over the built-in ones.
+func Load(userPath, projectPath string, bus events.Bus, packDefaults ...[]byte) (*Store, error) {
 	if bus == nil {
 		bus = events.Nop{}
 	}
 	defaults := map[string]any{}
 	if err := toml.Unmarshal(defaultsTOML, &defaults); err != nil {
 		return nil, fmt.Errorf("settings: defaults: %w", err)
+	}
+	for _, pd := range packDefaults {
+		extra := map[string]any{}
+		if err := toml.Unmarshal(pd, &extra); err != nil {
+			return nil, fmt.Errorf("settings: pack defaults: %w", err)
+		}
+		merge(defaults, extra, LayerDefault, "", map[string]Layer{})
 	}
 	s := &Store{
 		bus:         bus,

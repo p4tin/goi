@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -136,7 +137,6 @@ type App struct {
 	appSvc       *AppService
 	workspaceSvc *WorkspaceService
 	fileSvc      *FileService
-	sdkSvc       *SDKService
 	settingsSvc  *SettingsService
 	recentSvc    *RecentService
 	searchSvc    *SearchService
@@ -148,7 +148,6 @@ type App struct {
 	termSvc      *TerminalService
 	gitSvc       *GitService
 	lintSvc      *LintService
-	modSvc       *ModService
 	agentSvc     *AgentService
 	mcp          *mcpHost
 
@@ -194,7 +193,6 @@ func NewApp(opts Options, p pack.Pack) (*App, error) {
 	a.appSvc = &AppService{app: a}
 	a.workspaceSvc = &WorkspaceService{app: a}
 	a.fileSvc = &FileService{app: a}
-	a.sdkSvc = &SDKService{app: a}
 	a.settingsSvc = &SettingsService{app: a}
 	a.recentSvc = &RecentService{app: a}
 	a.searchSvc = &SearchService{app: a}
@@ -206,20 +204,19 @@ func NewApp(opts Options, p pack.Pack) (*App, error) {
 	a.termSvc = &TerminalService{app: a}
 	a.gitSvc = &GitService{app: a}
 	a.lintSvc = &LintService{app: a}
-	a.modSvc = &ModService{app: a}
 	a.agentSvc = &AgentService{app: a}
 	a.mcp = &mcpHost{app: a}
 	a.debugLaunch = a.startDebug
 	return a, nil
 }
 
-// services returns the services to bind to the frontend.
+// services returns the services to bind to the frontend: the core's, then
+// the pack's own.
 func (a *App) services() []application.Service {
-	return []application.Service{
+	out := []application.Service{
 		application.NewService(a.appSvc),
 		application.NewService(a.workspaceSvc),
 		application.NewService(a.fileSvc),
-		application.NewService(a.sdkSvc),
 		application.NewService(a.settingsSvc),
 		application.NewService(a.recentSvc),
 		application.NewService(a.searchSvc),
@@ -231,9 +228,18 @@ func (a *App) services() []application.Service {
 		application.NewService(a.termSvc),
 		application.NewService(a.gitSvc),
 		application.NewService(a.lintSvc),
-		application.NewService(a.modSvc),
 		application.NewService(a.agentSvc),
 	}
+	if a.pack.Services != nil {
+		for _, s := range a.pack.Services(host{a}) {
+			if svc, ok := s.(application.Service); ok {
+				out = append(out, svc)
+			} else {
+				a.log.Error("pack service is not an application.Service", "type", fmt.Sprintf("%T", s))
+			}
+		}
+	}
+	return out
 }
 
 // Shutdown releases every window; it runs when the application exits.
@@ -258,6 +264,51 @@ type AppInfo struct {
 	Arch        string `json:"arch"`
 	ProjectPath string `json:"projectPath"`
 	LogPath     string `json:"logPath"`
+	// ProjectDir is the app's project state directory (".goi").
+	ProjectDir string `json:"projectDir"`
+	// Capabilities are what the app's pack provides; the frontend hides
+	// the UI of the others.
+	Capabilities Capabilities `json:"capabilities"`
+}
+
+// Capabilities describe the pack's tooling. Names are display names, ""
+// when the pack has none.
+type Capabilities struct {
+	LanguageServer string `json:"languageServer"`
+	Linter         string `json:"linter"`
+	Debugger       string `json:"debugger"`
+	Formatter      bool   `json:"formatter"`
+	// Run reports pack configuration types (gutter markers, context runs).
+	Run bool `json:"run"`
+	// RunTypes are the pack's configuration type ids.
+	RunTypes []string `json:"runTypes"`
+	// RunTasks are the pack's before-launch task types.
+	RunTasks []string `json:"runTasks"`
+}
+
+// capabilities derives Capabilities from the pack.
+func (a *App) capabilities() Capabilities {
+	c := Capabilities{Formatter: a.pack.Formatter != nil, Run: a.pack.Run != nil, RunTypes: []string{}, RunTasks: []string{}}
+	if s := a.pack.Server; s != nil {
+		c.LanguageServer = s.Name()
+	}
+	if l := a.pack.Linter; l != nil {
+		c.Linter = l.Name()
+	}
+	if d := a.pack.Debug; d != nil {
+		c.Debugger = d.Name()
+	}
+	if r := a.pack.Run; r != nil {
+		for t := range r.Types() {
+			c.RunTypes = append(c.RunTypes, string(t))
+		}
+		sort.Strings(c.RunTypes)
+		for t := range r.Tasks() {
+			c.RunTasks = append(c.RunTasks, t)
+		}
+		sort.Strings(c.RunTasks)
+	}
+	return c
 }
 
 // AppService is the frontend-bound application service.
@@ -269,13 +320,15 @@ type AppService struct {
 // open in this window, if any.
 func (s *AppService) Info(ctx context.Context) AppInfo {
 	info := AppInfo{
-		Name:      product.Name(),
-		Version:   product.Current().Version,
-		Build:     paths.BuildVersion,
-		GoVersion: runtime.Version(),
-		OS:        runtime.GOOS,
-		Arch:      runtime.GOARCH,
-		LogPath:   s.app.logPath,
+		Name:         product.Name(),
+		Version:      product.Current().Version,
+		Build:        paths.BuildVersion,
+		GoVersion:    runtime.Version(),
+		OS:           runtime.GOOS,
+		Arch:         runtime.GOARCH,
+		LogPath:      s.app.logPath,
+		ProjectDir:   product.Current().ProjectDir,
+		Capabilities: s.app.capabilities(),
 	}
 	w, err := s.app.windowFor(ctx)
 	if err != nil {

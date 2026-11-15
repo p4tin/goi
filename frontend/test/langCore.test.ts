@@ -179,7 +179,7 @@ describe('popup + status helpers', () => {
     expect(fuzzyMatch('anything', '')).toBe(true);
   });
   it('labels states', () => {
-    expect(statusLabel({ state: 'ready', message: '', bin: '' })).toBe('gopls');
+    expect(statusLabel({ state: 'ready', message: '', bin: '' }, 'gopls')).toBe('gopls');
     expect(statusLabel({ state: 'missing', message: '', bin: '' })).toContain('not installed');
   });
 });

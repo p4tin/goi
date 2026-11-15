@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -59,26 +58,6 @@ F=
 	}
 }
 
-func TestTestRunPattern(t *testing.T) {
-	tests := []struct {
-		names []string
-		want  string
-	}{
-		{[]string{"TestA"}, "^TestA$"},
-		{[]string{"TestA", "TestB"}, "^(TestA|TestB)$"},
-		{[]string{"TestA/sub_1"}, "^TestA$/^sub_1$"},
-		{[]string{"TestA/case_(1)", "TestA/x.y"}, `^TestA$/^(case_\(1\)|x\.y)$`},
-		{[]string{"TestA/a/deep", "TestB/b/deep"}, "^(TestA|TestB)$/^(a|b)$/^deep$"},
-		// A whole top-level test keeps all its subtests.
-		{[]string{"TestA", "TestB/sub"}, "^(TestA|TestB)$"},
-	}
-	for _, tt := range tests {
-		if got := TestRunPattern(tt.names); got != tt.want {
-			t.Errorf("TestRunPattern(%q) = %q, want %q", tt.names, got, tt.want)
-		}
-	}
-}
-
 func TestSlug(t *testing.T) {
 	for in, want := range map[string]string{"Run server": "Run_server", "go test ./...": "go_test_._" /* trailing dots are invalid on Windows */, "": "config", "..": "config", "a/b:c": "a_b_c"} {
 		if got := Slug(in); got != want {
@@ -95,15 +74,15 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := false
-	c := Config{Name: "Server", Type: TypeApp, Kind: KindPackage, Package: "./cmd/server", Args: "-port 8080", Env: map[string]string{"A": "1"}, RunAfterBuild: &f, Shared: true,
-		BeforeLaunch: []Task{{Type: TaskGenerate, Package: "./..."}}}
+	c := Config{Name: "Server", Type: Type("app"), Kind: "package", Package: "./cmd/server", Args: "-port 8080", Env: map[string]string{"A": "1"}, RunAfterBuild: &f, Shared: true,
+		BeforeLaunch: []Task{{Type: "generate", Package: "./..."}}}
 	if _, err := s.Save(c, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(shared, "Server.toml")); err != nil {
 		t.Fatalf("shared file not written: %v", err)
 	}
-	if _, err := s.Save(Config{Name: "server", Type: TypeTest}, ""); err == nil {
+	if _, err := s.Save(Config{Name: "server", Type: Type("test")}, ""); err == nil {
 		t.Fatal("want duplicate-name error (case-insensitive)")
 	}
 	// Reload from disk.
@@ -145,22 +124,22 @@ func TestStoreBadFileSkipped(t *testing.T) {
 	if len(s.LoadErrors()) != 1 {
 		t.Fatalf("LoadErrors = %v", s.LoadErrors())
 	}
-	if c, ok := s.Get("ok"); !ok || c.Type != TypeTest {
+	if c, ok := s.Get("ok"); !ok || c.Type != Type("test") {
 		t.Fatalf("name defaults to file name: %+v %v", c, ok)
 	}
 }
 
 func TestTemporaryCap(t *testing.T) {
 	s, _ := Open("", t.TempDir())
-	if _, err := s.Save(Config{Name: "TestA", Type: TypeTest}, ""); err != nil {
+	if _, err := s.Save(Config{Name: "TestA", Type: Type("test")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	c, err := s.AddTemporary(Config{Name: "TestA", Type: TypeTest})
+	c, err := s.AddTemporary(Config{Name: "TestA", Type: Type("test")})
 	if err != nil || c.Name != "TestA (2)" || !c.Temporary {
 		t.Fatalf("conflict with permanent: %+v %v", c, err)
 	}
 	for _, n := range []string{"T1", "T2", "T3", "T4", "T5", "T1"} {
-		if _, err := s.AddTemporary(Config{Name: n, Type: TypeTest}); err != nil {
+		if _, err := s.AddTemporary(Config{Name: n, Type: Type("test")}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -188,80 +167,7 @@ func testCtx(t *testing.T) Context {
 	os.MkdirAll(filepath.Join(root, "cmd", "srv"), 0o755)
 	os.WriteFile(filepath.Join(root, "x_test.go"), []byte("package x\nimport \"testing\"\nfunc TestOne(t *testing.T) {}\nfunc TestTwo(t *testing.T) {}\nfunc helper() {}\n"), 0o644)
 	os.WriteFile(filepath.Join(root, ".env"), []byte("FROM_FILE=1\nOVER=file\n"), 0o644)
-	return Context{Root: root, GoBin: "go", Env: []string{"PATH=/bin"}, Tags: []string{"integration"}, ModFlag: "-mod=mod", TempDir: "/tmp/goi"}
-}
-
-func TestPlanApp(t *testing.T) {
-	ctx := testCtx(t)
-	c := Config{Name: "srv", Type: TypeApp, Kind: KindPackage, Package: "./cmd/srv", Args: `-a "b c"`, Tags: []string{"dev", "integration"},
-		BuildFlags: "-ldflags=-s", EnvFile: ".env", Env: map[string]string{"OVER": "cfg"}, InputFile: "in.txt"}
-	p, err := c.MakePlan(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	exe := ""
-	if runtime.GOOS == "windows" {
-		exe = ".exe"
-	}
-	wantBuild := []string{"build", "-o", filepath.Join("/tmp/goi", "goi_srv"+exe), "-tags=integration,dev", "-mod=mod", "-ldflags=-s", "."}
-	if !reflect.DeepEqual(p.Build.Args, wantBuild) || p.Build.Dir != filepath.Join(ctx.Root, "cmd", "srv") {
-		t.Fatalf("build = %+v", p.Build)
-	}
-	if p.Exec == nil || !reflect.DeepEqual(p.Exec.Args, []string{"-a", "b c"}) || p.Exec.Dir != filepath.Join(ctx.Root, "cmd", "srv") {
-		t.Fatalf("exec = %+v", p.Exec)
-	}
-	env := strings.Join(p.Exec.Env, ";")
-	if !strings.Contains(env, "FROM_FILE=1") || !strings.Contains(env, "OVER=cfg") || strings.Contains(env, "OVER=file") {
-		t.Fatalf("env = %s", env)
-	}
-	if p.Exec.Stdin != filepath.Join(ctx.Root, "in.txt") {
-		t.Fatalf("stdin = %q", p.Exec.Stdin)
-	}
-	off := false
-	c.RunAfterBuild = &off
-	if p, _ := c.MakePlan(ctx); p.Exec != nil {
-		t.Fatal("build-only plan must not exec")
-	}
-	// Import paths resolve through PackageDir.
-	ctx.PackageDir = func(string) (string, error) { return "/src/x", nil }
-	c = Config{Name: "x", Type: TypeApp, Package: "example.com/x"}
-	if p, _ := c.MakePlan(ctx); p.Build.Dir != "/src/x" {
-		t.Fatalf("import path dir = %q", p.Build.Dir)
-	}
-}
-
-func TestPlanTest(t *testing.T) {
-	ctx := testCtx(t)
-	c := Config{Name: "t", Type: TypeTest, Kind: KindDirectory, Directory: ".", Race: true, Count: 1, Short: true, Timeout: "30s", TestFlags: "-v", Args: "-update"}
-	p, err := c.MakePlan(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"test", "-json", "-tags=integration", "-mod=mod", "-race", "-count=1", "-short", "-timeout=30s", "-v", "./...", "-args", "-update"}
-	if !p.Test || !reflect.DeepEqual(p.Exec.Args, want) {
-		t.Fatalf("args = %q", p.Exec.Args)
-	}
-	c = Config{Name: "f", Type: TypeTest, Kind: KindFile, Files: []string{"x_test.go"}}
-	p, err = c.MakePlan(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.Join(p.Exec.Args, " "); !strings.Contains(got, "-run=^(TestOne|TestTwo)$ .") {
-		t.Fatalf("file kind args = %s", got)
-	}
-	c = Config{Name: "p", Type: TypeTest, Kind: KindFunction, Packages: []string{"example.com/a", "example.com/b"}, Pattern: "^TestA$"}
-	p, _ = c.MakePlan(ctx)
-	if got := strings.Join(p.Exec.Args, " "); !strings.HasSuffix(got, "-run=^TestA$ example.com/a example.com/b") || p.Exec.Dir != ctx.Root {
-		t.Fatalf("packages args = %s (dir %s)", got, p.Exec.Dir)
-	}
-	if _, err := c.DebugLaunch(ctx, "b"); err == nil {
-		t.Fatal("several packages can't be debugged")
-	}
-	c = Config{Name: "b", Type: TypeTest, Kind: KindFunction, Package: ".", Pattern: "^$", Bench: "^BenchmarkX$", Benchmem: true}
-	p, _ = c.MakePlan(ctx)
-	if got := strings.Join(p.Exec.Args, " "); !strings.Contains(got, "-run=^$ -bench=^BenchmarkX$ -benchmem .") {
-		t.Fatalf("bench args = %s", got)
-	}
+	return Context{Root: root, Tool: "go", Env: []string{"PATH=/bin"}, TempDir: "/tmp/goi"}
 }
 
 func TestPlanShellAndMake(t *testing.T) {
@@ -280,30 +186,8 @@ func TestPlanShellAndMake(t *testing.T) {
 	if p.Exec.Path != "make" || p.Exec.Dir != filepath.Join(ctx.Root, "build") || strings.Join(p.Exec.Args, " ") != "-f "+filepath.Join(ctx.Root, "build", "Makefile")+" all lint" {
 		t.Fatalf("make = %+v", p.Exec)
 	}
-	if _, err := (Config{Type: TypeRemote}).MakePlan(ctx); err == nil {
-		t.Fatal("remote can't be run")
-	}
-}
-
-func TestDebugLaunch(t *testing.T) {
-	ctx := testCtx(t)
-	c := Config{Name: "t", Type: TypeTest, Kind: KindFunction, Package: ".", Pattern: "^TestOne$/^sub$", Count: 1, Args: "-x"}
-	l, err := c.DebugLaunch(ctx, "/tmp/bin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if l["mode"] != "test" || l["program"] != ctx.Root || l["output"] != "/tmp/bin" || l["outputMode"] != "remote" || l["buildFlags"] != "-tags=integration -mod=mod" {
-		t.Fatalf("launch = %v", l)
-	}
-	if got := l["args"].([]string); !reflect.DeepEqual(got, []string{"-test.count=1", "-test.run=^TestOne$/^sub$", "-test.v", "-x"}) {
-		t.Fatalf("args = %q", got)
-	}
-	if _, err := (Config{Type: TypeTest, Kind: KindDirectory, Directory: "."}).DebugLaunch(ctx, "b"); err == nil {
-		t.Fatal("recursive directory can't be debugged")
-	}
-	a := Config{Type: TypeApp, Kind: KindFile, Files: []string{"main.go"}}
-	if l, _ := a.DebugLaunch(ctx, "b"); l["program"] != filepath.Join(ctx.Root, "main.go") || l["mode"] != "debug" {
-		t.Fatalf("file launch = %v", l)
+	if _, err := (Config{Type: "nope"}).MakePlan(ctx); err == nil {
+		t.Fatal("unknown type can't be planned")
 	}
 }
 
@@ -313,20 +197,18 @@ func TestValidate(t *testing.T) {
 		c    Config
 		want string // substring of the first error; "" = valid
 	}{
-		{Config{Name: "a", Type: TypeApp, Package: "./cmd/srv"}, ""},
-		{Config{Name: "a", Type: TypeApp}, "Package is required"},
-		{Config{Name: "", Type: TypeTest}, "Name is required"},
-		{Config{Name: "f", Type: TypeTest, Kind: KindFile, Files: []string{"nope_test.go"}}, "does not exist"},
-		{Config{Name: "f", Type: TypeTest, Kind: KindFunction}, "Test pattern is required"},
-		{Config{Name: "r", Type: TypeRemote, Host: "localhost", Port: 70000}, "Port must be"},
+		{Config{Name: "s", Type: TypeShell, ScriptText: "echo"}, ""},
+		{Config{Name: "", Type: TypeShell, ScriptText: "echo"}, "Name is required"},
 		{Config{Name: "s", Type: TypeShell}, "script"},
 		{Config{Name: "m", Type: TypeMake}, "No Makefile"},
-		{Config{Name: "x", Type: TypeTest, Args: `"open`}, "Program arguments"},
-		{Config{Name: "x", Type: TypeTest, BeforeLaunch: []Task{{Type: TaskConfig, Config: "X"}}}, "itself"},
-		{Config{Name: "x", Type: TypeTest, WorkingDir: "missing"}, "Working directory"},
+		{Config{Name: "x", Type: TypeShell, ScriptText: "echo", Args: `"open`}, "Program arguments"},
+		{Config{Name: "x", Type: TypeShell, ScriptText: "echo", BeforeLaunch: []Task{{Type: TaskConfig, Config: "X"}}}, "itself"},
+		{Config{Name: "x", Type: TypeShell, ScriptText: "echo", BeforeLaunch: []Task{{Type: "generate"}}}, "unknown type"},
+		{Config{Name: "x", Type: TypeShell, ScriptText: "echo", WorkingDir: "missing"}, "Working directory"},
+		{Config{Name: "x", Type: "app"}, "Unknown type"},
 	}
 	for _, tt := range tests {
-		errs := tt.c.Validate(ctx.Root)
+		errs := tt.c.Validate(ctx, nil)
 		if tt.want == "" {
 			if len(errs) != 0 {
 				t.Errorf("%+v: unexpected errors %v", tt.c, errs)

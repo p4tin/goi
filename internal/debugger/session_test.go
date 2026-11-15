@@ -126,7 +126,7 @@ func (r *recorder) names() []string {
 func start(t *testing.T, dir string, rec *recorder) *Session {
 	t.Helper()
 	ctx := context.Background()
-	s, err := Start(ctx, Config{Dlv: dlvBin(t), Dir: dir, Env: append(os.Environ(), "GOFLAGS=-buildvcs=false"), OnEvent: rec.on})
+	s, err := Start(ctx, Config{Adapter: dlvBin(t), AdapterArgs: []string{"dap", "--listen=127.0.0.1:0"}, AdapterID: "go", Dir: dir, Env: append(os.Environ(), "GOFLAGS=-buildvcs=false"), OnEvent: rec.on})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestStartFailsForBadProgram(t *testing.T) {
 }
 
 func TestStartBadBinary(t *testing.T) {
-	if _, err := Start(context.Background(), Config{Dlv: filepath.Join(t.TempDir(), "nope")}); err == nil {
+	if _, err := Start(context.Background(), Config{Adapter: filepath.Join(t.TempDir(), "nope")}); err == nil {
 		t.Fatal("want error for missing dlv")
 	}
 }

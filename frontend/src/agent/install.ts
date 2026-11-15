@@ -16,7 +16,7 @@ import { diskPort, editorPort, idePort } from './ports';
 import { AgentTools } from './tools';
 import { AgentPanel } from './view';
 import './agent.css';
-import { product } from '../pack';
+import { product } from '../product';
 
 /** Answers one agent.request. Exported for tests. */
 export async function handleRequest(req: AgentRequestEvent, tools: AgentTools, panel: Pick<AgentPanel, 'onPermission'>): Promise<void> {

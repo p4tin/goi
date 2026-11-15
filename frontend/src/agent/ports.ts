@@ -8,6 +8,8 @@ import { editorApi, emptyRunConfig, files, gitApi, lang, on, run, search, Topics
 import type { Diagnostic, Location, OutputChunk, RunInfo, RunOutputEvent, RunTestEvent } from '../lib/api';
 import { problems } from '../lang/diagnostics';
 import type { DiagnosticItem, DiskPort, EditorPort, IdePort, LocationItem, RunOutcome, SymbolItem } from './tools';
+import { capabilities } from '../app/state';
+import { product } from '../product';
 
 const SYMBOL_KINDS: Record<number, string> = {
   1: 'file', 2: 'module', 3: 'namespace', 4: 'package', 5: 'class', 6: 'method', 7: 'property', 8: 'field', 9: 'constructor',
@@ -217,6 +219,10 @@ export function idePort(): IdePort {
     },
     runConfig: (name, timeoutMs) => awaitRun(() => run.run(name, false), timeoutMs),
     runTests(dir, pattern, timeoutMs) {
+      // Only packs with a test configuration type (Goi's Go Test) can run tests.
+      if (!(capabilities().runTypes ?? []).includes('test')) {
+        return Promise.reject(new Error(`${product.name} can't run tests yet; use run_configuration or the terminal`));
+      }
       const c = emptyRunConfig('test', 'Agent: go test');
       c.kind = 'directory';
       c.directory = dir;

@@ -15,6 +15,7 @@ import { effect, signal } from '../lib/store';
 import { actionProviders } from '../lang/codeActions';
 import type { LocalAction } from '../lang/codeActions';
 import { replaceDiagnosticsSource } from '../lang/diagnostics';
+import { capabilities } from '../app/state';
 
 export const LINT_SOURCE = 'golangci-lint';
 export const LINT_DEBOUNCE_MS = 400;
@@ -82,6 +83,8 @@ async function offerInstall(wb: Workbench): Promise<void> {
 }
 
 export function installLint(wb: Workbench): void {
+  // Apps without a linter (the pack's) get no lint UI.
+  if (!capabilities().linter) return;
   on<LintDiagnosticsEvent>(Topics.lintDiagnostics, (ev) => {
     replaceDiagnosticsSource(LINT_SOURCE, (p) => inLintScope(p, ev.dirs, ev.recursive), ev.files);
   });

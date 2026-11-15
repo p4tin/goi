@@ -73,16 +73,6 @@ export function LoadLayout(): $CancellablePromise<string> {
 }
 
 /**
- * NewProject creates parentDir/name with a go.mod for modulePath and a
- * main.go, and returns the new directory. It uses `go mod init` when a Go SDK
- * is available and writes a minimal go.mod otherwise. The SDK and go settings
- * are the calling window's.
- */
-export function NewProject(parentDir: string, name: string, modulePath: string): $CancellablePromise<string> {
-    return $Call.ByID(46599628, parentDir, name, modulePath);
-}
-
-/**
  * NewWindow opens a Welcome window.
  */
 export function NewWindow(): $CancellablePromise<void> {

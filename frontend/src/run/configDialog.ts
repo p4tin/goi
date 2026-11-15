@@ -5,10 +5,12 @@
 import { showDialog } from '../app/dialog';
 import { showMenu } from '../app/menu';
 import { h } from '../lib/dom';
+import { appInfo } from '../app/state';
 import { emptyRunConfig, run } from '../lib/api';
 import type { RunConfig, RunConfigType, RunTask } from '../lib/api';
 import { iconButton } from './icons';
-import { configs, notifyError, selectedName, TYPE_LABEL } from './state';
+import { availableTypes, configs, notifyError, selectedName, TYPE_LABEL } from './state';
+import { capabilities } from '../app/state';
 
 interface Draft {
   cfg: RunConfig;
@@ -235,7 +237,9 @@ export async function openConfigDialog(focusName?: string): Promise<void> {
         };
         showMenu(r.left, r.bottom, [
           { label: 'Run another configuration', run: () => push({ type: 'config', config: '', package: '', command: '' }) },
-          { label: 'Run go generate', run: () => push({ type: 'generate', config: '', package: './...', command: '' }) },
+          ...((capabilities().runTasks ?? []).includes('generate')
+            ? [{ label: 'Run go generate', run: () => push({ type: 'generate', config: '', package: './...', command: '' }) }]
+            : []),
           { label: 'Run external command', run: () => push({ type: 'command', config: '', package: '', command: '' }) },
         ]);
       });
@@ -285,7 +289,7 @@ export async function openConfigDialog(focusName?: string): Promise<void> {
     const fields: Node[] = [
       h('div', { class: 'rc-title' }, TYPE_LABEL[c.type]),
       row('Name', text(() => c.name, (v) => (c.name = v))),
-      h('div', { class: 'rc-row rc-flags' }, check('Store as project file (.goi/runConfigurations)', () => c.shared, (v) => {
+      h('div', { class: 'rc-row rc-flags' }, check(`Store as project file (${appInfo.peek()?.projectDir || '.goi'}/runConfigurations)`, () => c.shared, (v) => {
         c.shared = v;
         if (v) c.temporary = false;
         renderList();
@@ -337,6 +341,14 @@ export async function openConfigDialog(focusName?: string): Promise<void> {
           ...processFields(c, 'Script arguments'),
         );
         break;
+      case 'python':
+        fields.push(
+          row('Script', text(() => c.script, (v) => (c.script = v), 'main.py (relative to the project)')),
+          row('Interpreter', text(() => c.interpreter, (v) => (c.interpreter = v), "Default: the project's interpreter")),
+          ...processFields(c, 'Script arguments'),
+          row('Redirect input from', text(() => c.inputFile, (v) => (c.inputFile = v), 'File (optional)')),
+        );
+        break;
       case 'make':
         fields.push(
           row('Makefile', text(() => c.makefile, (v) => (c.makefile = v), 'Makefile in the working directory')),
@@ -368,7 +380,7 @@ export async function openConfigDialog(focusName?: string): Promise<void> {
         showMenu(
           r.left,
           r.bottom,
-          (Object.keys(TYPE_LABEL) as RunConfigType[]).map((t) => ({ label: TYPE_LABEL[t], run: () => add(t) })),
+          availableTypes().map((t: RunConfigType) => ({ label: TYPE_LABEL[t], run: () => add(t) })),
         );
       });
       return b;

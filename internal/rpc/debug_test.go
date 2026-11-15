@@ -16,6 +16,7 @@ import (
 	"github.com/p4tin/goi/internal/runconfig"
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/toolbin"
+	"github.com/p4tin/goi/packs/golang/gorun"
 )
 
 func testDlv(t *testing.T) string {
@@ -83,7 +84,7 @@ func TestDebugRequiresDlv(t *testing.T) {
 	if err := a.allWindows()[0].settings.Set(settings.LayerUser, "debug.dlvPath", filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatal(err)
 	}
-	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: runconfig.TypeApp, Package: "./cmd/app"}, "")
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "App", Type: gorun.TypeApp, Package: "./cmd/app"}, "")
 	_, err := a.runSvc.Run(context.Background(), "App", true)
 	if err == nil || !strings.Contains(err.Error(), "dlv not found") {
 		t.Fatalf("debug without dlv = %v", err)
@@ -106,7 +107,7 @@ func TestDebugSessionBreakpointsAndInspection(t *testing.T) {
 	if err := a.debugSvc.SetFileBreakpoints(context.Background(), src, []LineBreakpoint{{Line: 10, Condition: "i == 1", Enabled: true}, {Line: 22, Enabled: false}}); err != nil {
 		t.Fatal(err)
 	}
-	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: gorun.TypeApp, Package: "./cmd/work"}, "")
 	id, err := a.runSvc.Run(context.Background(), "Work", true)
 	if err != nil {
 		t.Fatal(err)
@@ -166,7 +167,7 @@ func TestDebugStopTerminates(t *testing.T) {
 	a, bus := started(t, root)
 	a.allWindows()[0].settings.Set(settings.LayerUser, "debug.dlvPath", dlv)
 	a.debugSvc.SetFunctionBreakpoints(context.Background(), []FunctionBreakpoint{{Name: "main.work", Enabled: true}}, false)
-	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: runconfig.TypeApp, Package: "./cmd/work"}, "")
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Work", Type: gorun.TypeApp, Package: "./cmd/work"}, "")
 	id, err := a.runSvc.Run(context.Background(), "Work", true)
 	if err != nil {
 		t.Fatal(err)
@@ -220,7 +221,7 @@ func TestDebugRemoteAttach(t *testing.T) {
 	a, bus := started(t, root)
 	src := filepath.Join(root, "cmd", "work", "main.go")
 	a.debugSvc.SetFileBreakpoints(context.Background(), src, []LineBreakpoint{{Line: 22, Enabled: true}})
-	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Remote", Type: runconfig.TypeRemote, Host: "127.0.0.1", Port: port}, "")
+	a.runSvc.SaveConfig(context.Background(), runconfig.Config{Name: "Remote", Type: gorun.TypeRemote, Host: "127.0.0.1", Port: port}, "")
 	if _, err := a.runSvc.Run(context.Background(), "Remote", false); err == nil {
 		t.Fatal("remote configurations can't be run")
 	}

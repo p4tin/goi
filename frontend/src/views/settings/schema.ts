@@ -1,13 +1,14 @@
 // Descriptors for every setting shown in the settings view, plus pure helpers used by the settings
 // view (lookup, search, validation).
 
-import { product } from '../../pack';
+import { product } from '../../product';
 
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
 export type WritableLayer = 'user' | 'project';
 
-export const sections = ['Appearance', 'Editor', 'Go', 'Run & Debug', 'Terminal', 'Version Control', 'Linting', 'AI', 'Project', 'Save Actions', 'Keymap', 'Startup'] as const;
-export type Section = (typeof sections)[number];
+/** Settings sections in display order. Packs add theirs with registerSettings. */
+export const sections: string[] = ['Appearance', 'Editor', 'Run & Debug', 'Terminal', 'Version Control', 'AI', 'Project', 'Save Actions', 'Keymap', 'Startup'];
+export type Section = string;
 
 export interface SettingDescriptor {
   key: string;
@@ -21,9 +22,9 @@ export interface SettingDescriptor {
   layers: WritableLayer[];
 }
 
-const both: WritableLayer[] = ['user', 'project'];
-const userOnly: WritableLayer[] = ['user'];
-const opts = (...vs: [string, string][]): { value: string; label: string }[] => vs.map(([value, label]) => ({ value, label }));
+export const both: WritableLayer[] = ['user', 'project'];
+export const userOnly: WritableLayer[] = ['user'];
+export const opts = (...vs: [string, string][]): { value: string; label: string }[] => vs.map(([value, label]) => ({ value, label }));
 
 export const schema: SettingDescriptor[] = [
   {
@@ -68,26 +69,7 @@ export const schema: SettingDescriptor[] = [
     max: 10_000_000,
     layers: both,
   },
-  {
-    key: 'gopls.enabled',
-    title: 'Enable gopls',
-    section: 'Go',
-    description: 'Code completion, navigation, diagnostics and refactoring through the Go language server.',
-    type: 'bool',
-    layers: both,
-  },
-  {
-    key: 'gopls.path',
-    title: 'gopls Path',
-    section: 'Go',
-    description: 'gopls executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi\'s tools folder.',
-    type: 'string',
-    layers: userOnly,
-  },
-  { key: 'gopls.usePlaceholders', title: 'Complete Function Parameters', section: 'Go', description: 'Completing a function inserts placeholders for its parameters.', type: 'bool', layers: both },
-  { key: 'gopls.staticcheck', title: 'Staticcheck Analyzers', section: 'Go', description: 'Report the extra staticcheck analyzers in diagnostics (slower on large projects).', type: 'bool', layers: both },
   { key: 'run.outputLimitLines', title: 'Console Line Limit', section: 'Run & Debug', description: 'Lines kept per Run/Debug console tab; older lines are dropped.', type: 'int', min: 1000, max: 1000000, layers: userOnly },
-  { key: 'debug.dlvPath', title: 'Delve Path', section: 'Run & Debug', description: "dlv executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and the tools folder.", type: 'string', layers: userOnly },
   { key: 'debug.showTypes', title: 'Show Variable Types', section: 'Run & Debug', description: 'Show types next to variables in the debugger.', type: 'bool', layers: userOnly },
   { key: 'debug.showAddresses', title: 'Show Pointer Addresses', section: 'Run & Debug', description: 'Keep 0x… memory addresses in variable values.', type: 'bool', layers: userOnly },
   { key: 'debug.showUnreadable', title: 'Show Unreadable Variables', section: 'Run & Debug', description: 'List variables Delve cannot read (optimized away or invalid memory).', type: 'bool', layers: userOnly },
@@ -98,10 +80,6 @@ export const schema: SettingDescriptor[] = [
   { key: 'terminal.scrollback', title: 'Scrollback Lines', section: 'Terminal', description: 'Lines kept in each terminal tab.', type: 'int', min: 100, max: 1000000, layers: userOnly },
   { key: 'git.path', title: 'Git Executable', section: 'Version Control', description: 'Path to git. Empty uses git on $PATH.', type: 'string', layers: userOnly },
   { key: 'git.pullRebase', title: 'Pull with Rebase', section: 'Version Control', description: 'Pull rebases local commits instead of merging.', type: 'bool', layers: both },
-  { key: 'lint.enabled', title: 'Enable golangci-lint', section: 'Linting', description: 'Show golangci-lint issues in the editor and Problems.', type: 'bool', layers: both },
-  { key: 'lint.onSave', title: 'Lint on Save', section: 'Linting', description: "Lint the saved file's package.", type: 'bool', layers: both },
-  { key: 'lint.golangciPath', title: 'golangci-lint Path', section: 'Linting', description: "golangci-lint executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and the tools folder.", type: 'string', layers: userOnly },
-  { key: 'lint.args', title: 'Extra Arguments', section: 'Linting', description: 'Added to golangci-lint run (the project .golangci.yml is always used).', type: 'stringList', layers: both },
   { key: 'ai.defaultAgent', title: 'Default Agent', section: 'AI', description: 'Agent preselected for new sessions: claude, gemini, codex or a custom id.', type: 'string', layers: userOnly },
   {
     key: 'ai.agents',
@@ -114,29 +92,6 @@ export const schema: SettingDescriptor[] = [
   { key: 'ai.mcpServer', title: 'IDE Tools for Agents', section: 'AI', description: `Give agents started by ${product.name} tools to open files, read diagnostics, run configurations and more (MCP).`, type: 'bool', layers: userOnly },
   { key: 'ai.externalMcp', title: 'External MCP Clients', section: 'AI', description: 'Also serve the IDE tools to other MCP clients (Claude Code in a terminal, …) on the port below. Takes effect after a restart.', type: 'bool', layers: userOnly },
   { key: 'ai.mcpPort', title: 'MCP Port', section: 'AI', description: 'Local port for external MCP clients.', type: 'int', min: 1024, max: 65535, layers: userOnly },
-  { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
-  { key: 'go.env', title: 'Environment Variables', section: 'Go', description: 'Extra environment for go commands (GOPROXY, GOPRIVATE, GOFLAGS…).', type: 'map', layers: both },
-  { key: 'go.tags', title: 'Build Tags', section: 'Go', description: 'Build tags passed as -tags to go commands.', type: 'stringList', layers: both },
-  { key: 'go.goos', title: 'GOOS', section: 'Go', description: 'Target operating system. Empty uses the host.', type: 'string', layers: both },
-  { key: 'go.goarch', title: 'GOARCH', section: 'Go', description: 'Target architecture. Empty uses the host.', type: 'string', layers: both },
-  {
-    key: 'go.cgo',
-    title: 'CGO_ENABLED',
-    section: 'Go',
-    description: 'Enable or disable cgo. Default uses the toolchain default.',
-    type: 'enum',
-    options: opts(['', 'Default'], ['1', 'Enabled'], ['0', 'Disabled']),
-    layers: both,
-  },
-  {
-    key: 'go.vendor',
-    title: 'Vendoring',
-    section: 'Go',
-    description: 'Auto uses vendor/ when present; On forces -mod=vendor; Off forces -mod=mod.',
-    type: 'enum',
-    options: opts(['auto', 'Auto'], ['on', 'On'], ['off', 'Off']),
-    layers: both,
-  },
   {
     key: 'markdown.previewMode',
     title: 'Markdown Preview',
@@ -148,15 +103,6 @@ export const schema: SettingDescriptor[] = [
   },
   { key: 'project.excludes', title: 'Excluded Folders', section: 'Project', description: 'Glob patterns hidden from the tree, search and watcher.', type: 'stringList', layers: both },
   { key: 'project.contentRoots', title: 'Additional Content Roots', section: 'Project', description: 'Extra folders shown alongside the project.', type: 'stringList', layers: ['project'] },
-  {
-    key: 'save.format',
-    title: 'Format on Save',
-    section: 'Save Actions',
-    description: 'Formatter run when saving Go files.',
-    type: 'enum',
-    options: opts(['goimports', 'goimports (format + imports)'], ['gofmt', 'gofmt'], ['none', 'None']),
-    layers: both,
-  },
   { key: 'json.formatOnSave', title: 'Format JSON on Save', section: 'Save Actions', description: 'Pretty-print JSON files when saving them.', type: 'bool', layers: both },
   { key: 'yaml.formatOnSave', title: 'Format YAML on Save', section: 'Save Actions', description: 'Reformat YAML files when saving them.', type: 'bool', layers: both },
   {
@@ -178,6 +124,18 @@ export const schema: SettingDescriptor[] = [
   },
 ];
 
+/** Adds a pack's settings: new sections (each after an existing one) and
+ * their descriptors. Call it from a pack feature, before the settings view
+ * renders. */
+export function registerSettings(add: { sections?: Array<{ name: string; after: string }>; settings: SettingDescriptor[] }): void {
+  for (const sec of add.sections ?? []) {
+    if (sections.includes(sec.name)) continue;
+    const i = sections.indexOf(sec.after);
+    sections.splice(i < 0 ? sections.length : i + 1, 0, sec.name);
+  }
+  schema.push(...add.settings);
+}
+
 export function descriptor(key: string): SettingDescriptor | undefined {
   return schema.find((d) => d.key === key);
 }
@@ -190,6 +148,14 @@ export function getByKey(obj: unknown, key: string): unknown {
     cur = (cur as Record<string, unknown>)[part];
   }
   return cur;
+}
+
+/** A setting's effective value: a core key, or a pack key (pack sections
+ * arrive under `extra`, e.g. extra.python.interpreter). */
+export function settingValue(settings: unknown, key: string): unknown {
+  const v = getByKey(settings, key);
+  if (v !== undefined) return v;
+  return getByKey((settings as { extra?: unknown } | null)?.extra, key);
 }
 
 /** Descriptors whose title, key or description contain every query word. */

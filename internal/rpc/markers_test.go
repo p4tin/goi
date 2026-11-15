@@ -3,7 +3,7 @@ package rpc
 import "testing"
 
 func TestRunMarkersService(t *testing.T) {
-	s := &EditorService{}
+	s := &EditorService{app: &App{pack: testPack()}}
 	got := s.RunMarkers("/p/x_test.go", "package x\nimport \"testing\"\nfunc TestA(t *testing.T) {}\n")
 	if len(got) != 1 || got[0].Name != "TestA" || got[0].Line != 3 {
 		t.Errorf("got %+v", got)

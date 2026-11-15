@@ -1,7 +1,8 @@
 // Welcome screen: open/new project actions and the recent projects list.
 
 import './welcome.css';
-import { product } from '../pack';
+import { newProjectDialog } from '../pack';
+import { product } from '../product';
 import { appInfo, project } from '../app/state';
 import type { Workbench } from '../app/workbench';
 import { app, on, recentApi, Topics } from '../lib/api';
@@ -9,7 +10,6 @@ import type { RecentEntry } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
 import { effect, signal } from '../lib/store';
-import { newProjectDialog } from './newProject';
 
 export const MAX_RECENT = 20;
 
@@ -79,12 +79,13 @@ export function installWelcome(wb: Workbench): void {
     }
   };
 
-  commands.register({
+  const createProject = newProjectDialog;
+  if (createProject) commands.register({
     id: 'project.new',
     title: 'New Project…',
     category: 'File',
     run: async () => {
-      const dir = await newProjectDialog();
+      const dir = await createProject();
       if (!dir) return;
       try {
         await app.openProject(dir, !!project.peek());
@@ -107,7 +108,7 @@ export function installWelcome(wb: Workbench): void {
       h('div', { class: 'welcome-brand' }, h('img', { class: 'welcome-icon', src: product.icon, alt: '' }), h('h1', { class: 'welcome-title' }, product.name)),
       version,
       h('button', { class: 'btn btn-primary', onClick: () => void commands.run('project.openFolder') }, 'Open Folder…'),
-      h('button', { class: 'btn', onClick: () => void commands.run('project.new') }, 'New Project…'),
+      createProject ? h('button', { class: 'btn', onClick: () => void commands.run('project.new') }, 'New Project…') : null,
     ),
     h('section', { class: 'welcome-recent' }, h('h2', { class: 'welcome-subtitle' }, 'Recent Projects'), list, empty),
   );

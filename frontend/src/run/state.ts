@@ -4,6 +4,7 @@
 import type { Workbench } from '../app/workbench';
 import type { RunConfig } from '../lib/api';
 import { signal } from '../lib/store';
+import { capabilities } from '../app/state';
 
 export const configs = signal<RunConfig[]>([]);
 /** Name of the configuration shown in the run widget. */
@@ -47,4 +48,12 @@ export const TYPE_LABEL: Record<RunConfig['type'], string> = {
   remote: 'Go Remote',
   shell: 'Shell Script',
   make: 'Makefile',
+  python: 'Python',
 };
+
+/** The configuration types this app can create: the built-in Shell and
+ * Makefile plus the pack's (capabilities.runTypes). */
+export function availableTypes(): RunConfig['type'][] {
+  const pack = (capabilities().runTypes ?? []).filter((t): t is RunConfig['type'] => t in TYPE_LABEL);
+  return [...pack, 'shell', 'make'];
+}

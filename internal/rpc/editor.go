@@ -2,13 +2,11 @@ package rpc
 
 import (
 	"context"
-	"errors"
-	"strings"
 
-	"github.com/p4tin/goi/internal/format"
+	"github.com/p4tin/goi/internal/pack"
 )
 
-// EditorService provides editor operations backed by Go tooling.
+// EditorService provides editor operations backed by the pack's tooling.
 type EditorService struct {
 	app *App
 }
@@ -16,9 +14,9 @@ type EditorService struct {
 // FormatResult is the outcome of formatting a buffer. A syntax error is
 // reported in SyntaxError rather than as an error.
 type FormatResult struct {
-	Content     string              `json:"content"`
-	Changed     bool                `json:"changed"`
-	SyntaxError *format.SyntaxError `json:"syntaxError"`
+	Content     string            `json:"content"`
+	Changed     bool              `json:"changed"`
+	SyntaxError *pack.SyntaxError `json:"syntaxError"`
 }
 
 // Format formats content using the calling window's save.format setting.
@@ -30,35 +28,21 @@ func (s *EditorService) Format(ctx context.Context, path, content string) (Forma
 	return s.FormatWith(ctx, path, content, w.settings.Effective().Save.Format)
 }
 
-// FormatWith formats content with an explicit mode (goimports|gofmt|none).
-// Non-Go files are returned unchanged.
+// FormatWith formats content with an explicit mode (Goi:
+// goimports|gofmt|none). Files the pack's formatter doesn't handle are
+// returned unchanged.
 func (s *EditorService) FormatWith(ctx context.Context, path, content, mode string) (FormatResult, error) {
-	if !strings.HasSuffix(path, ".go") {
+	f := s.app.pack.Formatter
+	if f == nil || !f.Handles(path) {
 		return FormatResult{Content: content}, nil
 	}
-	res, err := format.Format(path, content, format.Mode(mode), s.localPrefix(ctx, path))
-	var se *format.SyntaxError
-	if errors.As(err, &se) {
-		return FormatResult{Content: content, SyntaxError: se}, nil
+	var fc pack.FormatContext
+	if sess, err := s.app.sessionFor(ctx); err == nil {
+		fc.Project = sess.manager.Project()
 	}
+	res, err := f.Format(ctx, fc, path, content, mode)
 	if err != nil {
 		return FormatResult{Content: content}, err
 	}
-	return FormatResult{Content: res.Content, Changed: res.Changed}, nil
-}
-
-// localPrefix returns the module path of the calling window's project module
-// that contains path (longest directory match), or "".
-func (s *EditorService) localPrefix(ctx context.Context, path string) string {
-	sess, err := s.app.sessionFor(ctx)
-	if err != nil {
-		return ""
-	}
-	best, bestLen := "", -1
-	for _, m := range sess.manager.Project().Modules {
-		if within(m.Dir, path) && len(m.Dir) > bestLen {
-			best, bestLen = m.Path, len(m.Dir)
-		}
-	}
-	return best
+	return FormatResult{Content: res.Content, Changed: res.Changed, SyntaxError: res.SyntaxError}, nil
 }

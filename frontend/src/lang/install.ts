@@ -1,5 +1,6 @@
-// Language intelligence feature (M2): wires gopls-backed modules into the
-// editor through hooks and extension factories.
+// Language intelligence feature (M2): wires language-server-backed modules
+// (the pack's server; Goi: gopls) into the editor through hooks and
+// extension factories. Problems and Find in Path don't need a server.
 
 import { EditorView } from '@codemirror/view';
 import type { Workbench } from '../app/workbench';
@@ -23,10 +24,18 @@ import { applyFileEdits } from './edits';
 import { installFindInPath, openFindDialog } from './findInPath';
 import { installLangStatus } from './status';
 import './lang.css';
+import { capabilities } from '../app/state';
 
 export function installLang(wb: Workbench): void {
   setWorkbench(wb);
   const m = editors;
+  // Problems and Find in Path work without a language server.
+  installDiagnostics(wb);
+  installFindInPath(wb);
+  commands.register({ id: 'search.findInPath', title: 'Find in Path…', category: 'Edit', run: () => openFindDialog(wb, false) });
+  commands.register({ id: 'search.replaceInPath', title: 'Replace in Path…', category: 'Edit', run: () => openFindDialog(wb, true) });
+  commands.register({ id: 'view.problems', title: 'Show Problems', category: 'View', run: () => wb.panels.show('problems') });
+  if (!capabilities().languageServer) return;
 
   m.hooks.opened.on((buf) => client.open(buf));
   m.hooks.closed.on((buf) => client.close(buf));
@@ -39,24 +48,20 @@ export function installLang(wb: Workbench): void {
   for (const buf of m.buffers.values()) client.open(buf);
 
   installLangStatus(wb);
-  installDiagnostics(wb);
   installUsages(wb);
   installSymbols();
-  installFindInPath(wb);
 
   commands.register({ id: 'lang.gotoDefinition', title: 'Go to Declaration', category: 'Navigate', run: () => gotoDefinition() });
   commands.register({ id: 'lang.gotoTypeDefinition', title: 'Go to Type Declaration', category: 'Navigate', run: () => gotoTypeDefinition() });
   commands.register({ id: 'lang.gotoImplementation', title: 'Go to Implementation(s)', category: 'Navigate', run: () => gotoImplementation() });
-  commands.register({ id: 'lang.gotoTest', title: 'Go to Test / Subject', category: 'Navigate', run: () => gotoTest() });
+  // Go to Test pairs foo.go with foo_test.go: Goi only.
+  if ((capabilities().runTypes ?? []).includes('test')) commands.register({ id: 'lang.gotoTest', title: 'Go to Test / Subject', category: 'Navigate', run: () => gotoTest() });
   commands.register({ id: 'nav.back', title: 'Back', category: 'Navigate', run: () => back() });
   commands.register({ id: 'nav.forward', title: 'Forward', category: 'Navigate', run: () => forward() });
   commands.register({ id: 'lang.findUsages', title: 'Find Usages', category: 'Code', run: () => findUsages(wb) });
   commands.register({ id: 'lang.rename', title: 'Rename…', category: 'Refactor', run: () => renameAtCursor() });
   commands.register({ id: 'lang.contextActions', title: 'Show Context Actions', category: 'Code', run: () => showContextActions() });
   commands.register({ id: 'lang.fileStructure', title: 'File Structure', category: 'Navigate', run: () => showFileStructure() });
-  commands.register({ id: 'search.findInPath', title: 'Find in Path…', category: 'Edit', run: () => openFindDialog(wb, false) });
-  commands.register({ id: 'search.replaceInPath', title: 'Replace in Path…', category: 'Edit', run: () => openFindDialog(wb, true) });
-  commands.register({ id: 'view.problems', title: 'Show Problems', category: 'View', run: () => wb.panels.show('problems') });
   commands.register({ id: 'view.usages', title: 'Show Usages', category: 'View', run: () => wb.panels.show('usages') });
   commands.register({ id: 'view.find', title: 'Show Find Results', category: 'View', run: () => wb.panels.show('find') });
   commands.register({ id: 'lang.quickDoc', title: 'Quick Documentation', category: 'Code', run: () => showQuickDoc() });

@@ -10,7 +10,7 @@ import { commands } from '../../lib/commands';
 import { Disposables, h } from '../../lib/dom';
 import { effect, signal } from '../../lib/store';
 import { renderKeymapEditor } from './keymapEditor';
-import { filterSchema, getByKey, parseIntInput, sections, validate } from './schema';
+import { filterSchema, parseIntInput, sections, settingValue, validate } from './schema';
 import type { Section, SettingDescriptor, WritableLayer } from './schema';
 
 const DEBOUNCE_MS = 400;
@@ -279,7 +279,7 @@ function buildRow(desc: SettingDescriptor, origins: { (): Record<string, Setting
     projOpt.disabled = !project.peek() || !desc.layers.includes('project');
     (layerSel.options[0] as HTMLOptionElement).disabled = !desc.layers.includes('user');
     reset.hidden = origin !== layer || desc.key === 'project.contentRoots';
-    setValue(getByKey(settings.peek(), desc.key));
+    setValue(settingValue(settings.peek(), desc.key));
   }
   return { el, update };
 }

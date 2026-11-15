@@ -31,8 +31,8 @@ type session struct {
 	terms   *termSession
 	git     *gitSession
 	lint    *lintSession
-	mod     *modSession
 	agents  *agentManager
+	stateHolder
 }
 
 // startLangHook starts gopls for a new session; tests set it to nil.
@@ -73,7 +73,7 @@ func (w *window) openProject(path string) error {
 	}
 	m, err := workspace.Open(a.ctx, workspace.Options{
 		Root:     abs,
-		GOPATH:   filepath.SplitList(os.Getenv("GOPATH")),
+		Detector: a.pack.Project,
 		Settings: w.settings,
 		Watcher:  fw,
 		Bus:      w.bus,
@@ -103,7 +103,6 @@ func (w *window) openProject(path string) error {
 	s.terms = newTermSession(w)
 	s.git = startGit(w, abs, fw)
 	s.lint = newLintSession()
-	s.mod = &modSession{}
 	s.agents = newAgentManager(w, s)
 	if startLangHook != nil {
 		s.lang = startLangHook(w, abs, fw)

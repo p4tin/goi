@@ -10,7 +10,7 @@ import (
 
 	"github.com/p4tin/goi/internal/acp/acptest"
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/gopls"
+	"github.com/p4tin/goi/internal/langserver"
 	"github.com/p4tin/goi/internal/lsp"
 	"github.com/p4tin/goi/internal/mcp"
 	"github.com/p4tin/goi/internal/product/producttest"
@@ -107,7 +107,7 @@ func TestApplyFileEditsPreservesCRLF(t *testing.T) {
 	a, _ := started(t, "")
 	p := filepath.Join(t.TempDir(), "a.go")
 	os.WriteFile(p, []byte("package a\r\n\r\nvar x = 1\r\n"), 0o644)
-	err := a.langSvc.ApplyFileEdits([]gopls.FileEdit{{Path: p, Edits: []lsp.TextEdit{{
+	err := a.langSvc.ApplyFileEdits([]langserver.FileEdit{{Path: p, Edits: []lsp.TextEdit{{
 		Range:   lsp.Range{Start: lsp.Position{Line: 2, Character: 4}, End: lsp.Position{Line: 2, Character: 5}},
 		NewText: "y",
 	}}}})

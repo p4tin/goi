@@ -13,7 +13,8 @@
 | Tests (Go) | stdlib `testing` | Table-driven; `t.TempDir()` for FS tests |
 | Tests (TS) | Vitest + happy-dom | Pure modules and DOM/CodeMirror units |
 | E2E | `tools/e2e/cdp.mjs` | Headless Chrome over CDP against the server build (`-tags server`; each tab is a window) |
-| Code intelligence | gopls over LSP (stdio) | Own minimal LSP client (`internal/lsp`); no third-party LSP library |
+| Code intelligence | gopls (Goi), basedpyright (Pyi) over LSP (stdio) | Own minimal LSP client (`internal/lsp`) and supervisor (`internal/langserver`); basedpyright installs from PyPI into its own venv under the tools dir |
+| App packs | `internal/pack` + `apps/<app>` + `packs/<lang>` | One Go module, one frontend package; Vite `--mode <app>`, Taskfiles `APP=<app>` |
 | Find in Path | `internal/textsearch` | Go `regexp`, line-based; same engine for search and replace |
 | Debugger | Delve `dlv dap` over DAP | Own minimal DAP client (`internal/dap`); Delve installed on demand into Goi's tools dir |
 | Test runner | `go test -json` | test2json events streamed to a frontend tree reducer |
@@ -40,7 +41,7 @@
 
 ## Dependencies (as built)
 - Go: wails/v3, golang.org/x/{mod,tools,sys}, fsnotify, go-toml/v2, doublestar/v4, gofrs/flock, aymanbagabas/go-pty
-- Frontend: @wailsio/runtime (exact), @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-*,legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @lezer/markdown, mermaid and yaml (both loaded with dynamic `import()`), @tanstack/virtual-core, @xterm/{xterm,addon-fit,addon-search,addon-web-links} (exact versions); dev: vite, typescript, vitest, happy-dom
+- Frontend: @wailsio/runtime (exact), @codemirror/{state,view,language,commands,search,autocomplete,lint,merge,lang-* (incl. lang-python),legacy-modes} (lint and autocomplete carry gopls diagnostics and completion), @lezer/highlight, @lezer/markdown, mermaid and yaml (both loaded with dynamic `import()`), @tanstack/virtual-core, @xterm/{xterm,addon-fit,addon-search,addon-web-links} (exact versions); dev: vite, typescript, vitest, happy-dom
 
 ## Developer commands
 ```

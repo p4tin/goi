@@ -1,8 +1,9 @@
-// Package debugger drives Delve over DAP: it starts `dlv dap` (or connects
-// to a headless Delve for remote attach), performs the launch/attach and
-// configuration handshake, and exposes the requests the UI needs, including
-// run-to-cursor built from a temporary breakpoint. It reports adapter
-// events and dlv's own output through callbacks.
+// Package debugger drives a debug adapter over DAP: it starts the adapter
+// the app pack names (Goi: `dlv dap`), or connects to a running one for
+// remote attach, performs the launch/attach and configuration handshake, and
+// exposes the requests the UI needs, including run-to-cursor built from a
+// temporary breakpoint. It reports adapter events and the adapter's own
+// output through callbacks.
 package debugger
 
 import (
@@ -30,8 +31,13 @@ type Event = dap.Event
 
 // Config describes a session.
 type Config struct {
-	// Dlv is the Delve binary (unused for remote attach).
-	Dlv string
+	// Adapter is the debug adapter program (unused for remote attach) and
+	// AdapterArgs its arguments; it must listen on a localhost port and
+	// print the address (Goi: `dlv dap --listen=127.0.0.1:0`).
+	Adapter     string
+	AdapterArgs []string
+	// AdapterID is the DAP adapterID sent at initialize ("go").
+	AdapterID string
 	// Env and Dir apply to the dlv process.
 	Env []string
 	Dir string
@@ -160,7 +166,7 @@ func Start(ctx context.Context, cfg Config) (*Session, error) {
 	ictx, cancel := context.WithTimeout(ctx, cfg.StartTimeout)
 	defer cancel()
 	err = s.conn.Call(ictx, "initialize", dap.InitializeArguments{
-		ClientID: product.Program(), ClientName: product.Name(), AdapterID: "go", Locale: "en",
+		ClientID: product.Program(), ClientName: product.Name(), AdapterID: s.cfg.AdapterID, Locale: "en",
 		LinesStartAt1: true, ColumnsStartAt1: true, PathFormat: "path",
 		SupportsVariableType: true,
 	}, &s.caps)
@@ -172,7 +178,7 @@ func Start(ctx context.Context, cfg Config) (*Session, error) {
 }
 
 func (s *Session) startDlv(ctx context.Context) (string, error) {
-	cmd := exec.Command(s.cfg.Dlv, "dap", "--listen=127.0.0.1:0")
+	cmd := exec.Command(s.cfg.Adapter, s.cfg.AdapterArgs...)
 	cmd.Dir = s.cfg.Dir
 	cmd.Env = s.cfg.Env
 	setProcAttr(cmd)
@@ -185,7 +191,7 @@ func (s *Session) startDlv(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("debugger: start %s: %w", s.cfg.Dlv, err)
+		return "", fmt.Errorf("debugger: start %s: %w", s.cfg.Adapter, err)
 	}
 	s.proc = cmd
 	addrc := make(chan string, 1)

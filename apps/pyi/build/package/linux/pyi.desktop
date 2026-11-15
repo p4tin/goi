@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Pyi
+GenericName=Python IDE
+Comment=A cross-platform Python IDE
+Exec=pyi %F
+Icon=pyi
+Terminal=false
+Categories=Development;IDE;
+MimeType=text/x-python;
+StartupWMClass=pyi

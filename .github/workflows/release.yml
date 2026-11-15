@@ -1,13 +1,22 @@
 name: release
 
-# Builds installers for macOS, Windows and Linux. On a version tag (v*) the
-# packages are published as a GitHub Release; started by hand it only
-# uploads them as workflow artifacts.
+# Builds one app's installers for macOS, Windows and Linux. The tag picks
+# the app: goi-v<version> (or the older v<version>) releases Goi,
+# pyi-v<version> releases Pyi; the version must match the app's
+# apps/<app>/build/config.yml. On a tag the packages are published as a draft
+# GitHub Release; started by hand (choose the app) it only uploads them as
+# workflow artifacts.
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', 'goi-v*', 'pyi-v*']
   workflow_dispatch:
+    inputs:
+      app:
+        description: App to build
+        type: choice
+        options: [goi, pyi]
+        default: goi
 
 permissions:
   contents: write
@@ -21,18 +30,24 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.v.outputs.version }}
+      app: ${{ steps.v.outputs.app }}
+      product: ${{ steps.v.outputs.product }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - id: v
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            v=$(scripts/version.sh "${GITHUB_REF_NAME}")
+            case "${GITHUB_REF_NAME}" in
+              pyi-v*) app=pyi ;;
+              *) app=goi ;;
+            esac
+            v=$(scripts/version.sh "$app" "${GITHUB_REF_NAME}")
           else
-            v=$(scripts/version.sh)
+            app="${{ inputs.app || 'goi' }}"
+            v=$(scripts/version.sh "$app")
           fi
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "product=$(scripts/app-info.sh "$app" productName)" >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
   macos:
@@ -40,6 +55,8 @@ jobs:
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      APP: ${{ needs.version.outputs.app }}
+      PRODUCT: ${{ needs.version.outputs.product }}
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +70,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Build universal app
-        run: wails3 task darwin:package:universal BUILD_VERSION="${VERSION}"
+        run: wails3 task darwin:package:universal APP="${APP}" BUILD_VERSION="${VERSION}"
       - name: Sign and notarize (when certificates are configured)
         if: env.MACOS_CERTIFICATE != ''
         env:
@@ -69,18 +86,18 @@ jobs:
           security unlock-keychain -p ci build.keychain
           security import cert.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
-          codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" bin/Goi.app
-          ditto -c -k --keepParent bin/Goi.app notarize.zip
+          codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "bin/${APP}/${PRODUCT}.app"
+          ditto -c -k --keepParent "bin/${APP}/${PRODUCT}.app" notarize.zip
           xcrun notarytool submit notarize.zip --apple-id "$MACOS_NOTARY_APPLE_ID" --team-id "$MACOS_NOTARY_TEAM_ID" --password "$MACOS_NOTARY_PASSWORD" --wait
-          xcrun stapler staple bin/Goi.app
+          xcrun stapler staple "bin/${APP}/${PRODUCT}.app"
       - name: Package dmg and zip
         run: |
           mkdir -p dist
-          build/package/macos/make-dmg.sh bin/Goi.app "dist/Goi-${VERSION}-macos-universal.dmg"
-          ditto -c -k --keepParent bin/Goi.app "dist/Goi-${VERSION}-macos-universal.zip"
+          build/package/macos/make-dmg.sh "bin/${APP}/${PRODUCT}.app" "dist/${PRODUCT}-${VERSION}-macos-universal.dmg" "${PRODUCT}"
+          ditto -c -k --keepParent "bin/${APP}/${PRODUCT}.app" "dist/${PRODUCT}-${VERSION}-macos-universal.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: goi-macos
+          name: ${{ needs.version.outputs.app }}-macos
           path: dist/*
 
   windows:
@@ -88,6 +105,8 @@ jobs:
     runs-on: windows-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      APP: ${{ needs.version.outputs.app }}
+      PRODUCT: ${{ needs.version.outputs.product }}
       WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
     defaults:
       run:
@@ -105,16 +124,17 @@ jobs:
       - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
       - name: Install NSIS
         run: choco install nsis -y --no-progress && echo "C:\\Program Files (x86)\\NSIS" >> "$GITHUB_PATH"
-      # windows:build always writes bin/goi.exe and doesn't set GOARCH, so each
-      # arch's exe is moved to bin/<arch>/ before the next build.
+      # windows:build always writes bin/<app>/<app>.exe and doesn't set
+      # GOARCH, so each arch's exe is moved to bin/<app>/<arch>/ before the
+      # next build.
       - name: Build amd64 installer
         run: |
-          GOARCH=amd64 wails3 task windows:package ARCH=amd64 BUILD_VERSION="${VERSION}"
-          mkdir -p bin/amd64 && mv bin/goi.exe bin/amd64/goi.exe
+          GOARCH=amd64 wails3 task windows:package APP="${APP}" ARCH=amd64 BUILD_VERSION="${VERSION}"
+          mkdir -p "bin/${APP}/amd64" && mv "bin/${APP}/${APP}.exe" "bin/${APP}/amd64/${APP}.exe"
       - name: Build arm64 (portable)
         run: |
-          GOARCH=arm64 wails3 task windows:build ARCH=arm64 BUILD_VERSION="${VERSION}"
-          mkdir -p bin/arm64 && mv bin/goi.exe bin/arm64/goi.exe
+          GOARCH=arm64 wails3 task windows:build APP="${APP}" ARCH=arm64 BUILD_VERSION="${VERSION}"
+          mkdir -p "bin/${APP}/arm64" && mv "bin/${APP}/${APP}.exe" "bin/${APP}/arm64/${APP}.exe"
       - name: Sign (when a certificate is configured)
         if: env.WINDOWS_CERTIFICATE != ''
         shell: pwsh
@@ -127,15 +147,16 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp bin/goi-amd64-installer.exe "dist/Goi-${VERSION}-windows-amd64-installer.exe"
+          cp "bin/${APP}/${APP}-amd64-installer.exe" "dist/${PRODUCT}-${VERSION}-windows-amd64-installer.exe"
           for arch in amd64 arm64; do
-            go version -m "bin/$arch/goi.exe" | grep -q "GOARCH=$arch" || { echo "bin/$arch/goi.exe is not $arch"; exit 1; }
-            (cd "bin/$arch" && 7z a "../../dist/Goi-${VERSION}-windows-${arch}.zip" goi.exe >/dev/null)
+            exe="bin/${APP}/$arch/${APP}.exe"
+            go version -m "$exe" | grep -q "GOARCH=$arch" || { echo "$exe is not $arch"; exit 1; }
+            (cd "bin/${APP}/$arch" && 7z a "../../../dist/${PRODUCT}-${VERSION}-windows-${arch}.zip" "${APP}.exe" >/dev/null)
           done
           ls -l dist
       - uses: actions/upload-artifact@v4
         with:
-          name: goi-windows
+          name: ${{ needs.version.outputs.app }}-windows
           path: dist/*
 
   linux:
@@ -143,6 +164,8 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      APP: ${{ needs.version.outputs.app }}
+      PRODUCT: ${{ needs.version.outputs.product }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -159,21 +182,22 @@ jobs:
       - run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@${{ env.NFPM_VERSION }}
       - name: Build
         # EXTRA_TAGS defaults to gtk3 (GTK3 + WebKitGTK 4.1) in build/linux/Taskfile.yml.
-        run: wails3 task linux:build BUILD_VERSION="${VERSION}"
+        run: wails3 task linux:build APP="${APP}" BUILD_VERSION="${VERSION}"
       - name: Package deb, rpm and tar.gz
         run: |
           mkdir -p dist
-          GOARCH=amd64 GOI_VERSION="$VERSION" nfpm package -f build/package/linux/nfpm.yaml -p deb -t "dist/goi_${VERSION}_amd64.deb"
-          GOARCH=amd64 GOI_VERSION="$VERSION" nfpm package -f build/package/linux/nfpm.yaml -p rpm -t "dist/goi-${VERSION}.x86_64.rpm"
-          stage="goi-${VERSION}-linux-amd64"
+          cfg="apps/${APP}/build/package/linux/nfpm.yaml"
+          GOARCH=amd64 APP_VERSION="$VERSION" nfpm package -f "$cfg" -p deb -t "dist/${APP}_${VERSION}_amd64.deb"
+          GOARCH=amd64 APP_VERSION="$VERSION" nfpm package -f "$cfg" -p rpm -t "dist/${APP}-${VERSION}.x86_64.rpm"
+          stage="${APP}-${VERSION}-linux-amd64"
           mkdir -p "$stage"
-          cp bin/goi build/package/linux/goi.desktop build/appicon.png "$stage/"
-          tar -czf "dist/Goi-${VERSION}-linux-amd64.tar.gz" "$stage"
+          cp "bin/${APP}/${APP}" "apps/${APP}/build/package/linux/${APP}.desktop" "apps/${APP}/build/appicon.png" "$stage/"
+          tar -czf "dist/${PRODUCT}-${VERSION}-linux-amd64.tar.gz" "$stage"
       - name: Check the deb
-        run: dpkg-deb --info "dist/goi_${VERSION}_amd64.deb" && dpkg-deb --contents "dist/goi_${VERSION}_amd64.deb"
+        run: dpkg-deb --info "dist/${APP}_${VERSION}_amd64.deb" && dpkg-deb --contents "dist/${APP}_${VERSION}_amd64.deb"
       - uses: actions/upload-artifact@v4
         with:
-          name: goi-linux
+          name: ${{ needs.version.outputs.app }}-linux
           path: dist/*
 
   release:
@@ -188,19 +212,19 @@ jobs:
         run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: goi-release
+          name: ${{ needs.version.outputs.app }}-release
           path: dist/*
       - name: Publish GitHub Release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          name: Goi ${{ needs.version.outputs.version }}
+          name: ${{ needs.version.outputs.product }} ${{ needs.version.outputs.version }}
           draft: true
           files: dist/*
           body: |
-            Goi ${{ needs.version.outputs.version }}
+            ${{ needs.version.outputs.product }} ${{ needs.version.outputs.version }}
 
-            - macOS (Apple silicon and Intel): `.dmg` (drag Goi to Applications) or `.zip`
+            - macOS (Apple silicon and Intel): `.dmg` (drag ${{ needs.version.outputs.product }} to Applications) or `.zip`
             - Windows: `-installer.exe`, or the portable `.zip` (amd64, arm64)
             - Linux: `.deb`, `.rpm`, or `.tar.gz`
 

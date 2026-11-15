@@ -11,25 +11,29 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/product"
 	"github.com/p4tin/goi/internal/settings"
 	"github.com/p4tin/goi/internal/vfs"
 )
 
-// redetectDelay debounces go.mod/go.work changes before re-running Detect.
+// redetectDelay debounces project file changes (Goi: go.mod/go.work)
+// before re-running Detect.
 const redetectDelay = 300 * time.Millisecond
 
 // Options configure Open.
 type Options struct {
-	Root     string
-	GOPATH   []string
-	Settings *settings.Store // project layer must already point at Root/.goi/settings.toml
+	Root string
+	// Detector classifies the project (the app pack's); nil treats it as a
+	// plain folder.
+	Detector Detector
+	Settings *settings.Store // project layer must already point at SettingsPath(Root)
 	Watcher  vfs.Watcher     // optional; enables live re-detection
 	Bus      events.Bus
 	Log      *slog.Logger
 }
 
-// Manager owns the open project model and keeps it current as go.mod,
-// go.work and project settings change.
+// Manager owns the open project model and keeps it current as project files
+// (those the Detector watches) and project settings change.
 type Manager struct {
 	opts Options
 
@@ -49,9 +53,19 @@ type Manager struct {
 	subSeq  int
 }
 
-// SettingsPath returns the project settings file for root.
+// SettingsPath returns the project settings file for root, in the app's
+// project directory (.goi for Goi).
 func SettingsPath(root string) string {
-	return filepath.Join(root, ".goi", "settings.toml")
+	return filepath.Join(StateDir(root), "settings.toml")
+}
+
+// StateDir returns root's project state directory (.goi for Goi).
+func StateDir(root string) string {
+	dir := product.Current().ProjectDir
+	if dir == "" {
+		dir = ".ide"
+	}
+	return filepath.Join(root, dir)
 }
 
 // Open detects the project at opts.Root and starts tracking changes.
@@ -64,6 +78,9 @@ func Open(ctx context.Context, opts Options) (*Manager, error) {
 	}
 	if opts.Settings == nil {
 		return nil, fmt.Errorf("workspace: settings store required")
+	}
+	if opts.Detector == nil {
+		opts.Detector = FolderDetector{}
 	}
 	m := &Manager{opts: opts}
 	if err := m.redetect(ctx); err != nil {
@@ -168,7 +185,7 @@ func (m *Manager) Close() {
 
 func (m *Manager) onFS(evs []vfs.Event) {
 	for _, e := range evs {
-		if name := filepath.Base(e.Path); name == "go.mod" || name == "go.work" {
+		if m.opts.Detector.Watches(filepath.Base(e.Path)) {
 			m.scheduleRedetect()
 			return
 		}
@@ -211,7 +228,7 @@ func (m *Manager) redetect(ctx context.Context) error {
 		})
 		matcher = vfs.MatchNone
 	}
-	p, err := Detect(ctx, m.opts.Root, m.opts.GOPATH, matcher)
+	p, err := m.opts.Detector.Detect(ctx, m.opts.Root, matcher)
 	if err != nil {
 		return err
 	}
