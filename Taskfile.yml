@@ -13,8 +13,11 @@ vars:
   MAIN_PKG: './apps/{{.APP}}'
   # Binary name; the macOS bundle is <PRODUCT_NAME>.app (the binary inside stays APP_NAME).
   APP_NAME: '{{.APP}}'
-  PRODUCT_NAME:
-    sh: scripts/app-info.sh {{.APP}} productName
+  # The app id title-cased (goi → Goi), which matches info.productName in
+  # each app's build/config.yml. No shell script: Task's Windows shell can't
+  # run one. Override with PRODUCT_NAME=... for an app whose name differs.
+  PRODUCT_NAME: '{{.PRODUCT_NAME | default (.APP | title)}}'
+
   # Full product version stamped into paths.BuildVersion for release builds
   # (wails3 task package BUILD_VERSION=0.1.2). Empty leaves the default "dev".
   BUILD_VERSION: '{{.BUILD_VERSION | default ""}}'

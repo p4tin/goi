@@ -51,5 +51,8 @@ export default defineConfig(({ mode }) => {
       outDir: resolve(here, '..', 'apps', app, 'dist'),
       emptyOutDir: true,
     },
+    test: {
+      setupFiles: ['test/setup.ts'],
+    },
   };
 });
