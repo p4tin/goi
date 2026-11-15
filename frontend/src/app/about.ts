@@ -1,6 +1,6 @@
-// Help → About Goi: product version, build, platform and log location.
+// Help → About <product>: product version, build, platform and log location.
 
-import iconUrl from '../assets/goi-icon.svg';
+import { product } from '../pack';
 import { app, openExternal } from '../lib/api';
 import { commands } from '../lib/commands';
 import { h } from '../lib/dom';
@@ -18,16 +18,16 @@ export async function showAbout(): Promise<void> {
   const body = h(
     'div',
     { class: 'about' },
-    h('img', { class: 'about-icon', src: iconUrl, alt: '' }),
-    h('div', { class: 'about-title' }, 'Goi'),
-    h('div', { class: 'about-sub' }, 'A cross-platform Go IDE'),
+    h('img', { class: 'about-icon', src: product.icon, alt: '' }),
+    h('div', { class: 'about-title' }, product.name),
+    h('div', { class: 'about-sub' }, product.tagline),
     row('Version', versionLabel(info.version, info.build)),
     row('Platform', `${info.os}/${info.arch}`),
     row('Built with', info.goVersion),
     row('Log file', info.logPath),
   );
   const choice = await showDialog<'site' | 'close'>({
-    title: 'About Goi',
+    title: `About ${product.name}`,
     body,
     cancelValue: 'close',
     buttons: [
@@ -35,9 +35,9 @@ export async function showAbout(): Promise<void> {
       { label: 'Close', value: 'close', primary: true },
     ],
   });
-  if (choice === 'site') openExternal('https://github.com/p4tin/goi');
+  if (choice === 'site') openExternal(product.site);
 }
 
 export function installAbout(_wb: Workbench): void {
-  commands.register({ id: 'help.about', title: 'About Goi', category: 'Help', run: () => showAbout() });
+  commands.register({ id: 'help.about', title: `About ${product.name}`, category: 'Help', run: () => showAbout() });
 }

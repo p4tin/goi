@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "build:dev": "tsc && vite build --minify false --mode development",
+    "build": "tsc && vite build --mode goi && vite build --mode pyi",
+    "build:goi": "tsc && vite build --mode goi",
+    "build:pyi": "tsc && vite build --mode pyi",
+    "build:app": "tsc && vite build",
+    "build:app:dev": "tsc && vite build --minify false",
     "preview": "vite preview",
     "test": "vitest run"
   },

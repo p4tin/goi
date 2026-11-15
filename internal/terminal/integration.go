@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/p4tin/goi/internal/product"
 )
 
 func timeAfter() <-chan time.Time { return time.After(500 * time.Millisecond) }
@@ -204,6 +206,6 @@ func setEnv(env []string, key, val string) []string {
 func Environ(env []string) []string {
 	env = setEnv(env, "TERM", "xterm-256color")
 	env = setEnv(env, "COLORTERM", "truecolor")
-	env = setEnv(env, "TERM_PROGRAM", "Goi")
+	env = setEnv(env, "TERM_PROGRAM", product.Name())
 	return env
 }

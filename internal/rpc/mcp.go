@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/mcp"
-	"github.com/p4tin/goi/internal/paths"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // mcpListener is one running MCP HTTP server.
@@ -51,8 +51,8 @@ func (h *mcpHost) serve(addr, token string) (*mcpListener, error) {
 	}
 	s := mcp.NewServer(mcp.Options{
 		Token:        token,
-		Info:         mcp.Implementation{Name: "goi", Version: paths.ProductVersion},
-		Instructions: mcpInstructions,
+		Info:         mcp.Implementation{Name: product.Program(), Version: product.Current().Version},
+		Instructions: mcpInstructions(),
 		Tools:        agentTools(),
 		Call:         h.call,
 		Target:       func(r *http.Request) string { return strings.TrimPrefix(r.URL.Path, "/mcp") },
@@ -179,7 +179,7 @@ func (h *mcpHost) route(target string, args json.RawMessage) (*window, string, e
 				}
 			}
 		}
-		return nil, "", fmt.Errorf("no Goi window has %s open", p.Project)
+		return nil, "", fmt.Errorf("no %s window has %s open", product.Name(), p.Project)
 	}
 	if w := a.focusedWindow(); w != nil {
 		return w, "", nil
@@ -196,7 +196,7 @@ func (h *mcpHost) call(ctx context.Context, target, name string, args json.RawMe
 		return mcp.ToolResult{}, err
 	}
 	if _, err := w.current(); err != nil {
-		return mcp.ToolResult{}, errors.New("the Goi window has no project open")
+		return mcp.ToolResult{}, fmt.Errorf("the %s window has no project open", product.Name())
 	}
 	raw, err := w.ui.request(ctx, "tool", key, map[string]any{"name": name, "args": args}, toolTimeout)
 	if err != nil {

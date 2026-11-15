@@ -13,10 +13,12 @@ import (
 	"github.com/p4tin/goi/internal/gopls"
 	"github.com/p4tin/goi/internal/lsp"
 	"github.com/p4tin/goi/internal/mcp"
+	"github.com/p4tin/goi/internal/product/producttest"
 	"github.com/p4tin/goi/internal/settings"
 )
 
 func TestMain(m *testing.M) {
+	producttest.Set()
 	// The test binary doubles as the fake ACP agent and as `goi mcp-bridge`
 	// (agent tests run it as both).
 	if len(os.Args) > 1 && os.Args[1] == "mcp-bridge" {

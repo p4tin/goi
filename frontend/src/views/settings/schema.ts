@@ -1,6 +1,8 @@
 // Descriptors for every setting shown in the settings view, plus pure helpers used by the settings
 // view (lookup, search, validation).
 
+import { product } from '../../pack';
+
 export type SettingType = 'bool' | 'int' | 'string' | 'enum' | 'stringList' | 'map';
 export type WritableLayer = 'user' | 'project';
 
@@ -39,7 +41,7 @@ export const schema: SettingDescriptor[] = [
     section: 'Appearance',
     description: 'Syntax colors. Auto matches the UI theme.',
     type: 'enum',
-    options: opts(['auto', 'Auto'], ['goi-light', 'Goi Light'], ['goi-dark', 'Goi Dark'], ['goi-ember', 'Goi Ember'], ['goi-paper', 'Goi Paper']),
+    options: opts(['auto', 'Auto'], ['goi-light', 'Light'], ['goi-dark', 'Dark'], ['goi-ember', 'Ember'], ['goi-paper', 'Paper']),
     layers: userOnly,
   },
   { key: 'editor.fontFamily', title: 'Font Family', section: 'Editor', description: 'CSS font-family list for the editor.', type: 'string', layers: both },
@@ -85,7 +87,7 @@ export const schema: SettingDescriptor[] = [
   { key: 'gopls.usePlaceholders', title: 'Complete Function Parameters', section: 'Go', description: 'Completing a function inserts placeholders for its parameters.', type: 'bool', layers: both },
   { key: 'gopls.staticcheck', title: 'Staticcheck Analyzers', section: 'Go', description: 'Report the extra staticcheck analyzers in diagnostics (slower on large projects).', type: 'bool', layers: both },
   { key: 'run.outputLimitLines', title: 'Console Line Limit', section: 'Run & Debug', description: 'Lines kept per Run/Debug console tab; older lines are dropped.', type: 'int', min: 1000, max: 1000000, layers: userOnly },
-  { key: 'debug.dlvPath', title: 'Delve Path', section: 'Run & Debug', description: "dlv executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi's tools folder.", type: 'string', layers: userOnly },
+  { key: 'debug.dlvPath', title: 'Delve Path', section: 'Run & Debug', description: "dlv executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and the tools folder.", type: 'string', layers: userOnly },
   { key: 'debug.showTypes', title: 'Show Variable Types', section: 'Run & Debug', description: 'Show types next to variables in the debugger.', type: 'bool', layers: userOnly },
   { key: 'debug.showAddresses', title: 'Show Pointer Addresses', section: 'Run & Debug', description: 'Keep 0x… memory addresses in variable values.', type: 'bool', layers: userOnly },
   { key: 'debug.showUnreadable', title: 'Show Unreadable Variables', section: 'Run & Debug', description: 'List variables Delve cannot read (optimized away or invalid memory).', type: 'bool', layers: userOnly },
@@ -98,7 +100,7 @@ export const schema: SettingDescriptor[] = [
   { key: 'git.pullRebase', title: 'Pull with Rebase', section: 'Version Control', description: 'Pull rebases local commits instead of merging.', type: 'bool', layers: both },
   { key: 'lint.enabled', title: 'Enable golangci-lint', section: 'Linting', description: 'Show golangci-lint issues in the editor and Problems.', type: 'bool', layers: both },
   { key: 'lint.onSave', title: 'Lint on Save', section: 'Linting', description: "Lint the saved file's package.", type: 'bool', layers: both },
-  { key: 'lint.golangciPath', title: 'golangci-lint Path', section: 'Linting', description: "golangci-lint executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and Goi's tools folder.", type: 'string', layers: userOnly },
+  { key: 'lint.golangciPath', title: 'golangci-lint Path', section: 'Linting', description: "golangci-lint executable. Empty searches $PATH, $GOBIN, $GOPATH/bin and the tools folder.", type: 'string', layers: userOnly },
   { key: 'lint.args', title: 'Extra Arguments', section: 'Linting', description: 'Added to golangci-lint run (the project .golangci.yml is always used).', type: 'stringList', layers: both },
   { key: 'ai.defaultAgent', title: 'Default Agent', section: 'AI', description: 'Agent preselected for new sessions: claude, gemini, codex or a custom id.', type: 'string', layers: userOnly },
   {
@@ -109,7 +111,7 @@ export const schema: SettingDescriptor[] = [
     type: 'map',
     layers: userOnly,
   },
-  { key: 'ai.mcpServer', title: 'IDE Tools for Agents', section: 'AI', description: 'Give agents started by Goi tools to open files, read diagnostics, run configurations and more (MCP).', type: 'bool', layers: userOnly },
+  { key: 'ai.mcpServer', title: 'IDE Tools for Agents', section: 'AI', description: `Give agents started by ${product.name} tools to open files, read diagnostics, run configurations and more (MCP).`, type: 'bool', layers: userOnly },
   { key: 'ai.externalMcp', title: 'External MCP Clients', section: 'AI', description: 'Also serve the IDE tools to other MCP clients (Claude Code in a terminal, …) on the port below. Takes effect after a restart.', type: 'bool', layers: userOnly },
   { key: 'ai.mcpPort', title: 'MCP Port', section: 'AI', description: 'Local port for external MCP clients.', type: 'int', min: 1024, max: 65535, layers: userOnly },
   { key: 'go.goroot', title: 'GOROOT', section: 'Go', description: 'Go SDK used for this project. Empty picks one automatically.', type: 'string', layers: both },
@@ -163,14 +165,14 @@ export const schema: SettingDescriptor[] = [
     section: 'Keymap',
     description: 'Base keyboard shortcuts.',
     type: 'enum',
-    options: opts(['goi-default', 'Goi Default'], ['vscode', 'VS Code']),
+    options: opts(['goi-default', 'Default'], ['vscode', 'VS Code']),
     layers: userOnly,
   },
   {
     key: 'startup.reopenLastProject',
     title: 'Reopen Last Project',
     section: 'Startup',
-    description: 'Open the most recent project when Goi starts.',
+    description: `Open the most recent project when ${product.name} starts.`,
     type: 'bool',
     layers: userOnly,
   },

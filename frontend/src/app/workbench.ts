@@ -12,6 +12,7 @@ import { Notifications, renderNotificationsPanel } from './notifications';
 import { PanelRegistry, renderDock, splitter } from './panels';
 import type { DockId, PanelsState } from './panels';
 import { project } from './state';
+import { product } from '../pack';
 import { StatusBar } from './statusbar';
 
 export interface Workbench {
@@ -92,7 +93,7 @@ export function routeWorkbench(wb: Workbench): void {
     const p = project();
     wb.root.hidden = !p;
     wb.welcome.hidden = !!p;
-    document.title = p ? `${p.name} — Goi` : 'Goi';
+    document.title = p ? `${p.name} — ${product.name}` : product.name;
     if (p && p.root !== lastRoot) {
       lastRoot = p.root;
       void wb.layout.load();

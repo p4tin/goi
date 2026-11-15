@@ -203,13 +203,13 @@ func TestStartupReopensOpenSet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GOI_HOME", home)
 	rootA, rootB := module(t), module(t)
-	a, err := NewApp(Options{})
+	a, err := NewApp(Options{}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
 	withWindows(a)
 	// Seed the open set the way a previous quit would.
-	pre, _ := NewApp(Options{})
+	pre, _ := NewApp(Options{}, testPack())
 	pre.start(context.Background(), events.Nop{}, nil)
 	pre.recent.SetOpenSet([]string{rootA, rootB, filepath.Join(home, "gone")})
 	pre.Shutdown(context.Background())
@@ -246,13 +246,13 @@ func TestStartupAfterQuitFromWelcomeShowsWelcome(t *testing.T) {
 	t.Setenv("GOI_HOME", t.TempDir())
 	root := module(t)
 	// A previous run opened a project, then quit from Welcome.
-	pre, _ := NewApp(Options{})
+	pre, _ := NewApp(Options{}, testPack())
 	pre.start(context.Background(), events.Nop{}, nil)
 	pre.recent.Touch(recent.Entry{Path: root})
 	pre.recent.SetOpenSet(nil)
 	pre.Shutdown(context.Background())
 
-	a, err := NewApp(Options{})
+	a, err := NewApp(Options{}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,12 +272,12 @@ func TestStartupAfterQuitFromWelcomeShowsWelcome(t *testing.T) {
 func TestStartupWithoutOpenSetReopensMostRecent(t *testing.T) {
 	t.Setenv("GOI_HOME", t.TempDir())
 	root := module(t)
-	pre, _ := NewApp(Options{})
+	pre, _ := NewApp(Options{}, testPack())
 	pre.start(context.Background(), events.Nop{}, nil)
 	pre.recent.Touch(recent.Entry{Path: root})
 	pre.Shutdown(context.Background())
 
-	a, err := NewApp(Options{})
+	a, err := NewApp(Options{}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}

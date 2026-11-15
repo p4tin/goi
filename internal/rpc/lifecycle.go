@@ -10,6 +10,7 @@ import (
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/paths"
+	"github.com/p4tin/goi/internal/product"
 	"github.com/p4tin/goi/internal/recent"
 )
 
@@ -24,7 +25,7 @@ func (a *App) start(ctx context.Context, bus events.Bus, handle windowHandle) er
 // defers the first window until the first browser client calls in.
 func (a *App) startWith(ctx context.Context, appBus events.Bus, handle windowHandle, winBus events.Bus) error {
 	a.ctx, a.appBus = ctx, appBus
-	a.log.Info("startup", "version", paths.ProductVersion, "build", paths.BuildVersion, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
+	a.log.Info("startup", "version", product.Current().Version, "build", paths.BuildVersion, "os", runtime.GOOS, "arch", runtime.GOARCH, "project", a.opts.ProjectPath)
 
 	var err error
 	if a.recent, err = recent.Load(filepath.Join(a.configDir, "recent.json")); err != nil {

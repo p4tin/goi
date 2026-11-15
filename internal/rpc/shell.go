@@ -12,6 +12,7 @@ import (
 	wevents "github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // ShellOptions are the parts of the native shell that come from main.
@@ -26,9 +27,10 @@ type ShellOptions struct {
 // the application quits.
 func (a *App) Run(opts ShellOptions) error {
 	a.icon = opts.Icon
+	id := product.Current()
 	a.wapp = application.New(application.Options{
-		Name:        "Goi",
-		Description: "A cross-platform Go IDE",
+		Name:        id.Name,
+		Description: id.Description,
 		Logger:      a.log,
 		LogLevel:    slog.LevelWarn,
 		Services:    a.services(),
@@ -47,11 +49,11 @@ func (a *App) Run(opts ShellOptions) error {
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 		Linux: application.LinuxOptions{
-			// Matches goi.desktop (StartupWMClass / Wayland app id), so
+			// Matches the app's .desktop file (StartupWMClass / Wayland app id), so
 			// docks group the windows under the launcher's icon.
-			ProgramName: "goi",
+			ProgramName: id.Program,
 		},
-		FileAssociations: []string{".go", ".mod", ".work"},
+		FileAssociations: id.FileAssociations,
 	})
 	a.wapp.Event.OnApplicationEvent(wevents.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		if f := e.Context().Filename(); f != "" {
@@ -88,11 +90,11 @@ func (a *App) callerWindow(ctx context.Context) *window {
 	return nil
 }
 
-// instanceID identifies the single Goi process for this config directory, so
-// separate GOI_HOME profiles run separately.
+// instanceID identifies the single process for this config directory, so
+// separate profiles (GOI_HOME for Goi) run separately.
 func (a *App) instanceID() string {
 	sum := sha256.Sum256([]byte(a.configDir))
-	return "dev.goi.app." + hex.EncodeToString(sum[:6])
+	return product.Current().SingleInstanceID() + "." + hex.EncodeToString(sum[:6])
 }
 
 // cascade is the offset of a new window from the focused one.
@@ -102,7 +104,7 @@ const cascade = 28
 // is registered with the app by addWindow, which binds its native hooks.
 func (a *App) newNativeWindow() (windowHandle, events.Bus) {
 	opts := application.WebviewWindowOptions{
-		Title:            "Goi",
+		Title:            product.Name(),
 		Width:            1280,
 		Height:           800,
 		MinWidth:         640,

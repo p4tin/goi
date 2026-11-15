@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/p4tin/goi/internal/product"
 )
 
 // Bridge relays MCP from a stdio client to an HTTP server: each line read
@@ -89,20 +91,20 @@ func bridgeError(msg []byte, err error) []byte {
 // stdin/stdout to the MCP server at U and returns the exit code.
 func RunBridge(args []string) int {
 	fs := flag.NewFlagSet("mcp-bridge", flag.ContinueOnError)
-	url := fs.String("url", "", "Goi MCP server URL")
-	token := fs.String("token", "", "bearer token (default: $GOI_MCP_TOKEN)")
+	url := fs.String("url", "", product.Name()+" MCP server URL")
+	token := fs.String("token", "", "bearer token (default: $"+product.Current().MCPTokenEnv()+")")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *url == "" {
-		fmt.Fprintln(os.Stderr, "goi mcp-bridge: --url is required")
+		fmt.Fprintln(os.Stderr, product.Program()+" mcp-bridge: --url is required")
 		return 2
 	}
 	if *token == "" {
-		*token = os.Getenv("GOI_MCP_TOKEN")
+		*token = os.Getenv(product.Current().MCPTokenEnv())
 	}
 	if err := Bridge(context.Background(), os.Stdin, os.Stdout, *url, *token, nil); err != nil {
-		fmt.Fprintln(os.Stderr, "goi mcp-bridge:", err)
+		fmt.Fprintln(os.Stderr, product.Program()+" mcp-bridge:", err)
 		return 1
 	}
 	return 0

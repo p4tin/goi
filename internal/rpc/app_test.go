@@ -45,7 +45,7 @@ func TestParseArgs(t *testing.T) {
 func started(t *testing.T, project string) (*App, *events.Recorder) {
 	t.Helper()
 	t.Setenv("GOI_HOME", t.TempDir())
-	a, err := NewApp(Options{ProjectPath: project})
+	a, err := NewApp(Options{ProjectPath: project}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,11 +103,11 @@ func TestReopenLastProjectAndClose(t *testing.T) {
 	root := module(t)
 	home := t.TempDir()
 	t.Setenv("GOI_HOME", home)
-	a1, _ := NewApp(Options{ProjectPath: root})
+	a1, _ := NewApp(Options{ProjectPath: root}, testPack())
 	a1.start(context.Background(), events.Nop{}, nil)
 	a1.Shutdown(context.Background())
 
-	a2, err := NewApp(Options{})
+	a2, err := NewApp(Options{}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 	root := module(t)
 	home := t.TempDir()
 	t.Setenv("GOI_HOME", home)
-	a1, err := NewApp(Options{ProjectPath: root})
+	a1, err := NewApp(Options{ProjectPath: root}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestJournalRestoreAfterCrash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a2, err := NewApp(Options{ProjectPath: root})
+	a2, err := NewApp(Options{ProjectPath: root}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ func TestProjectRootForAndPositionalArgs(t *testing.T) {
 func TestOpenFileQueuedThenOpensProject(t *testing.T) {
 	root := module(t)
 	t.Setenv("GOI_HOME", t.TempDir())
-	a, err := NewApp(Options{})
+	a, err := NewApp(Options{}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}

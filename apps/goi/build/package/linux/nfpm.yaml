@@ -1,12 +1,12 @@
 # nfpm configuration for the Linux .deb and .rpm packages (Wails v3 build).
 # Goi's own file: `wails3 update build-assets` regenerates build/linux/nfpm/nfpm.yaml,
-# so the packaging tasks use this one instead.
-#   GOI_VERSION=0.2.1 GOARCH=amd64 wails3 tool package -name goi -format deb -config build/package/linux/nfpm.yaml -out bin
-# The linux:create:deb / linux:create:rpm tasks set GOI_VERSION from scripts/version.sh.
+# so the packaging tasks use this one instead. Paths are relative to the repo root.
+#   APP_VERSION=0.2.1 GOARCH=amd64 wails3 tool package -name goi -format deb -config apps/goi/build/package/linux/nfpm.yaml -out bin/goi
+# The linux:create:deb / linux:create:rpm tasks set APP_VERSION from scripts/version.sh.
 name: goi
 arch: ${GOARCH}
 platform: linux
-version: ${GOI_VERSION}
+version: ${APP_VERSION}
 section: devel
 priority: optional
 maintainer: Goi contributors <goi@example.com>
@@ -16,13 +16,13 @@ description: |
 homepage: https://github.com/p4tin/goi
 license: Proprietary
 contents:
-  - src: ./bin/goi
+  - src: ./bin/goi/goi
     dst: /usr/bin/goi
     file_info:
       mode: 0755
-  - src: ./build/package/linux/goi.desktop
+  - src: ./apps/goi/build/package/linux/goi.desktop
     dst: /usr/share/applications/goi.desktop
-  - src: ./build/appicon.png
+  - src: ./apps/goi/build/appicon.png
     dst: /usr/share/pixmaps/goi.png
 scripts:
   postinstall: ./build/linux/nfpm/scripts/postinstall.sh

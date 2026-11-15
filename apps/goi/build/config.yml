@@ -1,5 +1,5 @@
 # This file contains the configuration for this project.
-# When you update `info` or `fileAssociations`, run `wails3 task common:update:build-assets` to update the assets.
+# When you update `info` or `fileAssociations`, run `wails3 task common:update:build-assets APP=goi` to update the assets.
 # Note that this will overwrite any changes you have made to the assets.
 version: '3'
 
@@ -49,9 +49,9 @@ dev_mode:
       - "*.ts" # The frontend directory will be excluded entirely by the setting above.
     git_ignore: true
   executes:
-    - cmd: wails3 build DEV=true
+    - cmd: wails3 build DEV=true APP=goi
       type: blocking
-    - cmd: wails3 task common:dev:frontend
+    - cmd: wails3 task common:dev:frontend APP=goi
       type: background
       # The standard frontend task waits up to 60s for HTTP 200 from
       # FRONTEND_DEVSERVER_URL before starting the app. Override if needed;
@@ -60,7 +60,7 @@ dev_mode:
       #   http: "http://localhost:5173/"
       #   timeout: "60s"
       #   interval: "200ms"
-    - cmd: wails3 task run
+    - cmd: wails3 task run APP=goi
       type: primary
       exit_policy: shutdown
 

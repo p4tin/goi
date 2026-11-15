@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/lsp"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // State is the lifecycle state reported to the host.
@@ -431,7 +432,7 @@ func (s *Server) initialize(conn *lsp.Conn) error {
 	defer cancel()
 	params := map[string]any{
 		"processId":             os.Getpid(),
-		"clientInfo":            map[string]string{"name": "Goi"},
+		"clientInfo":            map[string]string{"name": product.Name()},
 		"rootUri":               PathToURI(s.cfg.Root),
 		"workspaceFolders":      s.workspaceFolders(),
 		"initializationOptions": s.configuration(),

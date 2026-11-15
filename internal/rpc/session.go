@@ -9,6 +9,7 @@ import (
 
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/journal"
+	"github.com/p4tin/goi/internal/product"
 	"github.com/p4tin/goi/internal/recent"
 	"github.com/p4tin/goi/internal/vfs"
 	"github.com/p4tin/goi/internal/workspace"
@@ -89,7 +90,7 @@ func (w *window) openProject(path string) error {
 		m.Close()
 		fw.Close()
 		w.settings.SetProjectPath("")
-		return fmt.Errorf("open project: %s is already open in another Goi window", abs)
+		return fmt.Errorf("open project: %s is already open in another %s window", abs, product.Name())
 	}
 	if err != nil {
 		a.log.Warn("journal", "err", err)
@@ -117,7 +118,7 @@ func (w *window) openProject(path string) error {
 		a.appBus.Emit(events.TopicRecentChanged, list)
 	}
 	a.log.Info("project opened", "root", abs, "kind", p.Kind, "crashed", crashed)
-	w.setTitle("Goi - " + p.Name)
+	w.setTitle(product.Name() + " - " + p.Name)
 	w.bus.Emit(events.TopicWorkspaceChanged, p)
 	a.refreshDock()
 	return nil
@@ -125,7 +126,7 @@ func (w *window) openProject(path string) error {
 
 // ErrOpenElsewhere means the project is open in another Goi window, which
 // has been brought to the front.
-var ErrOpenElsewhere = errors.New("project is already open in another Goi window")
+var ErrOpenElsewhere = errors.New("project is already open in another window")
 
 func (w *window) closeProject() error {
 	w.mu.Lock()
@@ -139,7 +140,7 @@ func (w *window) closeProject() error {
 	if err := w.settings.SetProjectPath(""); err != nil {
 		w.app.log.Warn("clear project settings", "err", err)
 	}
-	w.setTitle("Goi")
+	w.setTitle(product.Name())
 	w.bus.Emit(events.TopicWorkspaceChanged, nil)
 	w.app.refreshDock()
 	return nil

@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/lsp"
+	"github.com/p4tin/goi/internal/product/producttest"
 )
 
 func TestMain(m *testing.M) {
+	producttest.Set()
 	if os.Getenv("GOI_FAKE_LSP") == "1" {
 		fakeServer()
 		os.Exit(0)

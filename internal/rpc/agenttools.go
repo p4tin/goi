@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 
 	"github.com/p4tin/goi/internal/mcp"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // mcpInstructions is sent to MCP clients at initialize.
-const mcpInstructions = "Tools of the Goi IDE window that has this project open. Paths are absolute OS paths; lines and columns are 1-based. " +
-	"read_file sees unsaved editor changes. replace_text and write_file edit through the editor (one undoable change, then saved) and the user can review and revert them. " +
-	"Prefer get_diagnostics after edits, and run_tests or run_configuration to verify."
+func mcpInstructions() string {
+	return "Tools of the " + product.Name() + " IDE window that has this project open. Paths are absolute OS paths; lines and columns are 1-based. " +
+		"read_file sees unsaved editor changes. replace_text and write_file edit through the editor (one undoable change, then saved) and the user can review and revert them. " +
+		"Prefer get_diagnostics after edits, and run_tests or run_configuration to verify."
+}
 
 type prop struct {
 	Type        string   `json:"type"`
@@ -20,7 +23,7 @@ type prop struct {
 // schema builds an object JSON schema. Every tool also takes an optional
 // "project" (external clients with several windows open).
 func schema(required []string, props map[string]prop) json.RawMessage {
-	all := map[string]prop{"project": {Type: "string", Description: "Project folder of the Goi window to use (only needed when several are open)."}}
+	all := map[string]prop{"project": {Type: "string", Description: "Project folder of the " + product.Name() + " window to use (only needed when several are open)."}}
 	for k, v := range props {
 		all[k] = v
 	}

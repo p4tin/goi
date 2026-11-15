@@ -15,9 +15,11 @@ import (
 
 	"github.com/p4tin/goi/internal/acp"
 	"github.com/p4tin/goi/internal/acp/acptest"
+	"github.com/p4tin/goi/internal/product/producttest"
 )
 
 func TestMain(m *testing.M) {
+	producttest.Set()
 	if os.Getenv("GOI_FAKE_AGENT") == "1" {
 		acptest.Main()
 	}

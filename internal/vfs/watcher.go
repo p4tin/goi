@@ -14,6 +14,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/p4tin/goi/internal/events"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // Op is the kind of a file system change.
@@ -457,7 +458,7 @@ func (w *watcher) limitCheckLocked(err error) {
 		ID:    "vfs.watcher.limit",
 		Level: "warn",
 		Title: "File watcher limit reached",
-		Body: "Goi can't watch every folder in this project, so some external changes won't appear " +
+		Body: product.Name() + " can't watch every folder in this project, so some external changes won't appear " +
 			"until you refresh. On Linux, raise fs.inotify.max_user_watches (e.g. " +
 			"`sudo sysctl fs.inotify.max_user_watches=524288`) or exclude large folders.",
 	})

@@ -13,6 +13,7 @@ import (
 
 	"github.com/p4tin/goi/internal/acp"
 	"github.com/p4tin/goi/internal/process"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // Host serves the agent's requests to the IDE.
@@ -164,7 +165,7 @@ func (c *Client) Initialize(ctx context.Context) (acp.InitializeResult, error) {
 	err := c.call(ctx, acp.MethodInitialize, acp.InitializeParams{
 		ProtocolVersion:    acp.ProtocolVersion,
 		ClientCapabilities: acp.ClientCapabilities{FS: acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true}, Terminal: true},
-		ClientInfo:         &acp.Implementation{Name: "goi", Title: "Goi", Version: c.opts.ClientVersion},
+		ClientInfo:         &acp.Implementation{Name: product.Program(), Title: product.Name(), Version: c.opts.ClientVersion},
 	}, &res)
 	if err != nil {
 		return res, fmt.Errorf("agent: initialize: %w", err)

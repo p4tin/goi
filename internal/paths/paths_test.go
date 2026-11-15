@@ -4,7 +4,37 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/p4tin/goi/internal/product"
 )
+
+func TestMain(m *testing.M) {
+	product.Set(product.Identity{Name: "Goi", Program: "goi", DirName: "Goi", DataVersion: "0.1", HomeEnv: "GOI_HOME"})
+	os.Exit(m.Run())
+}
+
+func TestDirsFollowIdentity(t *testing.T) {
+	old := product.Current()
+	t.Cleanup(func() { product.Set(old) })
+	product.Set(product.Identity{Name: "Zed", DirName: "Zed", DataVersion: "2.3", HomeEnv: "ZED_HOME"})
+	t.Setenv("GOI_HOME", "/nope")
+	t.Setenv("ZED_HOME", "")
+	d, err := ConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(d) != "2.3" || filepath.Base(filepath.Dir(d)) != "Zed" {
+		t.Fatalf("ConfigDir = %q, want …/Zed/2.3", d)
+	}
+	t.Setenv("ZED_HOME", "/tmp/zed")
+	if d, _ := CacheDir(); d != filepath.Join("/tmp/zed", "cache") {
+		t.Fatalf("CacheDir with ZED_HOME = %q", d)
+	}
+	product.Set(product.Identity{})
+	if _, err := ConfigDir(); err == nil {
+		t.Fatal("ConfigDir without an identity should fail")
+	}
+}
 
 func TestRelativeGOIHomeBecomesAbsolute(t *testing.T) {
 	t.Chdir(t.TempDir())
@@ -39,7 +69,7 @@ ios:
 }
 
 func TestConfigVersionRepo(t *testing.T) {
-	b, err := os.ReadFile("../../build/config.yml")
+	b, err := os.ReadFile("../../apps/goi/build/config.yml")
 	if err != nil {
 		t.Skip(err)
 	}

@@ -16,6 +16,7 @@ import { diskPort, editorPort, idePort } from './ports';
 import { AgentTools } from './tools';
 import { AgentPanel } from './view';
 import './agent.css';
+import { product } from '../pack';
 
 /** Answers one agent.request. Exported for tests. */
 export async function handleRequest(req: AgentRequestEvent, tools: AgentTools, panel: Pick<AgentPanel, 'onPermission'>): Promise<void> {
@@ -62,7 +63,7 @@ async function showMcpConfig(wb: Workbench): Promise<void> {
     h('div', { class: 'agent-mcp-label' }, 'JSON (mcpServers)'),
     h('pre', { class: 'agent-mcp-pre' }, cfg.json),
     h('button', { class: 'btn', onClick: () => copy(cfg.json, 'JSON') }, 'Copy JSON'));
-  await showDialog({ title: 'Goi MCP Server', body, buttons: [{ label: 'Close', value: undefined, primary: true }], cancelValue: undefined });
+  await showDialog({ title: `${product.name} MCP Server`, body, buttons: [{ label: 'Close', value: undefined, primary: true }], cancelValue: undefined });
 }
 
 export function installAgent(wb: Workbench): void {

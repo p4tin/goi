@@ -93,7 +93,7 @@ func agentSetup(t *testing.T, env ...string) *agentHarness {
 		t.Setenv(k, v)
 	}
 	root := module(t)
-	a, err := NewApp(Options{ProjectPath: root})
+	a, err := NewApp(Options{ProjectPath: root}, testPack())
 	if err != nil {
 		t.Fatal(err)
 	}

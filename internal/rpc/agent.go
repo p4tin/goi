@@ -18,7 +18,7 @@ import (
 	"github.com/p4tin/goi/internal/acp"
 	"github.com/p4tin/goi/internal/agent"
 	"github.com/p4tin/goi/internal/events"
-	"github.com/p4tin/goi/internal/paths"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // AgentStateEvent is the payload of agent.state.
@@ -233,7 +233,7 @@ func (m *agentManager) proc(ctx context.Context, def agent.Definition, override 
 		Host:           p,
 		Log:            m.app.log,
 		TerminalPrefix: def.ID + "-",
-		ClientVersion:  paths.ProductVersion,
+		ClientVersion:  product.Current().Version,
 	})
 	if err != nil {
 		m.win.bus.Emit(events.TopicAgentState, AgentStateEvent{Agent: def.ID, State: "error", Message: err.Error(), Sessions: []string{}})
@@ -298,14 +298,14 @@ func (m *agentManager) mcpServers(p *agentProc, key string) ([]acp.MCPServer, bo
 	}
 	url := fmt.Sprintf("%s/mcp/%d/%s", l.base, m.win.id, key)
 	if p.client.Info().AgentCapabilities.MCPCapabilities.HTTP {
-		return []acp.MCPServer{{Name: "goi", URL: url, Headers: []acp.NameValue{{Name: "Authorization", Value: "Bearer " + l.token}}}}, true
+		return []acp.MCPServer{{Name: product.Program(), URL: url, Headers: []acp.NameValue{{Name: "Authorization", Value: "Bearer " + l.token}}}}, true
 	}
 	exe, err := m.app.bridgeExe()
 	if err != nil {
 		m.app.log.Warn("mcp bridge", "err", err)
 		return nil, false
 	}
-	return []acp.MCPServer{{Name: "goi", Command: exe, Args: []string{"mcp-bridge", "--url", url}, Env: []acp.NameValue{{Name: "GOI_MCP_TOKEN", Value: l.token}}}}, true
+	return []acp.MCPServer{{Name: product.Program(), Command: exe, Args: []string{"mcp-bridge", "--url", url}, Env: []acp.NameValue{{Name: product.Current().MCPTokenEnv(), Value: l.token}}}}, true
 }
 
 // newSession starts (or reuses) the agent and opens a session in the
@@ -484,7 +484,7 @@ func (p *agentProc) checkPath(path string) error {
 		return &acp.Error{Code: acp.CodeInvalidParams, Message: "path must be absolute: " + path}
 	}
 	if _, ok := p.m.sess.contains(filepath.Clean(path)); !ok {
-		return &acp.Error{Code: acp.CodeInvalidParams, Message: "Goi only lets agents access files inside the project: " + path}
+		return &acp.Error{Code: acp.CodeInvalidParams, Message: product.Name() + " only lets agents access files inside the project: " + path}
 	}
 	return nil
 }
@@ -620,7 +620,7 @@ func (s *AgentService) Agents(ctx context.Context) ([]AgentInfo, error) {
 func (s *AgentService) Install(ctx context.Context, agentID string) error {
 	def, ok := agent.Lookup(agentID)
 	if !ok || def.Package == "" {
-		return fmt.Errorf("%s can't be installed by Goi", agentID)
+		return fmt.Errorf("%s can't be installed by %s", agentID, product.Name())
 	}
 	npm, err := agent.FindNpm(nil)
 	if err != nil {
@@ -813,10 +813,10 @@ func (s *AgentService) TerminalOutput(ctx context.Context, id string) (AgentTerm
 func (s *AgentService) MCPConfig(ctx context.Context) (MCPConfig, error) {
 	l := s.app.mcp.externalListener()
 	if l == nil {
-		return MCPConfig{}, errors.New("external MCP clients are off: turn on Settings › AI › External MCP Clients and restart Goi")
+		return MCPConfig{}, errors.New("external MCP clients are off: turn on Settings › AI › External MCP Clients and restart " + product.Name())
 	}
 	url := l.base + "/mcp"
-	j, _ := json.MarshalIndent(map[string]any{"mcpServers": map[string]any{"goi": map[string]any{
+	j, _ := json.MarshalIndent(map[string]any{"mcpServers": map[string]any{product.Program(): map[string]any{
 		"type": "http", "url": url, "headers": map[string]string{"Authorization": "Bearer " + l.token},
 	}}}, "", "  ")
 	return MCPConfig{

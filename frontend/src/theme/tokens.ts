@@ -252,7 +252,7 @@ export interface SchemeTokens {
 
 export const schemes: Record<SchemeId, SchemeTokens> = {
   'goi-light': {
-    name: 'Goi Light',
+    name: 'Light',
     dark: false,
     editor: {
       bg: '#ffffff',
@@ -283,7 +283,7 @@ export const schemes: Record<SchemeId, SchemeTokens> = {
     },
   },
   'goi-dark': {
-    name: 'Goi Dark',
+    name: 'Dark',
     dark: true,
     editor: {
       bg: '#1b1d21',
@@ -314,7 +314,7 @@ export const schemes: Record<SchemeId, SchemeTokens> = {
     },
   },
   'goi-ember': {
-    name: 'Goi Ember',
+    name: 'Ember',
     dark: true,
     editor: {
       bg: '#221c18',
@@ -345,7 +345,7 @@ export const schemes: Record<SchemeId, SchemeTokens> = {
     },
   },
   'goi-paper': {
-    name: 'Goi Paper',
+    name: 'Paper',
     dark: false,
     editor: {
       bg: '#f5f1e8',

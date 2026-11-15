@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/p4tin/goi/internal/dap"
+	"github.com/p4tin/goi/internal/product"
 )
 
 // Event is an adapter event forwarded to the owner.
@@ -159,7 +160,7 @@ func Start(ctx context.Context, cfg Config) (*Session, error) {
 	ictx, cancel := context.WithTimeout(ctx, cfg.StartTimeout)
 	defer cancel()
 	err = s.conn.Call(ictx, "initialize", dap.InitializeArguments{
-		ClientID: "goi", ClientName: "Goi", AdapterID: "go", Locale: "en",
+		ClientID: product.Program(), ClientName: product.Name(), AdapterID: "go", Locale: "en",
 		LinesStartAt1: true, ColumnsStartAt1: true, PathFormat: "path",
 		SupportsVariableType: true,
 	}, &s.caps)

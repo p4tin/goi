@@ -2,7 +2,7 @@
   <configuration default="false" name="Goi" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="goi" />
     <working_directory value="$PROJECT_DIR$" />
-    <go_parameters value="-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,build/darwin/Info.goland.plist" />
+    <go_parameters value="-tags production -ldflags=-extldflags=-Wl,-sectcreate,__TEXT,__info_plist,$PROJECT_DIR$/apps/goi/build/darwin/Info.goland.plist" />
     <envs>
       <env name="GOTOOLCHAIN" value="auto" />
       <env name="GOI_HOME" value=".goi-home" />
@@ -18,11 +18,11 @@
       </ENTRIES>
     </EXTENSION>
     <kind value="PACKAGE" />
-    <package value="github.com/p4tin/goi" />
+    <package value="github.com/p4tin/goi/apps/goi" />
     <directory value="$PROJECT_DIR$" />
-    <filePath value="$PROJECT_DIR$/main.go" />
+    <filePath value="$PROJECT_DIR$/apps/goi/main.go" />
     <method v="2">
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="frontend build" run_configuration_type="js.build_tools.npm" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="frontend build (goi)" run_configuration_type="js.build_tools.npm" />
     </method>
   </configuration>
 </component>

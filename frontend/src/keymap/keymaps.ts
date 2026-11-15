@@ -33,7 +33,7 @@ const shared: Record<string, Entry> = {
 
 export const keymaps: Record<KeymapId, Keymap> = {
   'goi-default': {
-    name: 'Goi Default',
+    name: 'Default',
     bindings: {
       ...shared,
       'editor.close': { all: ['Mod-w'], other: ['Mod-w', 'Mod-F4'] },

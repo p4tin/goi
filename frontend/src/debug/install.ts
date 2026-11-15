@@ -15,6 +15,7 @@ import { actions, addWatch, installDebugWindow, renderDebugWindow, targetTab, wa
 import { openEvaluate } from './evaluate';
 import { installDebugDecorations } from './inline';
 import './debug.css';
+import { product } from '../pack';
 
 /** Offers to install Delve when a debug launch fails because it's missing,
  * then retries the launch. */
@@ -23,7 +24,7 @@ async function offerInstall(wb: Workbench, cfg: RunConfig, err: unknown): Promis
   if (!/dlv not found/i.test(msg)) return false;
   const ok = await confirmDialog(
     'Delve Is Not Installed',
-    'Debugging Go needs Delve (dlv). Install it now? Goi runs "go install github.com/go-delve/delve/cmd/dlv@latest" into its tools folder.',
+    `Debugging Go needs Delve (dlv). Install it now? ${product.name} runs "go install github.com/go-delve/delve/cmd/dlv@latest" into its tools folder.`,
     'Install Delve',
   );
   if (!ok) return true;

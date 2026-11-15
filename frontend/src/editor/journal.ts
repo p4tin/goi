@@ -13,6 +13,7 @@ import type { Buffer } from './buffer';
 import { baseName } from './buffer';
 import type { EditorManager } from './editorManager';
 import { editors } from './install';
+import { product } from '../pack';
 
 export const JOURNAL_INTERVAL_MS = 2000;
 
@@ -78,7 +79,7 @@ async function offerRestore(wb: Workbench, m: EditorManager): Promise<void> {
     body: h(
       'div',
       null,
-      h('p', null, `Goi didn’t shut down cleanly. ${entries.length} file${entries.length > 1 ? 's have' : ' has'} unsaved changes:`),
+      h('p', null, `${product.name} didn’t shut down cleanly. ${entries.length} file${entries.length > 1 ? 's have' : ' has'} unsaved changes:`),
       h('ul', null, entries.map((e) => h('li', { title: e.path }, baseName(e.path)))),
     ),
     cancelValue: false,

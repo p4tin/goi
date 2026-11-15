@@ -28,5 +28,5 @@ async function boot(): Promise<void> {
 
 boot().catch((err: unknown) => {
   console.error('boot', err);
-  document.body.textContent = `Goi failed to start: ${String(err)}`;
+  document.body.textContent = `${__PRODUCT_NAME__} failed to start: ${String(err)}`;
 });

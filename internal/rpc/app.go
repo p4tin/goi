@@ -20,7 +20,9 @@ import (
 	"github.com/p4tin/goi/internal/applog"
 	"github.com/p4tin/goi/internal/events"
 	"github.com/p4tin/goi/internal/journal"
+	"github.com/p4tin/goi/internal/pack"
 	"github.com/p4tin/goi/internal/paths"
+	"github.com/p4tin/goi/internal/product"
 	"github.com/p4tin/goi/internal/recent"
 	"github.com/p4tin/goi/internal/runconfig"
 )
@@ -48,7 +50,7 @@ func parseArgsIn(args []string, cwd string) (Options, error) {
 		}
 		return filepath.Abs(p)
 	}
-	fs := flag.NewFlagSet("goi", flag.ContinueOnError)
+	fs := flag.NewFlagSet(product.Program(), flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	project := fs.String("project", "", "project folder to open")
 	var known, positional []string
@@ -96,6 +98,7 @@ func parseArgsIn(args []string, cwd string) (Options, error) {
 // App is the core lifecycle owner. It is not bound to the frontend; the
 // services it returns from Services are.
 type App struct {
+	pack         pack.Pack
 	startedUp    atomic.Bool
 	pendingMu    sync.Mutex
 	pendingFiles []string
@@ -156,7 +159,7 @@ type App struct {
 
 // NewApp initialises logging and constructs the bound services. It runs
 // before the Wails window exists.
-func NewApp(opts Options) (*App, error) {
+func NewApp(opts Options, p pack.Pack) (*App, error) {
 	configDir, err := paths.ConfigDir()
 	if err != nil {
 		return nil, err
@@ -171,6 +174,7 @@ func NewApp(opts Options) (*App, error) {
 		return nil, err
 	}
 	a := &App{
+		pack:      p,
 		opts:      opts,
 		log:       log,
 		closer:    closer,
@@ -265,8 +269,8 @@ type AppService struct {
 // open in this window, if any.
 func (s *AppService) Info(ctx context.Context) AppInfo {
 	info := AppInfo{
-		Name:      "Goi",
-		Version:   paths.ProductVersion,
+		Name:      product.Name(),
+		Version:   product.Current().Version,
 		Build:     paths.BuildVersion,
 		GoVersion: runtime.Version(),
 		OS:        runtime.GOOS,

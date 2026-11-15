@@ -70,7 +70,7 @@ tasks:
       - yarn install
 
   build:frontend:
-    label: build:frontend (DEV={{.DEV}} RUNNER={{.PACKAGE_MANAGER}})
+    label: build:frontend (APP={{.APP}} DEV={{.DEV}} RUNNER={{.PACKAGE_MANAGER}})
     summary: Build the frontend project
     # darwin:build:universal runs its per-arch builds as parallel deps, each of
     # which depends on this task. Without run:once the two executions race:
@@ -79,11 +79,15 @@ tasks:
     # 'Could not resolve "./bindings/<pkg>"' (#4637).
     run: once
     dir: frontend
+    # Each app has its own output (apps/<app>/dist) but the same sources, so
+    # compare timestamps rather than the shared checksum fingerprint.
+    method: timestamp
     sources:
       - "**/*"
       - exclude: node_modules/**/*
+      - ../{{.APP_DIR}}/build/config.yml
     generates:
-      - dist/**/*
+      - ../{{.APP_DIR}}/dist/**/*
     deps:
       - task: install:frontend:deps
       - task: generate:bindings
@@ -95,7 +99,7 @@ tasks:
     cmds:
       - task: frontend:run
         vars:
-          SCRIPT: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
+          SCRIPT: '{{if eq .DEV "true"}}build:app:dev{{else}}build:app{{end}} -- --mode {{.APP}}'
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
 
@@ -111,7 +115,7 @@ tasks:
   frontend:run:npm:
     dir: frontend
     cmds:
-      - npm run {{.SCRIPT}} -q
+      - npm run -q {{.SCRIPT}}
     vars:
       SCRIPT: "{{.SCRIPT}}"
 
@@ -188,12 +192,14 @@ tasks:
     generates:
       - frontend/bindings/**/*
     cmds:
-      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i
+      # One bindings tree for every app (core services plus each app's own).
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i ./apps/...
 
   generate:icons:
-    summary: Generates the Mac `.icns` from appicon.png. Windows uses the committed windows/icon.ico (scripts/icons.sh makes it from appicon.svg); no Assets.car.
+    summary: Generates the Mac `.icns` from the app's appicon.png. Windows uses the committed windows/icon.ico (scripts/icons.sh makes it from appicon.svg); no Assets.car.
     run: once
-    dir: build
+    dir: '{{.APP_DIR}}/build'
+    method: timestamp
     sources:
       - "appicon.png"
     generates:
@@ -201,8 +207,8 @@ tasks:
     cmds:
       # The CLI always writes a .ico too (default build/windows/icon.ico, which would
       # clobber the committed one); send it to the ignored bin/ dir instead.
-      - mkdir -p ../bin
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename ../bin/.unused-icon.ico
+      - mkdir -p "{{.ROOT_DIR}}/bin"
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename "{{.ROOT_DIR}}/bin/.unused-icon.ico"
 
   dev:frontend:
     summary: Runs the frontend in development mode
@@ -214,26 +220,26 @@ tasks:
   frontend:dev:npm:
     dir: frontend
     cmds:
-      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+      - npm run dev -- --mode {{.APP}} --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:yarn:
     dir: frontend
     cmds:
-      - yarn dev --port {{.VITE_PORT}} --strictPort
+      - yarn dev --mode {{.APP}} --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:pnpm:
     dir: frontend
     cmds:
-      - pnpm dev --port {{.VITE_PORT}} --strictPort
+      - pnpm dev --mode {{.APP}} --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:bun:
     dir: frontend
     cmds:
-      - bun run dev --port {{.VITE_PORT}} --strictPort
+      - bun run dev --mode {{.APP}} --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
     summary: Updates the build assets
-    dir: build
+    dir: '{{.APP_DIR}}/build'
     cmds:
       - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
 
@@ -261,7 +267,7 @@ tasks:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
-      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"'
+      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}" {{.MAIN_PKG}}'
     vars:
       BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -buildvcs=false -gcflags=all="-l"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
 
