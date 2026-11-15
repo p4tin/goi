@@ -1,7 +1,7 @@
 # nfpm configuration for the Linux .deb and .rpm packages (Wails v3 build).
 # Pyi's own file: `wails3 update build-assets` regenerates build/linux/nfpm/nfpm.yaml,
 # so the packaging tasks use this one instead. Paths are relative to the repo root.
-#   APP_VERSION=0.1.0 GOARCH=amd64 wails3 tool package -name pyi -format deb -config apps/pyi/build/package/linux/nfpm.yaml -out bin/pyi
+#   APP_VERSION=0.3.0 GOARCH=amd64 wails3 tool package -name pyi -format deb -config apps/pyi/build/package/linux/nfpm.yaml -out bin/pyi
 # The linux:create:deb / linux:create:rpm tasks set APP_VERSION from scripts/version.sh.
 name: pyi
 arch: ${GOARCH}
